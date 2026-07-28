@@ -1,49 +1,92 @@
 'use client';
 
 /**
- * CinematicBackground — THE SWAP SEAM.
+ * CinematicBackground — THE SWAP SEAM, now swapped.
  *
- * Phase 7 ships a CC0 flyover plate. Phase 8 replaces the contents of this one
- * component with <SolarFarmScene />, and NOTHING ELSE CHANGES — the mission log,
- * timecode, status pill, PiP and reticle all sit above it and never know which is
- * underneath. That is the whole reason the seam exists: a bad day on the 3D scene
- * can never cost you a working demo.
+ * Phase 7 shipped a CC0 flyover plate here. Phase 8 replaced its contents with the
+ * R3F scene, and NOTHING ELSE CHANGED — the mission log, timecode, status pill,
+ * PiP and reticle all sit above it and never knew which was underneath. That was
+ * the entire point of building the seam first.
  *
- * The clip is a background PLATE, not footage of Bhadla — it is a German
- * agrivoltaic site, warm-graded so it reads as arid. Nothing measured comes from
- * it. Provenance and the honest framing: docs/media-provenance.md.
+ * The video path is kept and still works. It is the fallback if WebGL is
+ * unavailable on the demo machine, and it is one boolean away if the scene ever
+ * misbehaves on a projector five minutes before showing it.
+ *
+ * The scene is a SIMULATION of the modelled site, not footage. It is built from
+ * farm.json's own geometry, so the field you fly over is the field the map draws.
+ * Provenance for the video fallback: docs/media-provenance.md.
  */
 
-const SRC = '/cinematic/flyover.webm';
+import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+
+/** R3F must not render on the server — there is no WebGL context there. */
+const SolarFarmScene = dynamic(() => import('@/components/scene/SolarFarmScene'), {
+  ssr: false,
+  loading: () => null,
+});
+
+const VIDEO_SRC = '/cinematic/flyover.webm';
+
+/** Flip to true to fall back to the committed CC0 plate. */
+const FORCE_VIDEO = false;
+
+function hasWebGL(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(
+      canvas.getContext('webgl2') ?? canvas.getContext('webgl'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function VideoPlate() {
+  return (
+    <video
+      src={VIDEO_SRC}
+      autoPlay
+      muted
+      loop
+      playsInline
+      aria-hidden
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        // Warm/arid grade — a stylistic choice on a stock plate, stated in
+        // docs/media-provenance.md rather than left for someone to notice.
+        filter: 'sepia(0.42) saturate(1.15) hue-rotate(-12deg) contrast(1.05) brightness(0.92)',
+      }}
+    />
+  );
+}
 
 export function CinematicBackground() {
-  return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'var(--surface-inset)' }}>
-      <video
-        src={SRC}
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          // Warm/arid grade. A stylistic choice on a stock plate, stated in
-          // docs/media-provenance.md rather than left for someone to notice.
-          filter: 'sepia(0.42) saturate(1.15) hue-rotate(-12deg) contrast(1.05) brightness(0.92)',
-        }}
-      />
+  // Decided after mount: the server cannot know whether WebGL exists, and guessing
+  // wrong would mean a hydration mismatch on the most visible element on screen.
+  const [webgl, setWebgl] = useState<boolean | null>(null);
+  useEffect(() => setWebgl(hasWebGL()), []);
 
-      {/* Sensor character: a faint scanline grid and a vignette, so the plate reads
-          as a downlinked camera feed rather than as a stock video playing. */}
+  const useScene = webgl === true && !FORCE_VIDEO;
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, overflow: 'hidden',
+      background: 'var(--surface-inset)',
+    }}>
+      {useScene ? <SolarFarmScene /> : webgl === false ? <VideoPlate /> : null}
+
+      {/* Sensor character over whichever is underneath: faint scanlines and a
+          vignette, so the frame reads as a downlinked camera feed. */}
       <div
         aria-hidden
         style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
           backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0px, rgba(0,0,0,0.16) 1px, transparent 1px, transparent 3px)',
+            'repeating-linear-gradient(0deg, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 1px, transparent 1px, transparent 3px)',
           mixBlendMode: 'multiply',
         }}
       />

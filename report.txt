@@ -6,10 +6,10 @@
  A running record of every phase: what was delivered, what was checked, what was
  found, and what needs a human decision. Appended to at the end of each phase.
 
- Last updated ........ Phase 7 complete
- Phases complete ..... 0, 1, 2, 3 (repo side), 4, 5, 6, 7
- Phases remaining .... 3 (Colab run — yours), 8 (3D scene), 9 (polish), 10 (artefacts)
- Tests ............... 91 passing
+ Last updated ........ Phase 8 complete
+ Phases complete ..... 0, 1, 2, 3 (repo side), 4, 5, 6, 7, 8
+ Phases remaining .... 3 (Colab run — yours), 9 (polish), 10 (artefacts + deploy)
+ Tests ............... 115 passing
  Build ............... green (npm run build)
  Invariants .......... I1–I10, I12, I13, I14, I16 PASS · I11 waits on Colab · I15 manual
 
@@ -35,7 +35,7 @@
                             invariants I1–I16. Wired into prebuild, so a drifted
                             number FAILS THE BUILD, not the demo.
    npm run check:literals   fails if a headline figure is hardcoded in src/.
-   npm run test             91 tests, also wired into prebuild.
+   npm run test             115 tests, also wired into prebuild.
 
  Three invariants are tripwires against the author, not against bugs:
    I10  rejects a ΔT outside the measured band, so the thermal scaling cannot be
@@ -434,6 +434,78 @@
 
 
 ═══════════════════════════════════════════════════════════════════════════════
+ PHASE 8 — 3D SCENE
+═══════════════════════════════════════════════════════════════════════════════
+
+ THE SWAP WAS ONE COMPONENT BOUNDARY, exactly as designed in Phase 7.
+ CinematicBackground now renders <SolarFarmScene /> instead of <video>. The mission
+ log, timecode, status pill, PiP and target reticle were NOT TOUCHED and do not
+ know which is underneath. That is what building the seam first bought.
+
+ DELIVERED
+   ✓ @react-three/fiber 9.6.1 · @react-three/drei 10.7.7 · three 0.180.0
+     — exactly the C6 pins (v8 does not run on React 19)
+   ✓ src/lib/scene.ts — world geometry and the camera spline, PURE, no three
+   ✓ PanelField — 480 panels + 480 posts as TWO instanced meshes (2 draw calls,
+     not 960). Layout derived from farm.json, so the field flown over is the field
+     the map draws. Hard cap 600, per §14.
+   ✓ SceneEnvironment — sandy ground, gradient sky shader (no HDRI: megabytes for
+     one gradient), low warm sun, hemisphere fill, linear fog matched to horizon
+   ✓ Drone — low-poly quadrotor from primitives. No glTF to fetch, fail or license.
+     Banks into travel, blob shadow fades with altitude, nav lights.
+   ✓ CrackedPanel — B-17 as unique meshes with a deterministic canvas-drawn crack
+     and the MEASURED hot band (row 2, cols 3–6) darkened and emissive
+   ✓ CameraRig — samples cameraAt(t); the lerp SMOOTHS, it never decides
+   ✓ ThermalPass — ironbow LUT post-process, t=48..56, with quantisation and
+     scanlines because a thermal sensor IS lower-resolution
+
+ THE AESTHETIC BET PAYS OFF HERE
+   The GLSL LUT is the same seven stops as the --iron-* CSS tokens and the same
+   seven the matplotlib render uses in thermal_hotspot.py. When the feed goes
+   thermal, the cinematic and the console's anomaly matrix are speaking ONE colour
+   language — it reads as one instrument changing modes, not two applications.
+
+ ACCEPTANCE — 24 new tests, 115 total
+   Because cameraAt() and droneAt() are pure, the two claims that matter are tested
+   WITHOUT a GPU:
+   ✓ all five camera marks from §14 (launch 65° low · transit tracking · approach
+     narrowing to 45° · inspect near-nadir orbiting at exactly 15°/s · pull out
+     rising back to 65°)
+   ✓ the orbit is SAMPLED: 8 s in is exactly 120° round, to 4 decimal places
+   ✓ THE SEEK GUARANTEE — sampling the same t twice is byte-identical, and
+     sampling [20,30,40,50,60] backwards equals sampling it forwards
+   ✓ no NaN at any t from 0 to 90, stepped at 0.1
+   ✓ the drone holds station over B-17 through the whole inspection and moves
+     monotonically toward it during transit
+   ✓ 480 instances, under the 600 cap, one array marked faulted
+
+ FINDING — THE CAMERA JUMPED 32 METRES
+   The continuity test caught a 32 m jump at t=22, the launch→transit boundary:
+   launch ended at y=10 while transit began at drone.y+7 = 41. Segment boundaries
+   are exactly where a spline sampled from `t` shows its seams, so each one is now
+   SOLVED to hand over exactly rather than eyeballed. The test asserts no jump
+   above 3 m anywhere across t=18..74, stepped at 0.05.
+   A second, smaller one: the drone's hover bob started and ended with a step. It
+   now fades in and out.
+
+ VERIFIED IN THE PRODUCTION BUILD
+   ✓ three.js is CODE-SPLIT out of the initial bundle (dynamic import, ssr:false)
+     — the page chunk contains zero references to WebGLRenderer
+   ✓ scene chunk, flyover fallback and thermal PNG all serve 200
+
+ FALLBACK KEPT
+   CinematicBackground detects WebGL after mount and falls back to the committed
+   CC0 plate if it is missing. FORCE_VIDEO is one boolean, for the case where the
+   scene misbehaves on a projector five minutes before showing it.
+
+ ⚠ THE ONE THING I CANNOT VERIFY: FRAME RATE
+   §14 wants 60fps at 1920×1080 on the demo machine. That needs a browser and your
+   GPU. Everything cheap has been done — instances only, no shadow maps, dpr
+   capped at 1.5, no HDRI, 2 draw calls for 960 objects. If it stutters, tell me
+   and the first levers are dpr [1, 1.25], PANELS_PER_ARRAY 4→2, and dropping the
+   sky sphere segments.
+
+═══════════════════════════════════════════════════════════════════════════════
  OPEN ITEMS
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -454,7 +526,11 @@
    · LIVE_AGENT=true runtime escape hatch — plan/01 tags it V2.
    · Acoustic FFT band-energy check — plan/01 tags it STRETCH.
 
+ ALSO FOR YOU
+   5. CHECK THE FRAME RATE with the 3D scene running (press V to force cinematic).
+      It is the one Phase 8 acceptance criterion that needs your GPU.
+
  NEXT
-   Phase 8 — the R3F 3D scene, swapped in behind the existing overlays. One
-   component boundary changes; nothing else does. Phase 9 polish, Phase 10
-   artefacts and deploy.
+   Phase 9 — polish: motion timing, the ironbow consistency check between the CSS
+   ramp and the GLSL LUT, copy pass, focus states, prefers-reduced-motion.
+   Phase 10 — full 90s recording, README finalisation, Vercel deploy.
