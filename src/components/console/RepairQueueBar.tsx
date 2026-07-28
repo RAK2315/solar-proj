@@ -74,6 +74,7 @@ export function RepairQueueBar() {
       <span className="t-micro" style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
         deadline in {hours(next.hoursUntilDeadline)} · ranked by a pure function, not a model
       </span>
+      <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>VIEW QUEUE →</span>
     </footer>
   );
 }

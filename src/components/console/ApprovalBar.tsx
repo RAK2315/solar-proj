@@ -61,25 +61,35 @@ export function ApprovalBar() {
       </button>
 
       <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-        {[
-          approved ? '✓ QUEUED' : 'QUEUE',
-          'INSPECT EVIDENCE',
-          'OVERRIDE',
-        ].map((label) => (
-          <span
-            key={label}
-            className="t-h2"
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              padding: 'var(--sp-2)',
-              border: '1px solid var(--line-active)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            {label}
-          </span>
-        ))}
+        <span
+          className="t-h2"
+          style={{
+            flex: 1, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
+            border: `1px solid ${approved ? 'var(--panel-scheduled)' : 'var(--line-active)'}`,
+            color: approved ? 'var(--panel-scheduled)' : 'var(--text-muted)',
+          }}
+        >
+          {approved ? '✓ QUEUED' : 'QUEUED'}
+        </span>
+        <span
+          className="t-h2"
+          style={{
+            flex: 1.6, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
+            border: '1px solid var(--line-active)', background: 'var(--surface-raised)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          INSPECT EVIDENCE
+        </span>
+        <span
+          className="t-h2"
+          style={{
+            flex: 1, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
+            border: '1px solid var(--line-active)', color: 'var(--text-muted)',
+          }}
+        >
+          OVERRIDE
+        </span>
       </div>
 
       <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'center' }}>

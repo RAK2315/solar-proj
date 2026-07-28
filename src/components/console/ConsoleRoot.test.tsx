@@ -32,9 +32,9 @@ afterEach(cleanup);
 describe('t = 0..6 — at rest (§2 row 1)', () => {
   it('shows a nominal fleet and no detail', () => {
     const text = textAt(0);
-    expect(text).toContain('SURYA AGENT');
+    expect(text).toMatch(/SURYA\s*AGENT/);
     expect(text).toContain('94');            // farm health
-    expect(text).toContain('364 MW');        // C2 — not 412
+    expect(text).toMatch(/364\s*MW/);         // C2 — not 412
     expect(text).toContain('NO ARRAY SELECTED');
     expect(text).not.toContain('B-17-S3');
     expect(text).not.toContain('APPROVE');
@@ -42,7 +42,7 @@ describe('t = 0..6 — at rest (§2 row 1)', () => {
 
   it('counts 2 anomalies and 0 critical, derived from panel status (C11)', () => {
     const text = textAt(0);
-    expect(text).toMatch(/Anomalies\s*2\s*0\s*critical/);
+    expect(text).toMatch(/Anomalies\s*2\s*Critical 0/i);
   });
 });
 
@@ -65,7 +65,7 @@ describe('t = 12 — triage (§2 row 3)', () => {
   it('shows health dropped to 80 and one critical anomaly', () => {
     const text = textAt(12);
     expect(text).toContain('80');
-    expect(text).toMatch(/Anomalies\s*3\s*1\s*critical/);
+    expect(text).toMatch(/Anomalies\s*3\s*Critical 1/i);
   });
 
   it('uses a real minus sign, not a hyphen', () => {
@@ -180,7 +180,8 @@ describe('no number on screen is a literal', () => {
     // If any of these ever came from a hardcoded string, check:literals would fail
     // the build — these assertions prove the values arrive at all.
     const text = textAt(80);
-    for (const figure of ['364 MW', '3.07 MWh', '−58.4 %', '−41.7 %', '14:00']) {
+    expect(text).toMatch(/364\s*MW/);
+    for (const figure of ['3.07 MWh', '−58.4 %', '−41.7 %', '14:00']) {
       expect(text).toContain(figure);
     }
   });

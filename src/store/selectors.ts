@@ -23,7 +23,7 @@ import {
 import { rankQueue } from '@/lib/ranking';
 import type {
   AgentCache, CellGrid, DemoEvent, Detection, Forecast, InverterReading,
-  PanelArray, PanelReading, PanelStatus, RepairTask, TelemetryFrame,
+  PanelArray, PanelReading, PanelStatus, RepairTask, TelemetryFrame, ZoneId,
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
 
@@ -184,6 +184,49 @@ export function usePanelStatus(id: string): PanelStatus {
 
 export function useInverterReadings(): Record<string, InverterReading> {
   return useFrame().inverters;
+}
+
+/**
+ * Zone rollup for the map's status cards.
+ *
+ * One hook reading one frame, rather than calling usePanelStatus 40 times inside a
+ * map — which would be a rules-of-hooks violation even though the list length is
+ * fixed. Derived live rather than read from farm.json, because farm.json is static
+ * geometry and knows nothing about a fault that develops at t=6.
+ */
+export function useZoneSummary(zoneId: ZoneId): {
+  label: string; pct: number; critical: number; anomalous: number;
+} {
+  const frame = useFrame();
+  const approved = useDemoClock((s) => s.approved);
+
+  return useMemo(() => {
+    const zone = farm.zones.find((z) => z.id === zoneId);
+    if (!zone) return { label: 'HEALTHY', pct: 100, critical: 0, anomalous: 0 };
+
+    let critical = 0;
+    let scheduled = 0;
+    let anomalous = 0;
+
+    for (const p of zone.panels) {
+      let status: PanelStatus = frame.panels[p.id]?.status ?? 'healthy';
+      if (approved && p.id === 'B-17' && status === 'critical') status = 'scheduled';
+      if (status !== 'healthy') anomalous += 1;
+      if (status === 'critical') critical += 1;
+      if (status === 'scheduled') scheduled += 1;
+    }
+
+    const label = critical > 0 ? 'CRITICAL'
+      : scheduled > 0 ? 'SCHEDULED'
+        : anomalous > 0 ? 'DEGRADED' : 'HEALTHY';
+
+    return {
+      label,
+      pct: Math.round(((zone.panels.length - anomalous) / zone.panels.length) * 100),
+      critical,
+      anomalous,
+    };
+  }, [frame, approved, zoneId]);
 }
 
 /* ── Drone ───────────────────────────────────────────────────────────────── */

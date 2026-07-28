@@ -12,6 +12,7 @@
 import { DetailPanel } from './DetailPanel';
 import { FarmMap } from './FarmMap';
 import { HeaderBar } from './HeaderBar';
+import { IconRail } from './IconRail';
 import { LeftRail } from './LeftRail';
 import { RepairQueueBar } from './RepairQueueBar';
 
@@ -19,6 +20,7 @@ export function ConsoleRoot() {
   return (
     <div className="console-root">
       <HeaderBar />
+      <IconRail />
       <LeftRail />
       <FarmMap />
       <DetailPanel />

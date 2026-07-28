@@ -15,7 +15,9 @@
  * presentation and live here. 120 rects is nowhere near an SVG perf concern.
  */
 
-import { useFarm, usePanelStatus, useRouteProgress } from '@/store/selectors';
+import {
+  useFarm, usePanelStatus, useRouteProgress, useZoneSummary,
+} from '@/store/selectors';
 import type { PanelArray, PanelStatus, Zone } from '@/lib/types';
 
 const VIEW_W = 1000;
@@ -61,22 +63,60 @@ function PanelCell({ zone, panel }: { zone: Zone; panel: PanelArray }) {
   );
 }
 
+/**
+ * Zone health is recomputed from the CURRENT frame rather than read from
+ * farm.json, because farm.json is static geometry and knows nothing about a fault
+ * that develops at t=6. The card shows the worst status in the zone and the
+ * percentage of arrays that are nominal.
+ */
+function ZoneCard({ zone }: { zone: Zone }) {
+  const { label, pct } = useZoneSummary(zone.id);
+
+  const colour = label === 'CRITICAL' ? 'var(--panel-critical)'
+    : label === 'SCHEDULED' ? 'var(--panel-scheduled)'
+      : label === 'DEGRADED' ? 'var(--panel-warning)' : 'var(--sev-active)';
+
+  const w = 96;
+  const x = zone.originX - w - 26;
+  const y = zone.originY + 10;
+
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={40} fill="var(--surface-panel)"
+        stroke="var(--line-hairline)" />
+      <text x={x + 10} y={y + 19} fill="var(--text-primary)"
+        style={{ font: '600 15px var(--font-cond)', letterSpacing: '0.1em' }}>
+        {zone.id}
+      </text>
+      <circle cx={x + 12} cy={y + 30} r={3} fill={colour} />
+      <text x={x + 21} y={y + 33} fill={colour}
+        style={{ font: '500 8px var(--font-mono)', letterSpacing: '0.08em' }}>
+        {label} {pct}%
+      </text>
+    </g>
+  );
+}
+
 function ZoneBlock({ zone }: { zone: Zone }) {
   const w = zone.cols * CELL_W + (zone.cols - 1) * GAP_X;
   const h = zone.rows * CELL_H + (zone.rows - 1) * GAP_Y;
   return (
     <g>
       <rect
-        x={zone.originX - 10} y={zone.originY - 22} width={w + 20} height={h + 32}
+        x={zone.originX - 10} y={zone.originY - 10} width={w + 20} height={h + 20}
         fill="none" stroke="var(--line-hairline)" strokeWidth={1}
       />
-      <text
-        x={zone.originX - 10} y={zone.originY - 28}
-        className="t-h2" fill="var(--text-muted)"
-        style={{ fontSize: 11, letterSpacing: '0.12em' }}
-      >
-        {zone.label}
-      </text>
+      {/* Row numbers down the left edge, the way a site drawing is annotated. */}
+      {Array.from({ length: zone.rows }, (_, r) => (
+        <text
+          key={r}
+          x={zone.originX - 18} y={zone.originY + r * (CELL_H + GAP_Y) + CELL_H / 2 + 3}
+          textAnchor="end" fill="var(--text-muted)"
+          style={{ font: '500 8px var(--font-mono)' }}
+        >
+          {String(r + 1).padStart(2, '0')}
+        </text>
+      ))}
       {zone.panels.map((p) => <PanelCell key={p.id} zone={zone} panel={p} />)}
     </g>
   );
@@ -109,12 +149,25 @@ export function FarmMap() {
 
   return (
     <div className="area-map inset" style={{ position: 'relative', padding: 'var(--sp-4)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--sp-2)' }}>
-        <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>
-          {farm.name} · {farm.region}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 'var(--sp-3)', gap: 'var(--sp-4)',
+      }}>
+        <span className="t-h1" style={{ color: 'var(--text-primary)' }}>
+          {farm.name.toUpperCase()}
+          <span className="t-micro" style={{ color: 'var(--text-muted)', marginLeft: 'var(--sp-3)' }}>
+            {farm.region.toUpperCase()} · {farm.lat.toFixed(3)}° N, {farm.lon.toFixed(3)}° E ·{' '}
+            {farm.tilt}° / {farm.azimuth}°
+          </span>
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-          {farm.lat.toFixed(3)}° N, {farm.lon.toFixed(3)}° E · TILT {farm.tilt}° / AZ {farm.azimuth}°
+        <span
+          className="t-micro"
+          style={{
+            color: 'var(--text-secondary)', border: '1px solid var(--line-active)',
+            padding: '4px var(--sp-3)', whiteSpace: 'nowrap',
+          }}
+        >
+          MAP MODE: SCHEMATIC ▾
         </span>
       </div>
 
@@ -139,6 +192,7 @@ export function FarmMap() {
         </defs>
 
         {farm.zones.map((z) => <ZoneBlock key={z.id} zone={z} />)}
+        {farm.zones.map((z) => <ZoneCard key={`card-${z.id}`} zone={z} />)}
 
         {/* Drone pads */}
         {farm.dronePads.map((p) => (
@@ -186,18 +240,30 @@ export function FarmMap() {
           style={{ fontSize: 10, fontWeight: 700 }}>{FAULTED}</text>
       </svg>
 
-      {/* Legend */}
+      {/* Legend — centred under the map, the way a site drawing keys its symbols. */}
       <div style={{
-        position: 'absolute', bottom: 'var(--sp-4)', left: 'var(--sp-4)',
-        display: 'flex', gap: 'var(--sp-4)',
+        position: 'absolute', bottom: 'var(--sp-3)', left: '50%', transform: 'translateX(-50%)',
+        display: 'flex', gap: 'var(--sp-5)', alignItems: 'center',
+        background: 'var(--surface-panel)', border: '1px solid var(--line-hairline)',
+        padding: 'var(--sp-2) var(--sp-4)',
       }}>
         {([['healthy', 'Healthy'], ['warning', 'Warning'], ['critical', 'Critical'],
           ['scheduled', 'Scheduled']] as const).map(([k, label]) => (
           <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-            <span style={{ width: 14, height: 8, background: STATUS_FILL[k], opacity: 0.9 }} />
+            <span style={{
+              width: 13, height: 9, background: STATUS_FILL[k],
+              opacity: k === 'healthy' ? 0.55 : 0.9,
+              border: `1px solid ${STATUS_FILL[k]}`,
+            }} />
             <span className="t-h2" style={{ color: 'var(--text-muted)' }}>{label}</span>
           </span>
         ))}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <span style={{
+            width: 15, borderTop: '1px dashed var(--sev-active)', display: 'inline-block',
+          }} />
+          <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Drone route</span>
+        </span>
       </div>
     </div>
   );

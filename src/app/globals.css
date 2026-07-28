@@ -78,6 +78,7 @@
   /* Shell geometry — fixed 1920×1080, projector target */
   --shell-w: 1920px;
   --shell-h: 1080px;
+  --rail-icons: 64px;
   --rail-left: 304px;
   --rail-right: 448px;
   --header-h: 72px;
@@ -176,22 +177,55 @@ body {
 
 .console-root {
   display: grid;
-  grid-template-columns: var(--rail-left) 1fr var(--rail-right);
+  grid-template-columns: var(--rail-icons) var(--rail-left) 1fr var(--rail-right);
   grid-template-rows: var(--header-h) 1fr var(--footer-h);
   grid-template-areas:
-    "header header header"
-    "left   map    right"
-    "footer footer footer";
+    "header header header header"
+    "icons  left   map    right"
+    "footer footer footer footer";
   width: var(--shell-w);
   height: var(--shell-h);
   background: var(--surface-void);
 }
 
 .area-header { grid-area: header; }
+.area-icons { grid-area: icons; }
 .area-left { grid-area: left; }
 .area-map { grid-area: map; }
 .area-right { grid-area: right; }
 .area-footer { grid-area: footer; }
+
+/* Badges and chips — the reference console labels every state in words as well as
+   colour, which is both the accessibility fix and what makes it read as an
+   instrument rather than a dashboard. */
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  font: 600 10px/1.2 var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.badge-solid {
+  border-color: transparent;
+  color: var(--text-inverse);
+}
+
+/* Segmented meter — reads as an instrument; a smooth bar reads as a progress bar. */
+.seg {
+  display: flex;
+  gap: 2px;
+}
+.seg > i {
+  display: block;
+  width: 5px;
+  height: 9px;
+  background: var(--line-hairline);
+}
+.seg > i[data-on='1'] {
+  background: var(--sev-active);
+}
 
 /* Hairlines rather than borders: this is an engineering drawing, not a card deck. */
 .hair-b { border-bottom: 1px solid var(--line-hairline); }
