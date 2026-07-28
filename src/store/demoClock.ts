@@ -53,7 +53,14 @@ export interface DemoClockState {
    */
   viewOverride: DemoView | null;
 
-  /** Rehearsal readout visibility. Toggled with `D`; never shown during a run. */
+  /**
+   * Rehearsal readout visibility, toggled with `D`.
+   *
+   * Defaults ON while developing and OFF in a production build. It is a build
+   * instrument, not part of the product — nobody watching the demo should see a
+   * scrub bar, and the console is meant to read as a control room rather than a
+   * player. `npm run build` ships it hidden.
+   */
   debug: boolean;
 
   play: () => void;
@@ -77,7 +84,7 @@ export const useDemoClock = create<DemoClockState>((set, get) => ({
   speed: 1,
   approved: false,
   viewOverride: null,
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
 
   play: () => set({ playing: true }),
   pause: () => set({ playing: false }),

@@ -41,8 +41,17 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${plexMono.variable} ${plexCond.variable} ${plexSans.variable}`}>
+    // The font variables go on <html>, NOT <body>. globals.css composes them into
+    // --font-mono / --font-cond / --font-sans on :root, and a custom property that
+    // references another one resolves against the element it is DECLARED on. With
+    // the variables on <body>, `var(--font-plex-mono)` is undefined at :root, which
+    // makes --font-mono guaranteed-invalid and silently falls every font back to
+    // the browser default. One element up, and the whole type scale works.
+    <html
+      lang="en"
+      className={`${plexMono.variable} ${plexCond.variable} ${plexSans.variable}`}
+    >
+      <body>
         {/* The one rAF loop. Mounted here so it outlives every view switch. */}
         <ClockDriver />
         {children}
