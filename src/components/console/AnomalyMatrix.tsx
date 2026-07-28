@@ -17,38 +17,15 @@
  * visibly the same data. That list is also the accessible channel: the ironbow ramp
  * is not colourblind-safe through the magenta→red range, so ΔT is always printed.
  *
- * This is ONE OF ONLY TWO places allowed to touch --iron-* directly (the other is
- * the GLSL LUT in ThermalPass). Both must produce the same colour for the same
- * normalised value — that identity is the whole aesthetic bet.
+ * The ramp itself lives in src/lib/ironbow.ts, shared with the GLSL LUT in
+ * ThermalPass and checked against globals.css by ironbow.test.ts. Both must
+ * produce the same colour for the same normalised value — that identity is the
+ * whole aesthetic bet, and it used to be three hand-typed copies.
  */
 
 import { deltaT } from '@/lib/format';
+import { ironbowForDeltaT } from '@/lib/ironbow';
 import { useCellGrid, useMatrixFillCount } from '@/store/selectors';
-
-/** Ironbow stops, keyed by ΔT in °C. Mirrors IRONBOW_STOPS in thermal_hotspot.py. */
-const STOPS: Array<[number, string]> = [
-  [-6, 'var(--iron-00)'],
-  [-2, 'var(--iron-20)'],
-  [0, 'var(--iron-40)'],
-  [1.5, 'var(--iron-60)'],
-  [2.4, 'var(--iron-80)'],
-  [2.8, 'var(--iron-95)'],
-  [4, 'var(--iron-100)'],
-];
-
-/**
- * Nearest-stop rather than interpolated: CSS `var()` values cannot be mixed
- * arithmetically without resolving them, and resolving the ramp in JS would mean
- * the token stops live in two places. Seven discrete bands across a ~9 °C range
- * also reads as a quantised sensor, which is what it is.
- */
-function ironbow(dt: number): string {
-  let chosen = STOPS[0][1];
-  for (const [threshold, colour] of STOPS) {
-    if (dt >= threshold) chosen = colour;
-  }
-  return chosen;
-}
 
 export function AnomalyMatrix() {
   const grid = useCellGrid();
@@ -102,7 +79,7 @@ export function AnomalyMatrix() {
                 <span style={{ color: 'var(--text-secondary)' }}>
                   R{d.row} · C{d.col} <span style={{ color: 'var(--text-muted)' }}>{d.type}</span>
                 </span>
-                <span className="t-data-em" style={{ color: ironbow(d.deltaTC) }}>
+                <span className="t-data-em" style={{ color: ironbowForDeltaT(d.deltaTC) }}>
                   {deltaT(d.deltaTC)}
                 </span>
               </div>
@@ -139,7 +116,7 @@ function RowLabelAndCells({
               title={on ? `R${r + 1} C${c + 1} ${deltaT(dt)}` : undefined}
               style={{
                 height: 22,
-                background: on ? ironbow(dt) : 'var(--surface-inset)',
+                background: on ? ironbowForDeltaT(dt) : 'var(--surface-inset)',
                 border: on && defect
                   ? '1px solid var(--iron-100)'
                   : '1px solid var(--line-hairline)',

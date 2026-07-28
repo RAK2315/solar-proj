@@ -63,9 +63,9 @@ function StageCard({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="t-micro"
+          className="btn-reset t-micro"
           style={{
-            all: 'unset', cursor: 'pointer', color: 'var(--sev-active)',
+            color: 'var(--sev-active)',
             justifySelf: 'start',
           }}
         >

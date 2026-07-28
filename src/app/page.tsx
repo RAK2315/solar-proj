@@ -11,6 +11,8 @@
  *      showing a component tree that had just been destroyed and rebuilt.
  */
 
+import { MotionConfig } from 'framer-motion';
+
 import { CinematicView } from '@/components/cinematic/CinematicView';
 import { ConsoleRoot } from '@/components/console/ConsoleRoot';
 import { DebugReadout } from '@/components/DebugReadout';
@@ -20,6 +22,11 @@ export default function Page() {
   const view = useView();
 
   return (
+    // reducedMotion="user" makes framer-motion honour the OS setting. The CSS
+    // media query in globals.css cannot reach JS-driven animation, and the feed's
+    // slide-in is JS-driven. The MATRIX FILL deliberately still runs under reduced
+    // motion — it is information, not decoration (plan/04 §5).
+    <MotionConfig reducedMotion="user">
     <main
       style={{
         width: 'var(--shell-w)',
@@ -44,5 +51,6 @@ export default function Page() {
 
       <DebugReadout />
     </main>
+    </MotionConfig>
   );
 }

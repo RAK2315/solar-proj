@@ -13,9 +13,11 @@
 
 import { BackSide } from 'three';
 
-const SKY_TOP = '#7FA8D4';
-const SKY_HORIZON = '#E7C9A0';
-const GROUND = '#b5a183';
+import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
+
+const SKY_TOP = SCENE.skyZenith;
+const SKY_HORIZON = SCENE.skyHorizon;
+const GROUND = SCENE.ground;
 
 /** Vertical gradient on the inside of a big sphere. Cheaper than a cubemap. */
 const skyVertex = /* glsl */ `
@@ -59,12 +61,12 @@ export function SceneEnvironment() {
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow={false}>
         <planeGeometry args={[900, 900]} />
-        <meshStandardMaterial color={GROUND} roughness={0.95} metalness={0} />
+        <meshStandardMaterial color={GROUND} roughness={SCENE_MATERIAL.groundRoughness} metalness={0} />
       </mesh>
 
       {/* Low warm sun, matching a mid-morning site at 890 W/m². */}
-      <directionalLight position={[-120, 70, 90]} intensity={2.2} color="#ffe8c4" />
-      <hemisphereLight args={['#8fb0d9', GROUND, 0.45]} />
+      <directionalLight position={[-120, 70, 90]} intensity={SCENE_MATERIAL.sunIntensity} color={SCENE.sun} />
+      <hemisphereLight args={[SCENE.skyFill, GROUND, SCENE_MATERIAL.hemisphereIntensity]} />
       <ambientLight intensity={0.15} />
     </>
   );

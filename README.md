@@ -11,9 +11,10 @@ waits for a human to approve it.
 > Prior art stops at **detection**: a panel is bad. This stops at **a deadline**: the
 > string becomes unrecoverable after 14:00, here is why, and a person has to say yes.
 
-**Status:** Phases 0–2 of 10 complete — contracts frozen, data and physics generated,
-clock and shell standing. Real components begin at Phase 4.
-Build plan: `plan/05-build-plan.md`. Frozen numbers: `docs/contract-freeze.md`.
+**Status:** complete and deployable. Phases 0–10 built; the one outstanding item is the
+Colab training run, which fills in the detector's real metrics (see *Data provenance*).
+Build plan: `plan/05-build-plan.md` · Frozen numbers: `docs/contract-freeze.md` ·
+Phase-by-phase record incl. every correction: `report.txt`
 
 ---
 
@@ -162,17 +163,35 @@ assumption. Invariant I10 fails the build if that span is changed silently.
 
 ```
 scripts/          Python + TS. Run once, output committed. Never runtime.
-  physics.py        the model and every constant — single source
+  physics.py           the PV model and every constant — single source
   generate_farm.py / generate_telemetry.py / generate_events.py
-  thermal_hotspot.py   classical-CV hotspot extraction (done)
-  validate_data.ts     the build gate
+  thermal_hotspot.py   classical-CV hotspot extraction
+  run_agent.py         three Groq stages + the numeric cross-check
+  validate_data.ts     THE BUILD GATE — Zod + invariants I1–I16
   check_literals.mjs   no hardcoded demo numbers in src/
+  sync_artefacts.mjs   copies evidence to public/, writes the manifest
 data/             generated, committed. The contract between pipeline and app.
-models/           trained weights (Phase 3)
-src/              Next.js 15 console
+models/           trained weights (provenance evidence, never loaded at runtime)
+src/
+  lib/            pure and I/O-free: physics, ranking, formatting, scene spline,
+                  the ironbow ramp, the Zod schemas
+  store/          demoClock.ts (the ONE clock) + selectors.ts (the public API)
+  components/     console/ · cinematic/ · scene/
 plan/             the build pack: features, architecture, ADRs, schemas, risks
-docs/             contract-freeze.md (frozen numbers), dataset-provenance.md
+docs/             contract-freeze.md · dataset-provenance.md · media-provenance.md
+                  vision-handoff.md · training/
+report.txt        every phase, what it found, and what is still open
 ```
+
+### Architecture in one paragraph
+
+There is **no server**. Python generates every number offline and commits it as JSON;
+the app imports that JSON at build time. One Zustand store holds `t` and `approved` —
+the only mutable state in the application — and one `requestAnimationFrame` loop
+advances `t`. Everything else is a pure function of `t` through `src/store/selectors.ts`,
+which is why seeking backwards works and why the console, the cinematic overlays, the
+3D camera and the picture-in-picture can never disagree about what time it is. ESLint
+fails the build if a second timer appears in `src/components/`.
 
 Regenerate everything — each step reads the one before it:
 
@@ -190,9 +209,19 @@ makes **zero network calls** — telemetry is pre-generated, LLM output is cache
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm run build        # runs validate:data + check:literals first
+npm run build        # gate: sync + validate:data + check:literals + 145 tests
+npm run test         # vitest
 npm run lint         # includes the one-clock guardrails
 ```
+
+> **If you touch `generate_telemetry.py`, re-run `run_agent.py`.** The cached agent prose
+> quotes numbers from the telemetry, and the cross-check only protects you if it runs.
+> `validate:data` catches the structured fields (I9); the prose is checked at generation.
+
+**Deploying.** Vercel, static. The build gate runs first, so a deployment cannot ship
+data that contradicts the physics. Everything the app needs is committed — `/data`,
+`public/cinematic/`, `public/evidence/` — and the deployed app makes **zero network
+calls at runtime**: no LLM, no telemetry feed, no CDN font, no model inference.
 
 ### Rehearsal keys
 
@@ -217,4 +246,90 @@ Things deliberately not built, because they do not appear in the 90 seconds:
 - Auth, accounts, persistence. A work order writes to Zustand and nothing else.
 - Responsive layout. This is 1920×1080 on a projector.
 - A second site, a second fault, historical browsing, map zoom, feed filtering.
+- Live LLM calls in the demo path.
+
+---
+
+## The ranking function
+
+When someone asks *"how does it prioritise?"*, this is the answer — and it is worth
+more than any LLM output in the project, because it returns the same order every
+single time. `src/lib/ranking.ts`:
+
+```ts
+const SEVERITY_WEIGHT = { critical: 3.0, warning: 1.5, active: 1.0, info: 0.25 };
+
+export function priorityScore(task: RepairTask): number {
+  // Urgency grows hyperbolically as the deadline closes: a 4-hour deadline is
+  // worth 3.5× a 24-hour one, not 6× linearly.
+  const urgency = 1 + 24 / Math.max(1, task.hoursUntilDeadline);
+  return (task.lossMWhPerDay * SEVERITY_WEIGHT[task.severity] * urgency) / task.accessCost;
+}
+```
+
+No model touches it. `INC-B17` leads #2 by **26.7×**, and the *reason* is visible in the
+inputs rather than buried in a tie-break — it wins on all three factors at once: most
+energy bleeding, `critical` rather than `warning`, and the tightest deadline.
+
+| Task | Loss/day | Severity | Deadline | Access | Score |
+|---|---|---|---|---|---|
+| `INC-B17` | 1.01 MWh | critical | 3.9 h | 1.0 | **21.53** |
+| `INC-A08` | 0.28 MWh | warning | 26 h | 1.0 | 0.81 |
+| `INC-C31` | 0.28 MWh | warning | 48 h | 1.4 | 0.45 |
+| `INC-A22` | 0.10 MWh | active | 60 h | 1.0 | 0.14 |
+
+## Questions this project expects, and where the answer lives
+
+Each answer is a file you can open, not a claim.
+
+**"Is any of this real?"**
+Telemetry is simulated on NREL's PVWatts model with the coefficients stated above —
+open `scripts/physics.py`. The defect detector is fine-tuned on real labelled imagery
+with recorded provenance. The hot cells are measured by classical CV from a real UAV
+thermal frame. The fault is a physically coherent chain — cracked cell → series
+resistance rise → bypass diode conduction → reverse-bias heating → a hot *band*,
+because substrings are wired in rows — not a random number.
+
+**"What did you actually train?"**
+`models/defect_yolov8n.pt`, `docs/training/`, and the provenance table above. Per-class
+AP@50, not just the five-class mean, because the mean is depressed by a 27-box class
+this project never uses.
+
+**"Why an agent and not a threshold dashboard?"**
+The prognosis stage. A rule engine tells you a string is down. This tells you *when it
+becomes unrecoverable*, by fusing the confirmed defect state, the degradation mechanism
+and the 72-hour forecast into a deadline no threshold can produce. That gap is the
+entire product.
+
+**"How does it prioritise?"**
+The twelve lines above. Pure, deterministic, LLM-free, identical on every re-run.
+
+**"Would you let this run unsupervised?"**
+No — and that is the approval gate. Everything up to the recommendation is autonomous;
+then it stops and waits. The work order does not exist until a person clicks.
+
+**"Why is output only 73% of nameplate?"**
+Because the cells are at 62.8 °C and c-Si loses 0.37 % per °C above 25. That is the
+model, not a fudge. The 364 MW figure exists *because* this was checked — the spec
+claimed 412 MW, which would need a 4.2 °C ambient in Rajasthan at midday.
+
+**"What would you not claim?"**
+The flyover plate is CC0 stock, not footage of Bhadla — the 3D scene is an explicit
+simulation built from the same `farm.json` the map draws. ΔT is a cell mean under a
+declared scaling, not a radiometric reading. The agent writes prose *about* numbers; it
+never produces one, and `run_agent.py` refuses to write a cache containing a figure the
+telemetry does not support.
+
+## Post-project TODO
+
+Deliberately not built, because none of it appears in the 90 seconds:
+
+- Auth, accounts, persistence. A work order writes to Zustand and nothing else.
+- Responsive layout. This is 1920×1080 on a projector.
+- Selecting an arbitrary panel and dispatching a drone to it. The physics generator
+  already produces readings for all 120 arrays, so the data is there — but operator-
+  initiated dispatch means a second source of mutable state and a camera spline
+  generalised beyond this one mission, which is a different product shape.
+- Working screens behind the module rail; feed filtering; map zoom. The rail and the
+  `FILTER` control are honestly decorative, as in the reference console.
 - Live LLM calls in the demo path.

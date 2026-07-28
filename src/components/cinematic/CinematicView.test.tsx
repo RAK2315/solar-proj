@@ -42,15 +42,15 @@ describe('the PiP is the live console, not a picture of one', () => {
     expect(text).toContain('MODULE B2-07');
   });
 
-  it('shows exactly what the standalone console shows at the same t', () => {
-    // Not string equality — the cinematic adds overlays. But every piece of console
-    // content must be present inside it.
+  it('contains the standalone console VERBATIM at the same t', () => {
+    // The strongest form of the claim, and the cheapest: the PiP renders the whole
+    // ConsoleRoot as one subtree, so the console's entire rendered text must appear
+    // inside the cinematic's as one contiguous run. A screenshot, a mock, or a
+    // simplified copy would all fail this.
     for (const t of [20, 44, 60, 72]) {
       const consoleText = textAt(t, <ConsoleRoot />);
       const cineText = cine(t);
-      for (const fragment of consoleText.split('·').map((s) => s.trim()).filter((s) => s.length > 12)) {
-        expect(cineText, `t=${t}: PiP is missing console content`).toContain(fragment);
-      }
+      expect(cineText, `t=${t}: the PiP is not the real console`).toContain(consoleText);
     }
   });
 

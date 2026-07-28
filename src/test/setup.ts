@@ -25,3 +25,11 @@ globalThis.matchMedia ??= ((query: string) => ({
   removeEventListener: () => {},
   dispatchEvent: () => false,
 })) as unknown as typeof matchMedia;
+
+// jsdom has no canvas backend, so getContext() emits an unhandled "Not
+// implemented" through the virtual console rather than throwing — which the
+// WebGL probe in CinematicBackground cannot catch, and which buries real test
+// output in stack traces. Returning null is the truthful answer here: there is no
+// WebGL in jsdom, so the component correctly falls back to the video plate.
+HTMLCanvasElement.prototype.getContext = (() => null) as unknown as
+  typeof HTMLCanvasElement.prototype.getContext;

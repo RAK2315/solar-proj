@@ -26,6 +26,7 @@ import {
   B17, PANEL_H, PANEL_SPACING_X, PANEL_TILT, PANEL_W, PANELS_PER_ARRAY,
   POST_HEIGHT, crackVisible, thermalAmount,
 } from '@/lib/scene';
+import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
 import { useDemoClock } from '@/store/demoClock';
 
 /**
@@ -42,7 +43,7 @@ function makePanelTexture(withCrack: boolean): CanvasTexture | null {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#2b4a7a';
+  ctx.fillStyle = SCENE.panel;
   ctx.fillRect(0, 0, W, H);
 
   const cols = cellGrid.cols;
@@ -119,10 +120,10 @@ function Panel({ x, z, cracked }: { x: number; z: number; cracked: boolean }) {
       <boxGeometry args={[PANEL_W, 0.05, PANEL_H]} />
       <meshStandardMaterial
         map={texture}
-        color={texture ? '#ffffff' : '#2b4a7a'}
-        metalness={0.35}
-        roughness={0.25}
-        emissive="#ff7a1a"
+        color={texture ? '#ffffff' : SCENE.panel}
+        metalness={SCENE_MATERIAL.panelMetalness}
+        roughness={SCENE_MATERIAL.panelRoughness}
+        emissive={SCENE.hotBand}
         emissiveIntensity={0}
       />
     </mesh>
@@ -144,7 +145,8 @@ export function CrackedPanel() {
       {offsets.map((dx, i) => (
         <mesh key={`post-${i}`} position={[B17.x + dx, POST_HEIGHT / 2, B17.z]}>
           <cylinderGeometry args={[0.05, 0.05, POST_HEIGHT, 6]} />
-          <meshStandardMaterial color="#9aa0a8" metalness={0.1} roughness={0.8} />
+          <meshStandardMaterial color={SCENE.post} metalness={SCENE_MATERIAL.postMetalness}
+            roughness={SCENE_MATERIAL.postRoughness} />
         </mesh>
       ))}
     </group>

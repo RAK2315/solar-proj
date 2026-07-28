@@ -42,9 +42,8 @@ export function ApprovalBar() {
         type="button"
         onClick={approve}
         disabled={approved}
-        className="t-h1"
+        className="btn-reset t-h1"
         style={{
-          all: 'unset',
           boxSizing: 'border-box',
           width: '100%',
           textAlign: 'center',

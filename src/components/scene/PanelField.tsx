@@ -12,6 +12,7 @@
  * unique material carrying the crack decal.
  */
 
+import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
 import { Instance, Instances } from '@react-three/drei';
 import { useMemo } from 'react';
 
@@ -29,7 +30,8 @@ export function PanelField() {
     <>
       <Instances limit={600} range={panels.length} frustumCulled={false}>
         <boxGeometry args={[PANEL_W, 0.05, PANEL_H]} />
-        <meshStandardMaterial color="#2b4a7a" metalness={0.35} roughness={0.25} />
+        <meshStandardMaterial color={SCENE.panel} metalness={SCENE_MATERIAL.panelMetalness}
+          roughness={SCENE_MATERIAL.panelRoughness} />
         {panels.map((p) => (
           <Instance
             key={p.id}
@@ -41,7 +43,8 @@ export function PanelField() {
 
       <Instances limit={600} range={panels.length} frustumCulled={false}>
         <cylinderGeometry args={[0.05, 0.05, POST_HEIGHT, 6]} />
-        <meshStandardMaterial color="#9aa0a8" metalness={0.1} roughness={0.8} />
+        <meshStandardMaterial color={SCENE.post} metalness={SCENE_MATERIAL.postMetalness}
+          roughness={SCENE_MATERIAL.postRoughness} />
         {panels.map((p) => (
           <Instance key={p.id} position={[p.pos.x, POST_HEIGHT / 2, p.pos.z]} />
         ))}

@@ -119,6 +119,29 @@ body {
   outline-offset: 1px;
 }
 
+/* Button reset as a CLASS, not an inline `all: unset`.
+   Inline styles outrank the stylesheet, so `all: unset` written inline also unsets
+   the focus outline and cannot be restored by a :focus-visible rule. Every control
+   in the app is a real <button>; this keeps them reachable AND visible on Tab. */
+.btn-reset {
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+.btn-reset:disabled {
+  cursor: default;
+}
+.btn-reset:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+
 /* ── Type scale ──────────────────────────────────────────────────────────────
    NOTE: the `font:` shorthand RESETS font-variant-numeric to normal, so the
    tabular-nums set on :root is wiped out on exactly the elements that hold

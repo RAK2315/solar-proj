@@ -24,30 +24,19 @@ import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { BlendFunction, Effect } from 'postprocessing';
 import { Uniform } from 'three';
 
+import { ironbowGlsl } from '@/lib/ironbow';
 import { thermalAmount } from '@/lib/scene';
 import { useDemoClock } from '@/store/demoClock';
 
-/* The ramp, matching --iron-00 … --iron-100 in globals.css. */
+/**
+ * The ramp is GENERATED from src/lib/ironbow.ts rather than typed here, so the
+ * shader and the anomaly matrix cannot drift apart. ironbow.test.ts also checks
+ * both against the --iron-* declarations in globals.css.
+ */
 const fragment = /* glsl */ `
   uniform float amount;
 
-  vec3 ironbow(float x) {
-    x = clamp(x, 0.0, 1.0);
-    vec3 c0 = vec3(0.106, 0.063, 0.208);   // --iron-00  #1B1035
-    vec3 c1 = vec3(0.290, 0.114, 0.431);   // --iron-20  #4A1D6E
-    vec3 c2 = vec3(0.608, 0.165, 0.388);   // --iron-40  #9B2A63
-    vec3 c3 = vec3(0.851, 0.290, 0.239);   // --iron-60  #D94A3D
-    vec3 c4 = vec3(0.941, 0.545, 0.165);   // --iron-80  #F08B2A
-    vec3 c5 = vec3(1.000, 0.788, 0.302);   // --iron-95  #FFC94D
-    vec3 c6 = vec3(1.000, 0.953, 0.839);   // --iron-100 #FFF3D6
-    float s = x * 6.0;
-    if (s < 1.0) return mix(c0, c1, s);
-    if (s < 2.0) return mix(c1, c2, s - 1.0);
-    if (s < 3.0) return mix(c2, c3, s - 2.0);
-    if (s < 4.0) return mix(c3, c4, s - 3.0);
-    if (s < 5.0) return mix(c4, c5, s - 4.0);
-    return mix(c5, c6, s - 5.0);
-  }
+${ironbowGlsl()}
 
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
@@ -56,7 +45,7 @@ const fragment = /* glsl */ `
     // frame, and the banding is a large part of why one reads as a sensor.
     float quantised = floor(lum * 32.0) / 32.0;
 
-    // Scanlines, and a slight horizontal softening to suggest lower resolution.
+    // Scanlines, suggesting the lower resolution a real thermal camera has.
     float scan = 0.94 + 0.06 * sin(uv.y * 1400.0);
 
     vec3 thermal = ironbow(quantised) * scan;

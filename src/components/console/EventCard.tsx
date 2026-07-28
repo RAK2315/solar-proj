@@ -80,9 +80,9 @@ export function EventCard({ event }: { event: DemoEvent }) {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={open ? 'Collapse event' : 'Expand event'}
-          className="t-micro"
+          className="btn-reset t-micro"
           style={{
-            all: 'unset', cursor: 'pointer', color: 'var(--text-muted)',
+            color: 'var(--text-muted)',
             justifySelf: 'start', padding: '2px 0',
           }}
         >

@@ -19,6 +19,7 @@ import { useRef } from 'react';
 import type { Group, Mesh } from 'three';
 
 import { droneAt, droneVisible } from '@/lib/scene';
+import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
 import { useDemoClock } from '@/store/demoClock';
 
 const ARM = 0.55;
@@ -70,26 +71,26 @@ export function Drone() {
       <group ref={group}>
         <mesh castShadow={false}>
           <boxGeometry args={[0.75, 0.16, 1.15]} />
-          <meshStandardMaterial color="#1b1f26" metalness={0.4} roughness={0.5} />
+          <meshStandardMaterial color={SCENE.droneBody} metalness={0.4} roughness={0.5} />
         </mesh>
 
         {/* Orange payload block — the one warm accent, matching the reference. */}
         <mesh position={[0, 0.14, 0.05]}>
           <boxGeometry args={[0.42, 0.14, 0.5]} />
-          <meshStandardMaterial color="#e2701f" metalness={0.2} roughness={0.6} />
+          <meshStandardMaterial color={SCENE.dronePayload} metalness={0.2} roughness={0.6} />
         </mesh>
 
         {/* Gimbal camera, pointing down at the array. */}
         <mesh position={[0, -0.16, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.11, 0.11, 0.2, 10]} />
-          <meshStandardMaterial color="#0d1015" metalness={0.6} roughness={0.3} />
+          <meshStandardMaterial color={SCENE.droneLens} metalness={0.6} roughness={0.3} />
         </mesh>
 
         {ROTORS.map(([x, z], i) => (
           <group key={i} position={[x, 0.06, z]}>
             <mesh>
               <cylinderGeometry args={[0.09, 0.09, 0.12, 8]} />
-              <meshStandardMaterial color="#2a2f38" metalness={0.4} roughness={0.5} />
+              <meshStandardMaterial color={SCENE.droneHub} metalness={0.4} roughness={0.5} />
             </mesh>
             <mesh
               ref={(el) => { rotors.current[i] = el; }}
@@ -97,7 +98,7 @@ export function Drone() {
             >
               <cylinderGeometry args={[0.46, 0.46, 0.012, 12]} />
               <meshStandardMaterial
-                color="#0e1219" transparent opacity={0.32} metalness={0.1} roughness={0.9}
+                color={SCENE.droneRotor} transparent opacity={0.32} metalness={0.1} roughness={0.9}
               />
             </mesh>
           </group>
@@ -106,18 +107,18 @@ export function Drone() {
         {/* Nav lights: green starboard, red port. */}
         <mesh position={[ARM, 0.02, -ARM]}>
           <sphereGeometry args={[0.06, 8, 8]} />
-          <meshBasicMaterial color="#2ef08a" />
+          <meshBasicMaterial color={SCENE.navStarboard} />
         </mesh>
         <mesh position={[-ARM, 0.02, -ARM]}>
           <sphereGeometry args={[0.06, 8, 8]} />
-          <meshBasicMaterial color="#ff3b30" />
+          <meshBasicMaterial color={SCENE.navPort} />
         </mesh>
       </group>
 
       {/* The only shadow in the scene — CLAUDE.md §14 allows exactly this one. */}
       <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1, 16]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.3} depthWrite={false} />
+        <meshBasicMaterial color={SCENE.shadow} transparent opacity={0.3} depthWrite={false} />
       </mesh>
     </>
   );

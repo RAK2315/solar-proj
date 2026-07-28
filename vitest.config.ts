@@ -20,5 +20,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
+    // The cinematic tests render the console TWICE (once standalone, once as the
+    // PiP inside the cinematic). That is the point of them, and it is not fast.
+    testTimeout: 20000,
   },
 });

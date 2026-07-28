@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  B17, CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC, ORBIT_RADIUS,
+  CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC, ORBIT_RADIUS,
   PANELS_PER_ARRAY, PAD, POV_IN, cameraAt, crackVisible, droneAt, droneVisible,
   isPOV, panelInstances, reticleRect, thermalAmount, visibleLabels,
 } from './scene';

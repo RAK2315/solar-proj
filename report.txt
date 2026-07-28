@@ -6,10 +6,10 @@
  A running record of every phase: what was delivered, what was checked, what was
  found, and what needs a human decision. Appended to at the end of each phase.
 
- Last updated ........ Phase 8 complete
- Phases complete ..... 0, 1, 2, 3 (repo side), 4, 5, 6, 7, 8
- Phases remaining .... 3 (Colab run — yours), 9 (polish), 10 (artefacts + deploy)
- Tests ............... 115 passing
+ Last updated ........ Phase 10 complete — THE BUILD PLAN IS DONE
+ Phases complete ..... 0, 1, 2, 3 (repo side), 4, 5, 6, 7, 8, 9, 10
+ Phases remaining .... 3's Colab run, and the recording — both yours
+ Tests ............... 145 passing
  Build ............... green (npm run build)
  Invariants .......... I1–I10, I12, I13, I14, I16 PASS · I11 waits on Colab · I15 manual
 
@@ -35,7 +35,7 @@
                             invariants I1–I16. Wired into prebuild, so a drifted
                             number FAILS THE BUILD, not the demo.
    npm run check:literals   fails if a headline figure is hardcoded in src/.
-   npm run test             115 tests, also wired into prebuild.
+   npm run test             145 tests, also wired into prebuild.
 
  Three invariants are tripwires against the author, not against bugs:
    I10  rejects a ΔT outside the measured band, so the thermal scaling cannot be
@@ -505,6 +505,117 @@
    and the first levers are dpr [1, 1.25], PANELS_PER_ARRAY 4→2, and dropping the
    sky sphere segments.
 
+===============================================================================
+ SCENE PASS - four notes from watching it
+===============================================================================
+
+ 1. PANELS TOO SMALL. Geometry scaled up: 1.45x0.9 -> 2.6x1.6 m, array pitch
+    7 -> 13 m, row pitch 5 -> 9 m. Inspection altitude 12 -> 7.5 m, so one module
+    fills real frame.
+
+ 2. THE RETICLE FRAMED FOUR ARRAYS. It was a FIXED SCREEN BOX - brackets saying
+    "four things" while the caption named one, which quietly tells the audience
+    the overlay is decoration. It now projects the damaged module's own four
+    corners through the same pure camera the scene is drawn with, and tracks it
+    through the orbit. Label reads "B-17 . B2-07".
+    The projection math lives in lib/scene.ts rather than reaching into the R3F
+    canvas, so the overlay cannot drift out of register - and is testable with
+    no GPU.
+
+ 3. NO WAY TO TELL IT WENT TO THE RIGHT PANEL. Added array ID tags: B-17
+    highlighted, neighbours labelled around it. Most visible during the run-in,
+    when several arrays are in shot together - that is the moment that proves the
+    choice. At 7.5 m only the target fits, which is the point of being that close.
+
+ 4. TOO LONG WATCHING FROM OUTSIDE. The camera now RIDES THE DRONE from t=21:
+    three seconds of establishing shot, then POV through transit, approach and
+    inspection, handing back to an external view at t=56. The aircraft is hidden
+    while we are inside it, and it flies the 15 deg/s orbit itself - so section
+    14's camera move and the flight path are the same thing rather than two
+    things that must agree.
+
+
+===============================================================================
+ PHASE 9 - POLISH
+===============================================================================
+
+ THE IRONBOW CONSISTENCY CHECK - the item plan/05 names for this phase
+   The seven stops existed in THREE hand-typed copies: globals.css tokens, a
+   nearest-stop lookup in AnomalyMatrix, and vec3 literals in the GLSL shader.
+   Nothing compared them. A drift of one stop would have broken the project's one
+   aesthetic bet SILENTLY - nothing would look broken, it would just stop meaning
+   anything.
+   Now src/lib/ironbow.ts is the only definition. The matrix calls it; the shader
+   is GENERATED from it; and ironbow.test.ts READS globals.css OFF DISK and fails
+   if a token has drifted. 18 tests, including that the GLSL and the TypeScript
+   interpolate identically across the whole domain to within one rounding step.
+   Fixed while there: the matrix used arbitrary delta-T thresholds. The domain is
+   now the measured range (-6.5 .. +3.2 C), so the hot band lands in the amber end
+   where a thermographer expects heat.
+
+ A REAL ACCESSIBILITY BUG
+   Every control used `all: unset` as an INLINE style. Inline styles outrank the
+   stylesheet, so that also unset the focus outline - and no :focus-visible rule
+   could restore it. Keyboard users had no visible focus anywhere in the app.
+   Replaced with a .btn-reset class carrying its own focus ring. All three
+   controls are real <button> elements and are reachable on Tab.
+
+ prefers-reduced-motion
+   The CSS media query cannot reach framer-motion's JS-driven animation, and the
+   feed's slide-in is JS-driven. Wrapped in <MotionConfig reducedMotion="user">.
+   The MATRIX FILL deliberately still runs - it is information, not decoration.
+
+ SCENE PALETTE
+   plan/04 bans raw hex in src/components/. All remaining hex was in the 3D scene,
+   where three.js materials cannot read CSS variables - and the panel blue was
+   written out twice. Pulled into src/lib/scenePalette.ts, every value cited to
+   CLAUDE.md section 14.
+
+ MOTION AUDIT - clean. No springs, no bounces, no easing on anything that carries
+   meaning. Every transition is linear, 120-200 ms. The two CSS animations (REC
+   pulse, reticle breathe) are presentational and no selector reads them.
+
+ TEST HARNESS
+   The PiP assertion was timing out at 5 s as the console got heavier. Replaced
+   with a STRONGER and cheaper one: the console's entire rendered text must appear
+   inside the cinematic's as one contiguous run, since the PiP renders ConsoleRoot
+   whole. A screenshot, a mock or a simplified copy all fail it.
+   Also silenced jsdom's canvas "Not implemented" noise, which the WebGL probe
+   could not catch and which was burying real output.
+
+
+===============================================================================
+ PHASE 10 - ARTEFACTS
+===============================================================================
+
+ README is now the thing a judge opens
+   . physics citation table, with the three SOLVED constants marked as solved
+   . a table of the six numbers this project CORRECTED rather than reproduced
+   . dataset provenance, licences, per-split class counts from the label files
+   . the ranking function in full, the score table, and why B-17 leads by 26.7x
+   . seven rehearsed questions, each answered with a file rather than a claim,
+     including "what would you NOT claim?"
+   . architecture in one paragraph
+   . post-project TODO, including why panel-selection and dispatch are absent
+
+ DEPLOY VERIFIED (production build, served locally)
+   ok  page, flyover plate and thermal PNG all 200
+   ok  three.js code-split out of the initial bundle
+   ok  30 font files self-hosted by next/font - no Google CDN request at runtime
+   ok  no external host in the built JS
+   ok  ZERO runtime network calls: no LLM, no telemetry feed, no model inference
+   The build gate runs before `next build`, so a deploy cannot ship data that
+   contradicts the physics.
+
+ docs/recording.md - the 90-second capture procedure, the beat-by-beat checklist
+   to verify in playback, and the frame-rate levers in order of bluntness.
+
+ TWO THINGS ONLY YOU CAN DO
+   1. RECORD THE 90 SECONDS (docs/recording.md). Use the production build so the
+      debug readout is off. Do not touch anything between t=0 and t=84 - autonomy
+      up to the gate is the claim, and a stray keypress undercuts it.
+   2. MEASURE THE FRAME RATE and write the number down. Do not round it up.
+
 ═══════════════════════════════════════════════════════════════════════════════
  OPEN ITEMS
 ═══════════════════════════════════════════════════════════════════════════════
@@ -527,10 +638,14 @@
    · Acoustic FFT band-energy check — plan/01 tags it STRETCH.
 
  ALSO FOR YOU
-   5. CHECK THE FRAME RATE with the 3D scene running (press V to force cinematic).
-      It is the one Phase 8 acceptance criterion that needs your GPU.
+   5. RECORD THE 90 SECONDS — docs/recording.md has the procedure and checklist.
+   6. MEASURE THE FRAME RATE and write it down here. It is the one acceptance
+      criterion in the whole plan that needs your GPU.
+   7. DEPLOY — `vercel` against this repo. The build gate runs first, so a bad
+      deploy is not possible without the invariants failing loudly.
 
- NEXT
-   Phase 9 — polish: motion timing, the ironbow consistency check between the CSS
-   ramp and the GLSL LUT, copy pass, focus states, prefers-reduced-motion.
-   Phase 10 — full 90s recording, README finalisation, Vercel deploy.
+ THE BUILD PLAN IS COMPLETE.
+   Phases 0–10 are done. What remains is the Colab run, the recording, and
+   whatever you decide about the interactive product shape (selecting an
+   arbitrary panel and dispatching a drone to it) — which is deliberately NOT in
+   this plan, and is scoped in README.md under "Post-project TODO".
