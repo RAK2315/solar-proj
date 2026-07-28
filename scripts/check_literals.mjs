@@ -13,9 +13,20 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = 'src';
+
+/**
+ * Exempt files, and why each one is allowed to name a headline number.
+ *
+ *   src/lib/types.ts   the invariants assert these values — that is their job
+ *   *.test.ts(x)       a test that asserts "the screen shows −58.4 %" is the
+ *                      OPPOSITE of hardcoding it: it fails when the generator
+ *                      stops producing that number, which is exactly what this
+ *                      check wants to happen.
+ */
 const EXEMPT = [
-  'src/lib/types.ts',        // invariants assert these values by design
+  'src/lib/types.ts',
 ];
+const isTest = (rel) => /\.test\.(ts|tsx)$/.test(rel);
 
 /** Each entry: the literal, and what it should have come from instead. */
 const FORBIDDEN = [
@@ -61,7 +72,7 @@ function blankComments(src) {
 const findings = [];
 for (const path of walk(ROOT)) {
   const rel = relative('.', path).split('\\').join('/');
-  if (EXEMPT.includes(rel)) continue;
+  if (EXEMPT.includes(rel) || isTest(rel)) continue;
   const raw = readFileSync(path, 'utf8');
   const code = blankComments(raw).split('\n');
   const original = raw.split('\n');
