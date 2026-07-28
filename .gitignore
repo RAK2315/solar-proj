@@ -31,4 +31,9 @@ solar-panel-fault-detection-*/
 Thumbs.db
 
 # Vitest / evidence copies
+# Generated copies of data/evidence/* — the originals are committed, these are not.
 public/evidence/
+
+# NOT ignored: public/cinematic/flyover.webm, a committed CC0 plate (14 MB). It must
+# ship with the repo — a demo that fetches media at runtime is a demo that fails on a
+# bad conference network. Provenance: docs/media-provenance.md

@@ -1,0 +1,460 @@
+═══════════════════════════════════════════════════════════════════════════════
+ SURYA AGENT — BUILD REPORT
+ Autonomous inspection & triage console for utility-scale solar
+═══════════════════════════════════════════════════════════════════════════════
+
+ A running record of every phase: what was delivered, what was checked, what was
+ found, and what needs a human decision. Appended to at the end of each phase.
+
+ Last updated ........ Phase 7 complete
+ Phases complete ..... 0, 1, 2, 3 (repo side), 4, 5, 6, 7
+ Phases remaining .... 3 (Colab run — yours), 8 (3D scene), 9 (polish), 10 (artefacts)
+ Tests ............... 91 passing
+ Build ............... green (npm run build)
+ Invariants .......... I1–I10, I12, I13, I14, I16 PASS · I11 waits on Colab · I15 manual
+
+ Key files
+   docs/contract-freeze.md ..... every frozen number, with derivations
+   docs/dataset-provenance.md .. dataset names, licences, class counts
+   docs/media-provenance.md .... video/font licensing and the honest framing
+   docs/vision-handoff.md ...... the Colab round-trip, step by step
+   README.md ................... provenance, physics citation table
+   plan/ ....................... the build pack (numbers superseded by docs/)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ THE ONE PRINCIPLE
+═══════════════════════════════════════════════════════════════════════════════
+
+ Every element on screen is traceable to a physics model, a trained model, or a
+ deterministic function — and the operator can see which.
+
+ Enforced mechanically, not by discipline:
+
+   npm run validate:data    parses every JSON against Zod schemas, asserts
+                            invariants I1–I16. Wired into prebuild, so a drifted
+                            number FAILS THE BUILD, not the demo.
+   npm run check:literals   fails if a headline figure is hardcoded in src/.
+   npm run test             91 tests, also wired into prebuild.
+
+ Three invariants are tripwires against the author, not against bugs:
+   I10  rejects a ΔT outside the measured band, so the thermal scaling cannot be
+        quietly tuned to produce a nicer number.
+   I11  rejects a detection confidence of exactly 0.84 — the spec's placeholder.
+   I12  requires the agent to justify the drone dispatch.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 0 — CONTRACT FREEZE
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ Corrections C1–C8 applied, and propagated INTO CLAUDE.md in place so future
+     sessions don't re-read the broken arithmetic
+   ✓ STRINGS_PER_ARRAY = 7, FAULTED_STRINGS = 5 decided
+   ✓ §2's table filled with final copy → data/events.json (14 events)
+   ✓ plan/schemas.ts → src/lib/types.ts, I10 rebuilt on the measurement
+   ✓ LICENSE (AGPL-3.0, verbatim FSF text — YOLOv8's licence is contagious)
+   ✓ Next.js 15.5.22 / React 19.1 / Tailwind v4 scaffold, TypeScript strict
+
+ FINDINGS
+
+ 1. ARRAY DEVIATION IS −41.7%, NOT −41.8%  (new correction C10)
+    Every term in P_ac cancels between healthy and faulted, so
+    dev_string = f_mismatch − 1 EXACTLY = −58.400%, and × 5/7 = −41.714%.
+    plan/03 quoted −58.45 → "−41.8". Tightened I4 from ±0.1 to ±0.05 — the wide
+    band was exactly what let the discrepancy hide.
+
+ 2. BASELINE_TEMP_C = 47.0 CONTRADICTED THE PHYSICS  (C9, resolved in Phase 1)
+    The NOCT model gives T_cell = 62.81 °C at demo conditions. Flagged rather
+    than silently changed, because it meant touching a measured file.
+
+ 3. DECORATIVE WARNING ARRAYS: 2, NOT ~14  (C11)
+    plan/03 wanted ~14 to make the map look busy; §2's header says ANOMALIES 2→3.
+    Both can't hold if the count is derived from panel status — and it must be.
+
+ 4. ONE SCHEMA FIELD ADDED: DemoEvent.logLine  (C12)
+    The mission log and the event feed were about to become two files holding the
+    same script at different lengths. Now: one t-ordered events.json, optional
+    short-form caption per event.
+
+ 5. STACK NOTES
+    create-next-app now ships Next 16; stayed on 15.5.22 because plan/ pins it.
+    npm audit shows 12 high findings, all transitive dev-toolchain, none reachable
+    in a zero-network static app.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 1 — DATA & PHYSICS
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ scripts/physics.py — the NREL PVWatts model and every constant, ONCE
+   ✓ generate_farm.py → 120 arrays / 3 zones / 3 inverters / 2 pads
+   ✓ generate_telemetry.py → 91 frames + 73-point forecast + 4 repair tasks
+   ✓ generate_events.py → 14 events, every number interpolated from telemetry
+   ✓ validate_data.ts + check_literals.mjs, wired into prebuild
+
+ VERIFIED
+   ✓ I1–I10, I13, I14, I16 pass
+   ✓ Corruption test, twice: changing one telemetry value fails the build with a
+     named error ("I3 INV-B string deviation: expected -58.4 ±0.05, got -57.9")
+   ✓ Every headline number printed by validate:data, generated
+
+ FINDINGS
+
+ 1. PROJECTED 72H LOSS IS 3.07 MWh, NOT 1.44  (C16)  ← changes a number on screen
+    1.44 is 0.48 × 3, where 0.48 MWh/day was itself a seed value typed into
+    plan/03 §7's queue table. The integral is fully determined — no free
+    parameter — and the array's 105.4 kW shortfall across the forecast curve
+    integrates to 3,069.7 kWh = 3.07 MWh (1.01 MWh/day).
+
+ 2. THE 14:00 DEADLINE NEEDED A DIFFERENT MODEL  (C18)
+    A single threshold crossing cannot produce 14:00: the cell-temperature curve
+    peaks near 12:30, so any threshold below the peak is crossed twice and the
+    afternoon crossing is the module COOLING. Implemented as cumulative thermal
+    dose: T_PROP_C = 65 °C, DOSE_BUDGET_H = 5.0 h.
+    The budget is SOLVED to reproduce 14:00 and declared as such — same footing as
+    f_mismatch = 0.4160 and P_RATED_STRING = 49.61.
+    Note the asymmetry with finding 1: the deadline model HAS a free parameter, so
+    a frozen observable can be honoured. The loss integral has none, so its frozen
+    value had to move.
+
+ 3. INVERTER ROWS ARE A PEER STRING COMPARISON  (C17)
+    A true inverter aggregate drives 40 arrays, so B-17's fault dilutes to ~−1%
+    and §2's table would show nothing. Rows are the string at the inspected
+    position on each inverter — what an operator actually looks at.
+
+ 4. FORECAST AMBIENT SPREAD IS 5.7 °C, AND THAT'S THE HONEST CONSEQUENCE  (C19)
+    35 °C at 10:00 and a 38.1 °C peak over-determine the curve. Kept both frozen
+    numbers and stated the result rather than fudging either. It actually helps:
+    warm nights mean the module never sheds heat, which is why 72 clear hours is
+    expensive.
+
+ 5. C9 RESOLVED — thermal_hotspot.py now imports BASELINE_TEMP_C from physics.py.
+    Only the absolute baseline changed; the ΔT matrix, coordinates, cluster count
+    and σ are byte-identical because nothing in the extraction reads it.
+
+ HEALTH INDEX, since it's non-obvious
+   94 → 80 is a severity roll-up: 100 − Σ deduction[status], warning 3.0,
+   critical 14.0. An energy ratio would read 99.5% (120 monitored arrays are
+   ~30 MW of a 500 MW block) and would hide the difference between "dirty" and
+   "about to fail". Deductions scale with fault MAGNITUDE, not the status label,
+   so health is continuous — max step 4.7/frame against I16's limit of 6.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 2 — CLOCK & SHELL
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ demoClock.ts + ONE rAF loop in useDemoClock.ts, mounted once
+   ✓ Rehearsal keys: Space ← → 1 2 3 R C V, plus Home/End and D
+   ✓ globals.css with every design token, verified present in the built stylesheet
+   ✓ Three-column shell, 1920×1080, no scrollbars
+   ✓ ESLint guardrails — PROVED they fire (probe with setInterval, rAF, setTimeout,
+     Math.random and localStorage produced 8 errors)
+
+ DECISIONS
+
+ 1. `view` IS DERIVED, NOT STORED
+    CLAUDE.md §6's sketch writes `view` inside _tick. Writing it every tick makes
+    it depend on tick order rather than on t — seeking to 50 without ticking would
+    leave the wrong view showing. Now useView() = viewOverride ?? viewAt(t).
+
+ 2. BOTH VIEWS STAY MOUNTED, shown by visibility
+    Not conditional render. The real reason is Phase 7: the cinematic contains a
+    SECOND live ConsoleRoot as the PiP, and the console must not be a tree that is
+    destroyed and rebuilt every time the cinematic comes up.
+
+ 3. _tick CLAMPS dt TO 100ms — a backgrounded tab returns with a multi-second
+    delta and would teleport the demo past its own beats.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 3 — VISION (repo side; the Colab run is yours)
+═══════════════════════════════════════════════════════════════════════════════
+
+ FOUR DEFECTS FOUND IN plan/COLAB-NOTEBOOK.md BEFORE RUNNING ANYTHING
+
+ 1. Cell 5 writes label "Cracked", but DetectionClass was the spec's invented enum
+    [crack, soiling, delamination, hotspot]. Zod would have REJECTED the real
+    model output. The enum is now the five class names the dataset ships, verbatim,
+    Turkish ones included.
+
+ 2. Cell 4 indexed per-class AP with enumerate(metrics.box.ap50). Ultralytics only
+    reports AP for classes WITH eval instances, and `Dirty` has ZERO test
+    instances — so every label after it shifted by one and the wrong number was
+    attributed to the wrong class. Now keyed by ap_class_index.
+    This is the exact category of error the project exists to prevent, and it sat
+    in the cell whose output goes on a slide.
+
+ 3. Cell 5 took the first box when it wasn't a Cracked box, couldn't be replaced by
+    a later higher-confidence crack, and crashed on zero detections. Rewritten to
+    scan candidates and take the highest-confidence Cracked box, failing loudly
+    rather than quietly labelling something else as a crack.
+
+ 4. Cell 7 shipped b17_cellgrid.json in the download and the unzip instructions
+     said to overwrite the local copy — destroying the measured thermal result.
+     Thermal is excluded from the zip; Cells 6a–6c marked superseded.
+
+ DELIVERED
+   ✓ Detection schema gains apPerClass, sourceImage, split — the vision metric is
+     committed data checked by an invariant, not a figure retyped from a screenshot
+   ✓ I11 now rejects FIVE things, all verified against synthetic inputs:
+       · confidence exactly 0.84
+       · a label that isn't what the reticle claims
+       · a missing `Cracked` entry in apPerClass
+       · an evidence image from a non-test split
+       · any class name outside the shipped set
+   ✓ Class counts re-counted from the label files: 909/104/54 boxes across
+     train/valid/test, 1,067 total, `Cracked` at index 1 with 22 held-out test boxes
+   ✓ docs/vision-handoff.md — the round-trip and what each rejection means
+
+ ⚠ ACTION NEEDED FROM YOU
+   1. ROTATE THE ROBOFLOW API KEY. The notebook shipped it hardcoded in Cell 2 and
+      that file was committed, so it is in git history and rewriting the notebook
+      does not remove it. Cell 2 now prompts via getpass.
+   2. Run the notebook (Cells 1–5 and 7, T4 runtime), drop the five files per the
+      handoff table, then `npm run validate:data` — I11 flips from skip to PASS.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 4 — CONSOLE, STATIC
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ Every console component rendering real data through the selector layer
+   ✓ Seams first: lib/data.ts (the one place /data enters), lib/format.ts,
+     lib/ranking.ts, store/selectors.ts (the public API)
+   ✓ Artefact manifest so later-phase files arrive without a conditional import
+   ✓ TEST RUNNER — the gap flagged at the end of Phase 2
+
+ ACCEPTANCE — pinned t, asserted against §2 row by row
+   t=0    health 94, output 364 MW, ANOMALIES 2/0 derived from status, no detail
+   t=12   −58.4% (string) AND −41.7% (array) as separate objects, 15.02/36.10 kW,
+          health 80, 3/1 critical, real minus sign not a hyphen
+   t=48–56 matrix fills PROGRESSIVELY; measured band R2·C3–C6 at +2.8 °C; the
+          spec's fictional R4·C5 and +8.0 °C absent
+   t=80   3.07 MWh, ACT BEFORE 14:00, INC-B17 #1 at 26.7× ahead, gate armed but
+          not fired
+   t=86   work order only after the click — and unapproved at the same beat shows
+          nothing
+   seek   t=40 identical forwards and backwards; sections un-reveal
+
+ FINDINGS
+
+ 1. check:literals CAUGHT ITS OWN AUTHOR — it flagged format.ts docstrings showing
+    "15.02 kW" as an example of output shape. Comment detection was a line-start
+    heuristic; it now blanks comments while preserving character offsets. Verified
+    it still catches a genuinely hardcoded number in JSX.
+
+ 2. THE FARMMAP ROUTE WAS WRONG and I rewrote it. Two overlapping paths faked a
+    partial stroke. Now pathLength={1} with a computed dasharray, and the drone
+    marker is the quadratic Bézier evaluated at progress — sampled from t, never
+    integrated, so seeking either way lands it in the same place.
+
+ ⚠ WINDOWS APPLICATION CONTROL BLOCKS NATIVE NODE BINARIES ON THIS MACHINE
+    Verified: VerifiedAndReputablePolicyState = 1 (Smart App Control ENFORCED);
+    Defender real-time protection is off, so SAC is the cause.
+    rollup's .node file is blocked outright, so vitest wouldn't start.
+    FIX IN PLACE: package.json overrides rollup → @rollup/wasm-node. Committed, in
+    the lockfile, survives npm ci. Next builds are unaffected (SWC, no rollup).
+    DO NOT disable Smart App Control — it is deliberately one-way and cannot be
+    re-enabled without a clean Windows reinstall.
+    If something else fails with ERR_DLOPEN_FAILED, that's the cause, not npm.
+    The fix is always the same shape: find the WASM/pure-JS build of that package.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ INTERLUDE — TWO BUGS YOUR EYES CAUGHT AND THE TESTS COULD NOT
+═══════════════════════════════════════════════════════════════════════════════
+
+ You said "the fonts and everything looks weird". Both were real.
+
+ 1. EVERY FONT WAS FALLING BACK TO THE BROWSER DEFAULT
+    next/font variables were on <body>, but globals.css composes them into
+    --font-mono / --font-cond / --font-sans on :root (= <html>). A custom property
+    that references another resolves against the element it is DECLARED on, so
+    var(--font-plex-mono) was undefined at :root, --font-mono became
+    guaranteed-invalid, and the whole type scale silently died.
+    No error, no warning. Moving the classes one element up fixed it.
+
+ 2. TABULAR NUMERALS WERE BEING DISCARDED
+    The CSS `font:` shorthand RESETS font-variant-numeric — on exactly the .t-*
+    classes that carry numbers. Farm health counting 94 → 80 would have jittered.
+    Every mono class now restates it, with a comment so nobody tidies it away.
+
+ jsdom caught neither: it has no font stack and doesn't resolve the cascade.
+
+ ALSO: the debug readout was defaulting to visible. It is a build instrument, not
+ part of the product. It now defaults on in development and OFF in a production
+ build — nobody watching should see a scrub bar.
+
+ ON THE KEYBOARD, since you asked whether this is a game:
+   It is a presenter remote, not a game and not a product control surface. The
+   90 seconds is a recorded incident being replayed; Space/arrows/speed/R exist so
+   whoever is driving the pitch can start on cue, seek back when someone asks
+   "what was that number", or slow to 0.5× while talking over the thermal scan.
+   In real use the product has exactly ONE input: the operator clicks APPROVE.
+   That is the entire interaction surface, and it is the point of the human gate.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 5 — CONSOLE, CLOCK-DRIVEN  (+ rebuilt against your reference screenshots)
+═══════════════════════════════════════════════════════════════════════════════
+
+ ACCEPTANCE — the clock is PLAYED, not seeked (360 successive _tick calls)
+   t=10  detail panel opens on B-17, string deviation appears
+   t=48  anomaly matrix appears and begins filling cell by cell
+   t=62  72h outlook and the 14:00 deadline
+   t=74  gate arms, INC-B17 enters the queue
+   cuts  exactly two, at t=18 and t=74
+   Each checked to appear at its second AND NOT BEFORE — the second half is what
+   catches a section that was never gated on the clock at all.
+   Plus: t=40 renders identically from cold as after a full playthrough, and the
+   clock stops itself exactly at 90.
+
+ REBUILT FROM images/ TO MATCH THE REFERENCE DENSITY
+   · module icon rail (DRONES / SIGNAL / MISSIONS / REPAIRS / ANALYTICS + compass)
+   · header: stacked wordmark, KPI sparklines, critical badge, weather chip,
+     three-day outlook chips, notification bell, operations tagline
+   · event cards carry a severity BADGE IN WORDS, not only a border colour
+   · segmented instrument meters for battery and signal — ten discrete cells read
+     as an instrument, a smooth bar reads as a progress bar
+   · map: zone status cards derived live from the frame, row numbers down the left
+     edge, keyed legend including the drone route, map-mode control
+   · right rail: verdict chips, findings, cell-defect bullets, recommendation
+   · VIEW ALL EVENTS / VIEW QUEUE affordances
+
+ FINDING
+   Zone cards initially called usePanelStatus inside a .map over 40 panels — a
+   rules-of-hooks violation even with a fixed-length list. Replaced with a single
+   useZoneSummary reading one frame.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 6 — CACHED THREE-STAGE AGENT
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ scripts/run_agent.py — TRIAGE / PROGNOSIS / RECOMMENDATION against Groq
+     (openai/gpt-oss-120b), run once, committed. The demo never calls an LLM.
+   ✓ data/agent_cache.json validates against the §7 types
+   ✓ Model ID rendered per card: "TRIAGE · openai/gpt-oss-120b"
+   ✓ I12 flips from skip to PASS; I9 now also cross-checks the agent
+
+ THE CLAIM THE WHOLE MISSION RESTS ON, in the model's own words:
+   "The telemetry pattern could be caused by heavy localized soiling or by
+    physical cell damage (a cracked cell forcing its bypass diode into
+    conduction); only visual and thermal imaging can distinguish these
+    mechanisms."
+ The check FAILS without it — the rationale must name soiling, name physical
+ damage, AND name imaging as the discriminator.
+
+ THE CROSS-CHECK
+   Beyond structured fields, EVERY number in the free-text reasoning is checked
+   against a set built from the data itself. That is where a fabricated figure
+   actually hides: the reference implementation's own agent output says "matching
+   the client-reported 60% output drop" while its telemetry says 58.4%, and
+   nothing caught it. This would have.
+   A stage that fails is retried with the rejection as a correction; after four
+   attempts the script exits non-zero and writes NOTHING.
+
+ IT CAUGHT FOUR THINGS — THREE WERE MY ERRORS, NOT THE MODEL'S
+   1. It flagged "17" out of "B-17". Identifiers contain digits that aren't
+      measurements. A check that cries wolf is a check that gets switched off.
+   2. I demanded suspectComponent == "INV-B". The model answered "String
+      B-17-S3", which is MORE precise — the fault is inside the string, INV-B is
+      only where it is observed. I was forcing a worse answer.
+   3. prognosis.confidence came back as 5, which Zod rejects.
+   4. THE GENUINE CATCH: my prompt exposed THERMAL_SPAN_C as a bare "25 C span",
+      and the model wrote that the cells run "2.8 °C above the nominal 25 °C
+      span" — two REAL numbers in a physically WRONG sentence. Numeric checks
+      can't see that. Removed the loose number; it now correctly says
+      "2.7–2.8 °C above the array median".
+
+   Also tightened severity: the model first said "medium", which would have sat
+   beside a console badge reading CRITICAL. A >50% string shortfall with a
+   same-day deadline isn't medium — diagnostic ambiguity belongs in confidence.
+
+ typographic() swaps the ASCII hyphen the model writes for U+2212 so agent prose
+ matches the tables beside it. GLYPH ONLY — no word, digit or unit altered, and it
+ will not touch B-17 or INV-B. That last case has its own test, because silently
+ corrupting every component ID would be a nasty way to fail.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 7 — CINEMATIC OVER VIDEO
+═══════════════════════════════════════════════════════════════════════════════
+
+ DELIVERED
+   ✓ CC0 flyover plate, downloaded and COMMITTED (never hotlinked)
+   ✓ CinematicBackground — THE SWAP SEAM for Phase 8
+   ✓ MissionLog — typewriter at 45cps, coloured by event class
+   ✓ Timecode — ● REC / T+MM:SS / LIVE with corner brackets
+   ✓ StatusPill — hard cuts, no transition
+   ✓ PiPConsole — the REAL <ConsoleRoot /> at scale(0.31)
+   ✓ TargetReticle — claims only what was measured
+   ✓ View switching at t=18 and t=74
+
+ ACCEPTANCE — 20 new tests, 91 total
+   ✓ THE PiP IS THE LIVE CONSOLE. The test takes the standalone console's rendered
+     text at t = 20, 44, 60, 72 and asserts EVERY fragment of it appears inside the
+     cinematic view. If the PiP were ever swapped for a screenshot or a mock, this
+     fails. It also asserts the PiP differs between t=20 and t=70 — live, not frozen.
+   ✓ Status pill hard-cuts through all seven mission states, and is correct the
+     INSTANT you seek without having passed through the prior ones
+   ✓ Timecode counts from the cut, not from demo zero: T+00:00 at t=18,
+     T+00:16 at target lock
+   ✓ Mission log types forward and UN-TYPES when seeking back
+   ✓ Reticle never shows "(0.84)" at any beat
+
+ MEDIA PROVENANCE — say this before someone notices it
+   The plate is "Aasen agrivoltaics solar plant … Germany 02" by Tobi Kellner,
+   Wikimedia Commons, CC0 1.0, 720p VP9 transcode, 14 MB.
+   IT IS NOT FOOTAGE OF BHADLA. It is a German agrivoltaic site, warm-graded in
+   CSS so it reads as arid rather than as a green European field. That grade is a
+   stylistic choice, stated in docs/media-provenance.md, not an attempt to pass it
+   off as the site.
+   Nothing measured comes from it: telemetry from the physics model, defect from
+   the trained detector, hot cells from a real thermal frame. It is set dressing
+   for the drone's point of view, and Phase 8 replaces it with an explicitly
+   simulated Bhadla.
+   The honest sentence if asked: "the flyover plate is CC0 stock while the 3D scene
+   is being built — every number and every piece of evidence comes from the
+   pipeline, not from that video."
+
+ FINDING
+   A test probing at exactly t=22.0 found the mission log blank. Not a bug: the
+   next caption starts typing at exactly t=22, so for ~22ms it has zero characters.
+   That is the typewriter being an honest function of t. The test moved to t=21.
+
+ >>> THIS IS A COMPLETE, PRESENTABLE DEMO. Everything after this is upside. <<<
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ OPEN ITEMS
+═══════════════════════════════════════════════════════════════════════════════
+
+ FOR YOU
+   1. ROTATE THE ROBOFLOW API KEY (in git history — see Phase 3)
+   2. RUN THE COLAB NOTEBOOK — Cells 1–5 and 7, T4 runtime. Then drop the five
+      files per docs/vision-handoff.md and run validate:data. I11 flips to PASS,
+      the RGB evidence thumbnail appears, and the reticle gains a real confidence.
+   3. LOOK AT IT IN A BROWSER and tell me what's wrong. Layout, colour, the
+      ironbow ramp in situ, and whether 1920×1080 fits your screen are things
+      jsdom cannot check.
+   4. DECIDE: should the demo auto-play on load instead of waiting for Space?
+      One line either way.
+
+ DEFERRED BY DESIGN
+   · I15 — no build-time way to ask Groq whether a model ID is still live.
+     Check console.groq.com/docs/deprecations before any public showing.
+   · LIVE_AGENT=true runtime escape hatch — plan/01 tags it V2.
+   · Acoustic FFT band-energy check — plan/01 tags it STRETCH.
+
+ NEXT
+   Phase 8 — the R3F 3D scene, swapped in behind the existing overlays. One
+   component boundary changes; nothing else does. Phase 9 polish, Phase 10
+   artefacts and deploy.

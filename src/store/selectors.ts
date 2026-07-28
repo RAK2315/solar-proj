@@ -312,6 +312,38 @@ export function useRepairQueue(): RepairTask[] {
 
 export const useApproved = (): boolean => useDemoClock((s) => s.approved);
 
+/* ── Cinematic ───────────────────────────────────────────────────────────── */
+
+/**
+ * The status pill's state machine. HARD CUTS between states, no transition —
+ * instrument readouts do not ease.
+ *
+ * A pure lookup on `t`, so it is correct the instant you seek rather than needing
+ * to have passed through the intervening states.
+ */
+const PILL: Array<[number, string]> = [
+  [BEAT.dispatch, 'ANOMALY DETECTED'],
+  [BEAT.transit, 'FLYING TO ZONE B'],
+  [BEAT.targetLock, 'TARGET LOCK — B-17'],
+  [BEAT.rgbScan, 'INSPECTING B-17'],
+  [BEAT.thermalScan, 'THERMAL SCAN'],
+  [BEAT.thermalDone, 'SURYA ANALYZING'],
+  [BEAT.prognosis, 'RECOMMENDATION READY'],
+];
+
+export function useStatusPill(): string {
+  const t = useDemoClock((s) => s.t);
+  let label = PILL[0][1];
+  for (const [at, text] of PILL) if (t >= at) label = text;
+  return label;
+}
+
+/** Seconds since the cinematic cut in — what the timecode counts. */
+export const useMissionElapsed = (): number => {
+  const t = useDemoClock((s) => s.t);
+  return Math.max(0, t - BEAT.dispatch);
+};
+
 /* ── Typewriter ──────────────────────────────────────────────────────────── */
 
 export const CPS = 45;
