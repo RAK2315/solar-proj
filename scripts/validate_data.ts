@@ -52,11 +52,14 @@ function readOptional<T extends z.ZodTypeAny>(
   return read(path, schema, label);
 }
 
-// Binary evidence is not schema-validated, but its absence must be visible.
+// Binary artefacts are not schema-validated, but their absence must be visible.
 const BINARY_EVIDENCE: Array<[string, string]> = [
   ['data/evidence/b17_thermal.png', 'ironbow thermal render'],
-  ['data/evidence/b17_rgb.jpg', 'RGB evidence frame (Phase 3)'],
-  ['data/evidence/b17_rgb_annotated.jpg', 'annotated detection (Phase 3)'],
+  ['data/evidence/b17_rgb.jpg', 'RGB evidence frame (Phase 3, Colab)'],
+  ['data/evidence/b17_rgb_annotated.jpg', 'annotated detection (Phase 3, Colab)'],
+  ['models/defect_yolov8n.pt', 'trained weights — provenance (Phase 3, Colab)'],
+  ['docs/training/results.csv', 'training log (Phase 3, Colab)'],
+  ['docs/training/training_curves.png', 'training curves (Phase 3, Colab)'],
   ['data/evidence/b17_inverter_audio.wav', 'inverter acoustic clip (Phase 7)'],
   ['data/evidence/b17_flyover.mp4', 'drone flyover clip (Phase 7)'],
 ];
@@ -128,6 +131,26 @@ function main(): void {
   ];
   for (const [label, value] of rows) {
     console.log(`  ${label.padEnd(26)} ${BOLD}${value}${OFF}`);
+  }
+
+  // The vision numbers get their own block: they are the ones most easily
+  // misreported, so print exactly what is committed and nothing rounder.
+  if (detection) {
+    console.log(`\n${BOLD}vision, as the model returned it${OFF}`);
+    console.log(`  ${'detection'.padEnd(26)} ${BOLD}${detection.label} ` +
+      `@ ${detection.confidence}${OFF}  ${DIM}on ${detection.sourceImage} ` +
+      `(${detection.split})${OFF}`);
+    console.log(`  ${'mAP@50, five-class mean'.padEnd(26)} ${BOLD}${detection.mAP50}${OFF}` +
+      `  ${DIM}depressed by classes the demo never uses${OFF}`);
+    for (const [cls, ap] of Object.entries(detection.apPerClass)) {
+      const star = cls === 'Cracked' ? `  ${DIM}<- the only one on screen${OFF}` : '';
+      console.log(`  ${`  AP@50 ${cls}`.padEnd(26)} ${ap}${star}`);
+    }
+    const undef = ['BakimGereken', 'Cracked', 'Dirty', 'Good', 'Saglam']
+      .filter((c) => detection.apPerClass[c] === undefined);
+    if (undef.length) {
+      console.log(`  ${DIM}no test instances, AP undefined (not zero): ${undef.join(', ')}${OFF}`);
+    }
   }
 
   console.log(`\n${GREEN}${BOLD}data is consistent.${OFF}`);

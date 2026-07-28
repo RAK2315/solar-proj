@@ -60,7 +60,24 @@ export const TriageSeverity = z.enum(['low', 'medium', 'high', 'critical']);
 export const DroneStatus = z.enum(['STANDBY', 'ACTIVE', 'RETURNING']);
 export const DemoView = z.enum(['console', 'cinematic']);
 export const AgentStage = z.enum(['triage', 'prognosis', 'recommendation']);
-export const DetectionClass = z.enum(['crack', 'soiling', 'delamination', 'hotspot']);
+/**
+ * The detector's classes, VERBATIM as the dataset ships them — including the two
+ * Turkish labels (`BakimGereken` = "maintenance required", `Saglam` = "intact").
+ *
+ * CLAUDE.md §11 proposed `['crack','soiling','delamination','hotspot']`. Those are
+ * names for a model that does not exist. Renaming a trained model's classes to
+ * something tidier is the same category of lie as rounding up a metric, so the real
+ * ones stay and only `Cracked` ever reaches the screen.
+ *
+ * Source: dataset/rgb-solar-panel-fault-v2/data.yaml (nc: 5), counted in
+ * docs/dataset-provenance.md. `Cracked` is class index 1.
+ */
+export const DetectionClass = z.enum([
+  'BakimGereken', 'Cracked', 'Dirty', 'Good', 'Saglam',
+]);
+
+/** The one class the demo actually shows. */
+export const ON_SCREEN_DETECTION_CLASS = 'Cracked';
 export const EventSource = z.enum([
   'SYSTEM', 'PANEL B-17', 'DRONE 01', 'DRONE 02',
   'SURFACE SCAN', 'THERMAL SCAN', 'INSPECTION QUEUE',
@@ -235,7 +252,21 @@ export const Detection = z.object({
   confidence: z.number().gt(0).lte(1),      // WHATEVER THE MODEL RETURNED
   bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),  // normalised xywh
   model: z.string(),                        // "yolov8n-solar-defect"
-  mAP50: z.number().gt(0).lte(1),           // the REAL training metric
+  mAP50: z.number().gt(0).lte(1),           // the REAL five-class mean
+  /**
+   * Per-class AP@50, keyed by the dataset's own class names.
+   *
+   * Committed as DATA rather than quoted in the README from a screenshot, because
+   * the five-class mean is misleading here and the honest number needs to be
+   * checkable: `Saglam` has 27 boxes and scores near zero, dragging the mean down,
+   * and `Dirty` has ZERO test instances so its AP is undefined rather than 0.0 —
+   * which is why absent keys are legal and a 0.0 for Dirty would be a lie.
+   * The number that matters for this project is AP@50 for `Cracked`.
+   */
+  apPerClass: z.record(z.string(), z.number().min(0).max(1)),
+  /** Provenance — the exact file, and proof it was never trained on. */
+  sourceImage: z.string(),
+  split: z.string(),                        // "test (held out)"
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -494,6 +525,28 @@ export function assertInvariants(d: {
         'I11: detection.confidence is exactly 0.84 — the placeholder from CLAUDE.md §2. ' +
         'If the model genuinely returned 0.84, delete this check and note it in the README. ' +
         'Otherwise you are about to show a number you did not measure.',
+      );
+    }
+    // The reticle claims a crack, so the detection had better be one.
+    if (d.detection.label !== ON_SCREEN_DETECTION_CLASS) {
+      throw new Error(
+        `I11: detection.label is "${d.detection.label}", but the demo caption and the ` +
+        `target reticle both say a crack. Re-run Cell 5 against an image where the ` +
+        `model actually finds ${ON_SCREEN_DETECTION_CLASS}, or change what the UI claims.`,
+      );
+    }
+    // The headline vision metric must be the per-class figure, and it must exist.
+    if (d.detection.apPerClass[ON_SCREEN_DETECTION_CLASS] === undefined) {
+      throw new Error(
+        `I11: apPerClass has no entry for ${ON_SCREEN_DETECTION_CLASS}. That is the only ` +
+        'AP figure this project is entitled to quote — the five-class mean is depressed ' +
+        'by a 27-box class we never use. Copy it from Cell 4 output.',
+      );
+    }
+    if (!d.detection.split.toLowerCase().includes('test')) {
+      throw new Error(
+        `I11: evidence image came from the "${d.detection.split}" split. The displayed ` +
+        'confidence is only meaningful on data the model never trained on.',
       );
     }
     checked.push('I11');

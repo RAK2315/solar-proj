@@ -101,17 +101,22 @@ Full record with derivations: `docs/contract-freeze.md`.
 | **Attribution** | "Provided by a Roboflow user", via Roboflow Universe |
 | **Images / boxes** | **921** (train 797 / valid 82 / test 42) · **1,067** boxes |
 | **Classes (5, verbatim)** | `BakimGereken`, `Cracked`, `Dirty`, `Good`, `Saglam` |
-| **mAP@50** | *pending — Phase 3 on Colab. Will be the real number, per class.* |
+| **mAP@50, five-class mean** | *pending — Colab, Cell 4* |
+| **AP@50 `Cracked`** | *pending — **this** is the figure this project may quote* |
 
 Class names are **as shipped**, including the two Turkish ones (`BakimGereken` =
 "maintenance required", `Saglam` = "intact"). The build spec proposed renaming them to
 `crack / soiling / delamination / hotspot`; that would describe a model that does not
 exist. Only `Cracked` reaches the UI.
 
-Per-class AP@50 will be reported alongside the mean, because the mean is misleading here:
+Per-class AP@50 is reported alongside the mean, because the mean is misleading here:
 `Saglam` has 27 boxes and will score near zero, and `Dirty` has **zero test instances**, so
 its test AP is *undefined* rather than 0.0. The number that matters is AP@50 for `Cracked`
-(350 boxes).
+(350 boxes, 22 of them held out).
+
+Both figures are committed as data in `data/evidence/b17_detection.json` and checked by
+invariant **I11**, rather than retyped into this README from a screenshot. The Cell 4
+screenshot in `docs/training/` corroborates the JSON, not the other way round.
 
 The evidence image comes from the **held-out test split**, so the displayed confidence is a
 genuine output on an image the model never saw.

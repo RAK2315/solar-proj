@@ -17,17 +17,37 @@ downloaded `data.yaml` / `README.dataset.txt`, not from the dataset's web page.
 | **Images** | **921** — train 797 / valid 82 / test 42 |
 | **Boxes** | **1,067** |
 | **Classes (5, verbatim)** | `BakimGereken`, `Cracked`, `Dirty`, `Good`, `Saglam` |
-| **mAP@50** | *fill in from the actual training run — do not round up* |
+| **Local copy** | `dataset/rgb-solar-panel-fault-v2/` (git-ignored; Colab re-downloads it) |
+| **mAP@50, five-class mean** | *pending — Colab, Cell 4. Do not round up.* |
+| **AP@50 `Cracked`** | *pending — **this** is the number this project may quote* |
+
+### Where the metrics live once the run lands
+
+`mAP50` and `apPerClass` are written into **`data/evidence/b17_detection.json`** by Cell 5,
+so they are committed data that `npm run validate:data` checks — not figures retyped from a
+screenshot. Invariant **I11** fails the build if `apPerClass` has no `Cracked` entry, if the
+detected label is not `Cracked`, if the evidence image did not come from the test split, or
+if the confidence is exactly `0.84` (the spec's placeholder). Fill the two rows above from
+the same JSON, and keep the Cell 4 screenshot in `docs/training/metrics.png` as corroboration.
+
+⚠️ **Cell 4 must index per-class AP by `metrics.box.ap_class_index`, not by `enumerate()`.**
+Ultralytics only reports AP for classes that have instances in the eval set, and `Dirty` has
+zero test instances — so `enumerate()` silently shifts every label by one and attributes the
+wrong number to the wrong class. The notebook was corrected; if you rewrite that cell, keep it.
 
 ### Class distribution (counted from the label files, not the dataset page)
 
-| Class | Train | Valid | Test | Total | Note |
-|---|---|---|---|---|---|
-| `Cracked` | 315 | 13 | 22 | **350** | **The only class that appears on screen.** Well represented. |
-| `Good` | 237 | 21 | 17 | 275 | Healthy baseline |
-| `Dirty` | 234 | 38 | 0 | 272 | Maps to the "soiling" concept. **Zero test instances** → test mAP undefined for this class. |
-| `BakimGereken` | 109 | 20 | 14 | 143 | Turkish: "maintenance required" |
-| `Saglam` | 14 | 12 | 1 | 27 | Turkish: "intact". **Too sparse to learn** — expect near-zero AP. |
+Re-counted from the downloaded labels on 2026-07-28; the totals below are what
+`dataset/rgb-solar-panel-fault-v2/*/labels/*.txt` actually contains.
+
+| Class | Idx | Train | Valid | Test | Total | Note |
+|---|---|---|---|---|---|---|
+| `Cracked` | **1** | 315 | 13 | 22 | **350** | **The only class that appears on screen.** Well represented, and 22 held-out test boxes is enough for the AP figure to mean something. |
+| `Good` | 3 | 237 | 21 | 17 | 275 | Healthy baseline |
+| `Dirty` | 2 | 234 | 38 | **0** | 272 | Maps to the "soiling" concept. **Zero test instances** → test AP undefined for this class, not zero. |
+| `BakimGereken` | 0 | 109 | 20 | 14 | 143 | Turkish: "maintenance required" |
+| `Saglam` | 4 | 14 | 12 | **1** | 27 | Turkish: "intact". **Too sparse to learn** — expect near-zero AP, dragging the five-class mean down. |
+| | | **909** | **104** | **54** | **1,067** | boxes across 921 images |
 
 ### Things to state honestly, not hide
 
