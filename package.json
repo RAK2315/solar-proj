@@ -5,37 +5,48 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/sync_artefacts.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "validate:data": "tsx scripts/validate_data.ts",
     "check:literals": "node scripts/check_literals.mjs",
-    "prebuild": "npm run validate:data && npm run check:literals"
+    "prebuild": "npm run sync:artefacts && npm run validate:data && npm run check:literals && npm run test",
+    "sync:artefacts": "node scripts/sync_artefacts.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.544.0",
+    "next": "15.5.22",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.22",
-    "zustand": "^5.0.8",
-    "framer-motion": "^12.23.12",
     "recharts": "^2.15.4",
-    "lucide-react": "^0.544.0",
-    "zod": "^4.1.11",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^3.3.1",
-    "class-variance-authority": "^0.7.1"
+    "zod": "^4.1.11",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
-    "@eslint/eslintrc": "^3",
-    "tsx": "^4.20.5"
+    "jsdom": "^26.1.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.20.5",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@^4"
   }
 }

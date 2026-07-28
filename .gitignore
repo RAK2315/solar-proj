@@ -29,3 +29,6 @@ solar-panel-fault-detection-*/
 # OS
 .DS_Store
 Thumbs.db
+
+# Vitest / evidence copies
+public/evidence/

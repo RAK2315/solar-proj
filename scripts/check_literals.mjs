@@ -44,16 +44,31 @@ function walk(dir) {
   return out;
 }
 
+/**
+ * Blank out comments while preserving every newline and every character offset, so
+ * reported line numbers still point at the real line.
+ *
+ * A number inside a doc comment is documentation, not a number on screen — the
+ * format.ts docstrings legitimately show `−58.4 %` as an example of the output
+ * shape. String literals are NOT stripped: a hardcoded "58.4%" in JSX text is
+ * exactly what this check exists to catch.
+ */
+function blankComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m) =>
+    m.replace(/[^\n]/g, ' '));
+}
+
 const findings = [];
 for (const path of walk(ROOT)) {
   const rel = relative('.', path).split('\\').join('/');
   if (EXEMPT.includes(rel)) continue;
-  const lines = readFileSync(path, 'utf8').split('\n');
-  lines.forEach((line, i) => {
-    if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*')) return;
+  const raw = readFileSync(path, 'utf8');
+  const code = blankComments(raw).split('\n');
+  const original = raw.split('\n');
+  code.forEach((line, i) => {
     for (const [literal, source] of FORBIDDEN) {
       if (line.includes(literal)) {
-        findings.push({ rel, line: i + 1, literal, source, text: line.trim() });
+        findings.push({ rel, line: i + 1, literal, source, text: original[i].trim() });
       }
     }
   });

@@ -1,0 +1,11 @@
+{
+  "files": {
+    "thermal": "/evidence/b17_thermal.png",
+    "rgb": null,
+    "rgbAnnotated": null,
+    "audio": null,
+    "flyover": null
+  },
+  "detection": null,
+  "agent": null
+}
