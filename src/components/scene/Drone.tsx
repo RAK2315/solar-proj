@@ -18,7 +18,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { Group, Mesh } from 'three';
 
-import { droneAt } from '@/lib/scene';
+import { droneAt, droneVisible } from '@/lib/scene';
 import { useDemoClock } from '@/store/demoClock';
 
 const ARM = 0.55;
@@ -36,6 +36,9 @@ export function Drone() {
     const p = droneAt(t);
 
     if (group.current) {
+      // Hidden while the camera is riding it — otherwise we would be looking at
+      // the inside of its own shell.
+      group.current.visible = droneVisible(t);
       group.current.position.set(p.x, p.y, p.z);
       // Bank into the direction of travel. Sampled by differencing two samples of
       // a pure function — still no accumulated state.
@@ -49,6 +52,8 @@ export function Drone() {
 
     // Blob shadow tracks the ground point and fades with altitude.
     if (shadow.current) {
+      // The shadow stays: from the aircraft's own camera you still see it on the
+      // ground below, which is a detail that reads as real.
       shadow.current.position.set(p.x, 0.03, p.z);
       const s = Math.max(0.5, 2.4 - p.y * 0.045);
       shadow.current.scale.set(s, s, s);

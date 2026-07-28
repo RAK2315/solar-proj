@@ -14,8 +14,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  B17, CRUISE_ALT, INSPECT_ALT, M, ORBIT_DEG_PER_SEC, PANELS_PER_ARRAY, PAD,
-  cameraAt, crackVisible, droneAt, panelInstances, thermalAmount,
+  B17, CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC, ORBIT_RADIUS,
+  PANELS_PER_ARRAY, PAD, POV_IN, cameraAt, crackVisible, droneAt, droneVisible,
+  isPOV, panelInstances, reticleRect, thermalAmount, visibleLabels,
 } from './scene';
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) =>
@@ -64,14 +65,17 @@ describe('the drone flies the mission', () => {
     expect(droneAt(M.transit).y).toBeCloseTo(CRUISE_ALT, 1);
   });
 
-  it('is on station over B-17 at target lock', () => {
-    expect(dist(droneAt(M.lock), B17)).toBeLessThan(0.5);
+  it('arrives over the DAMAGED MODULE, not the array centre', () => {
+    // The module sits one panel-width off centre. Flying to the array centre and
+    // calling it the target is exactly the sloppiness the ID tags exist to expose.
+    expect(dist(droneAt(M.lock), DAMAGED_MODULE)).toBeLessThan(0.5);
     expect(droneAt(M.lock).y).toBeCloseTo(INSPECT_ALT, 0);
   });
 
-  it('holds station through the whole inspection', () => {
+  it('holds station on the module through the whole inspection', () => {
     for (const t of [36, 42, 48, 54]) {
-      expect(dist(droneAt(t), B17), `drifted at t=${t}`).toBeLessThan(0.5);
+      const d = dist(droneAt(t), DAMAGED_MODULE);
+      expect(d, `drifted at t=${t}`).toBeLessThanOrEqual(ORBIT_RADIUS + 0.1);
     }
   });
 
@@ -80,9 +84,9 @@ describe('the drone flies the mission', () => {
   });
 
   it('moves monotonically toward the target during transit', () => {
-    let previous = dist(droneAt(M.transit), B17);
+    let previous = dist(droneAt(M.transit), DAMAGED_MODULE);
     for (let t = M.transit + 0.5; t <= M.lock; t += 0.5) {
-      const d = dist(droneAt(t), B17);
+      const d = dist(droneAt(t), DAMAGED_MODULE);
       expect(d).toBeLessThanOrEqual(previous + 1e-6);
       previous = d;
     }
@@ -96,38 +100,40 @@ describe('the camera hits the five marks in CLAUDE.md §14', () => {
     expect(c.pos.y).toBeLessThan(12);
   });
 
-  it('transit: tracking the drone, still wide', () => {
+  it('transit: RIDES THE DRONE, narrowing from 65°', () => {
     const c = cameraAt(28);
-    expect(c.fov).toBe(65);
-    expect(dist(c.pos, droneAt(28))).toBeLessThan(40);
+    expect(c.fov).toBeGreaterThan(50);
+    expect(c.fov).toBeLessThanOrEqual(65);
+    // POV: the eye is at the aircraft, a gimbal's drop below it.
+    expect(dist(c.pos, droneAt(28))).toBeLessThan(0.01);
   });
 
-  it('approach: descends toward B-17 and narrows to 45°', () => {
-    expect(cameraAt(M.lock).fov).toBeGreaterThan(60);
+  it('approach: still POV, narrowing onto the module, reaching 45°', () => {
+    expect(cameraAt(M.lock).fov).toBeCloseTo(52, 0);
     expect(cameraAt(M.rgb).fov).toBeCloseTo(45, 0);
-    expect(dist(cameraAt(M.rgb).look, B17)).toBeLessThan(1);
+    expect(dist(cameraAt(M.rgb).look, DAMAGED_MODULE)).toBeLessThan(0.01);
   });
 
-  it('inspect: near-nadir, holding 45°, looking straight at the array', () => {
+  it('inspect: near-nadir from the aircraft, holding 45° on the module', () => {
     for (const t of [42, 48, 54]) {
       const c = cameraAt(t);
       expect(c.fov).toBe(45);
-      expect(c.pos.y).toBeGreaterThan(15);
-      expect(dist(c.look, B17)).toBeLessThan(0.5);
+      expect(dist(c.pos, droneAt(t))).toBeLessThan(0.01);   // riding it
+      expect(c.pos.y).toBeGreaterThan(5);                    // still above the panels
+      expect(dist(c.look, DAMAGED_MODULE)).toBeLessThan(0.01);
     }
   });
 
-  it('inspect: orbits at 15°/s, sampled from t rather than spun', () => {
-    // 8 seconds after the orbit starts must be exactly 120° round.
-    const start = cameraAt(M.rgb);
-    const later = cameraAt(M.rgb + 8);
+  it('inspect: orbits the module at 15°/s, sampled from t rather than spun', () => {
+    // The DRONE flies the orbit and the camera rides it, so the §14 camera move
+    // and the flight path are now the same thing.
+    const later = droneAt(M.rgb + 8);
     const angle = (8 * ORBIT_DEG_PER_SEC * Math.PI) / 180;
-    expect(later.pos.x - B17.x).toBeCloseTo(Math.sin(angle) * 11, 4);
-    expect(later.pos.z - B17.z).toBeCloseTo(Math.cos(angle) * 11, 4);
-    expect(start.pos.z - B17.z).toBeCloseTo(11, 4);
+    expect(later.x - DAMAGED_MODULE.x).toBeCloseTo(Math.sin(angle) * ORBIT_RADIUS, 4);
+    expect(later.z - DAMAGED_MODULE.z).toBeCloseTo(Math.cos(angle) * ORBIT_RADIUS, 4);
   });
 
-  it('pull out: rises and widens back to 65°', () => {
+  it('pull out: hands back to an external view, rising and widening to 65°', () => {
     const c = cameraAt(M.recommendation);
     expect(c.fov).toBeCloseTo(65, 0);
     expect(c.pos.y).toBeGreaterThan(cameraAt(M.thermalDone).pos.y);
@@ -185,5 +191,101 @@ describe('thermal pass and crack decal follow the script', () => {
   it('shows the crack from target lock, per §14', () => {
     expect(crackVisible(M.lock - 0.1)).toBe(false);
     expect(crackVisible(M.lock)).toBe(true);
+  });
+});
+
+describe('the camera rides the drone (POV)', () => {
+  it('watches from outside for the first three seconds, then gets on board', () => {
+    expect(isPOV(M.dispatch)).toBe(false);
+    expect(isPOV(POV_IN - 0.1)).toBe(false);
+    expect(isPOV(POV_IN)).toBe(true);
+    expect(isPOV(M.thermalDone - 0.1)).toBe(true);
+    expect(isPOV(M.thermalDone)).toBe(false);
+  });
+
+  it('hides the aircraft while we are inside it', () => {
+    expect(droneVisible(M.dispatch + 1)).toBe(true);    // establishing
+    expect(droneVisible(30)).toBe(false);               // POV
+    expect(droneVisible(50)).toBe(false);               // POV
+    expect(droneVisible(70)).toBe(true);                // flying home
+  });
+
+  it('puts the eye ON the aircraft for the whole POV window', () => {
+    for (let t = POV_IN; t < M.thermalDone; t += 0.5) {
+      const c = cameraAt(t);
+      const d = droneAt(t);
+      expect(dist(c.pos, d), `camera left the aircraft at t=${t}`).toBeLessThan(0.01);
+      expect(c.pos.y).toBeCloseTo(d.y - 0.4, 5);
+    }
+  });
+});
+
+describe('the reticle frames ONE module, not the whole row', () => {
+  it('is visible throughout the inspection', () => {
+    for (const t of [M.lock, 42, 48, 54]) {
+      expect(reticleRect(t).visible, `not visible at t=${t}`).toBe(true);
+    }
+  });
+
+  it('is small enough to be one panel and large enough to see', () => {
+    // The first cut used a fixed box covering ~28% of the frame that sat over FOUR
+    // arrays. This projects one module's own corners, so its size is a consequence
+    // of the geometry rather than a guess.
+    for (const t of [42, 48, 54]) {
+      const r = reticleRect(t);
+      expect(r.width, `too wide at t=${t}`).toBeLessThan(0.75);
+      expect(r.width, `too small at t=${t}`).toBeGreaterThan(0.08);
+      expect(r.height).toBeLessThan(0.85);
+    }
+  });
+
+  it('tracks the module as the drone orbits — it is not pinned to the screen', () => {
+    const a = reticleRect(42);
+    const b = reticleRect(52);
+    expect(Math.abs(a.left - b.left) + Math.abs(a.top - b.top)).toBeGreaterThan(0.001);
+  });
+
+  it('stays centred on the module rather than drifting off it', () => {
+    for (const t of [41, 45, 50, 55]) {
+      const r = reticleRect(t);
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      expect(Math.hypot(cx - 0.5, cy - 0.5), `off centre at t=${t}`).toBeLessThan(0.3);
+    }
+  });
+});
+
+describe('array ID tags identify the target instead of asserting it', () => {
+  it('labels B-17 during the inspection, and marks it as the faulted one', () => {
+    const labels = visibleLabels(48);
+    const b17 = labels.find((l) => l.id === 'B-17');
+    expect(b17, 'B-17 is not labelled during its own inspection').toBeDefined();
+    expect(b17!.faulted).toBe(true);
+  });
+
+  it('labels neighbours during the descent, when the choice is being made', () => {
+    // At inspection altitude only the target fits in frame — which is the point of
+    // being that close. The moment that proves "it went to THIS one, not that one"
+    // is the run in, while several arrays are still visible together.
+    const approach = visibleLabels(31);
+    expect(approach.length).toBeGreaterThan(1);
+    expect(approach.some((l) => l.id !== 'B-17')).toBe(true);
+    expect(approach.some((l) => l.faulted)).toBe(true);
+  });
+
+  it('puts every tag on screen', () => {
+    for (const t of [36, 42, 50, 55]) {
+      for (const l of visibleLabels(t)) {
+        expect(l.x).toBeGreaterThan(0);
+        expect(l.x).toBeLessThan(1);
+        expect(l.y).toBeGreaterThan(0);
+        expect(l.y).toBeLessThan(1);
+      }
+    }
+  });
+
+  it('never mislabels — every tag is a real array in farm.json', () => {
+    const ids = new Set(panelInstances().map((p) => p.id.replace(/-\d+$/, '')));
+    for (const l of visibleLabels(48)) expect(ids.has(l.id)).toBe(true);
   });
 });

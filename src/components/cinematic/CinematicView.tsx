@@ -12,11 +12,13 @@
  *   Timecode       top-right
  *   PiPConsole     bottom-left, the real console at scale(0.31)
  *   StatusPill     bottom-right, hard cuts
- *   TargetReticle  screen-space over the panel, from target lock
+ *   PanelLabels    array ID tags, so the target is identifiable not asserted
+ *   TargetReticle  projected onto the damaged module, from target lock
  */
 
 import { CinematicBackground } from './CinematicBackground';
 import { MissionLog } from './MissionLog';
+import { PanelLabels } from './PanelLabels';
 import { PiPConsole } from './PiPConsole';
 import { StatusPill } from './StatusPill';
 import { TargetReticle } from './TargetReticle';
@@ -30,6 +32,7 @@ export function CinematicView() {
       background: 'var(--surface-inset)',
     }}>
       <CinematicBackground />
+      <PanelLabels />
       <TargetReticle />
       <MissionLog />
       <Timecode />

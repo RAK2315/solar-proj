@@ -120,7 +120,7 @@ describe('timecode counts from the cut, not from demo zero', () => {
 
 describe('target reticle claims only what was measured', () => {
   it('does not appear before target lock', () => {
-    expect(cine(BEAT.targetLock - 1)).not.toContain('B-17 —');
+    expect(cine(BEAT.targetLock - 1)).not.toContain('B2-07 —');
   });
 
   it('never shows the specs placeholder confidence', () => {
@@ -133,6 +133,10 @@ describe('target reticle claims only what was measured', () => {
   it('says what is true when no detection exists yet', () => {
     // Until the Colab run lands there is nothing to claim, so it says so rather
     // than borrowing a number.
-    expect(cine(BEAT.rgbScan + 1)).toContain('B-17 —');
+    expect(cine(BEAT.rgbScan + 1)).toContain('surface scan in progress');
+  });
+
+  it('names the MODULE, not just the array — the reticle frames one panel', () => {
+    expect(cine(BEAT.rgbScan + 1)).toContain('B-17 · B2-07');
   });
 });
