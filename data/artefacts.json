@@ -7,5 +7,39 @@
     "flyover": null
   },
   "detection": null,
-  "agent": null
+  "agent": {
+    "triage": {
+      "severity": "high",
+      "suspectComponent": "String B-17-S3",
+      "reasoning": "INV-B output is -58.4% versus expected, and string B-17-S3 shows a -58.4% deviation while the array deviation is -41.71% with 5 of 7 strings faulted. The cell temperature of 65.6 C exceeds the fleet median of 62.8 C, indicating an abnormal loss condition.",
+      "requiresPhysicalVerification": true,
+      "verificationRationale": "Both heavy localized soiling and physical cell damage (a cracked cell driving its bypass diode into conduction) can produce the observed string‑level loss and temperature rise; only visual and thermal imaging can differentiate them.",
+      "confidence": 0.92
+    },
+    "prognosis": {
+      "degradationMechanism": "Bypass‑diode conduction creates a contiguous hot row, raising cell temperature above the 65 °C propagation threshold; sustained exposure at the forecasted 67.5 °C accelerates thermal degradation and can cause irreversible cell damage.",
+      "projected72hLossMWh": 3.07,
+      "riskLevel": "high",
+      "actBefore": "14:00",
+      "reasoning": "The four adjacent cells are already 2.7‑2.8 °C above the array median, indicating a bypass‑diode fault. With clear skies and peak irradiance of 966 W/m², cell temperature is projected to reach 67.5 °C, exceeding the 65 °C dose limit. Continued operation will accumulate the 5‑hour dose budget within the next 72 h, leading to further loss. Intervention before 14:00 prevents irreversible degradation.",
+      "confidence": 0.86
+    },
+    "recommendation": {
+      "primaryAction": "Replace cracked cell/module and restore string performance",
+      "steps": [
+        "Isolate string B-17-S3 and perform lockout/tagout on inverter INV-B",
+        "Remove module B2-07 from array B-17 and inspect row 2 cells 3‑6 for the cracked cell",
+        "Replace the damaged cell (or the entire module B2-07) ensuring proper solder joints, sealing, and re‑install the module",
+        "Re‑energize inverter INV-B, measure string voltage/current to verify the -58.4% shortfall is corrected and perform thermal imaging to confirm no hot band remains"
+      ],
+      "costOfDelayNote": "High risk – projected loss of 3.07 MWh over 72 h; delay beyond 14:00 could exceed thermal‑degradation threshold of 65 °C",
+      "workOrderRef": "INC-B17"
+    },
+    "meta": {
+      "model": "openai/gpt-oss-120b",
+      "provider": "groq",
+      "generatedAt": "2026-07-28T14:12:35+00:00",
+      "promptVersion": "2026-07-28.1"
+    }
+  }
 }

@@ -54,6 +54,20 @@ export const timecode = (t: number): string => {
 /** Hours to a human deadline distance: `3.9 h`. */
 export const hours = (v: number, dp = 1): string => `${v.toFixed(dp)} h`;
 
+/**
+ * Typographic pass over text we did NOT write — agent prose.
+ *
+ * The model writes `-58.4%` with an ASCII hyphen. Rendered beside a table that says
+ * `−58.4 %` with a real U+2212, the two look like output from different systems.
+ * This swaps the GLYPH and nothing else: no word, no digit, no unit is altered, and
+ * it deliberately will not touch a hyphen inside an identifier like `B-17` or
+ * `INV-B`, because the minus must be preceded by whitespace or an opening bracket.
+ *
+ * Presentation only. The committed cache keeps the model's characters verbatim.
+ */
+export const typographic = (text: string): string =>
+  text.replace(/(^|[\s([])-(?=\d)/g, `$1${MINUS}`);
+
 /** `2026-03-14` → `14 MAR 2026`, the way a maintenance log reads. */
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
   'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];

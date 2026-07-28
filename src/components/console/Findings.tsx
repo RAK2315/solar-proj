@@ -12,7 +12,7 @@
  * renders as soon as the thermal scan reaches each cell.
  */
 
-import { deltaT } from '@/lib/format';
+import { deltaT, typographic } from '@/lib/format';
 import { BEAT, useAgentCache, useCellGrid, useMatrixFillCount } from '@/store/selectors';
 
 export function CellDefectList() {
@@ -47,7 +47,7 @@ export function Findings() {
 
   return (
     <p className="t-prose" style={{ margin: 0, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-      {cache.triage.reasoning}
+      {typographic(cache.triage.reasoning)}
     </p>
   );
 }
@@ -63,12 +63,12 @@ export function Recommendation() {
         {recommendation.steps.map((step, i) => (
           <li key={i} className="t-prose" style={{ color: 'var(--text-primary)' }}>
             <span style={{ color: 'var(--sev-critical)', marginRight: 6 }}>▸</span>
-            {step}
+            {typographic(step)}
           </li>
         ))}
       </ul>
       <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-        {recommendation.costOfDelayNote}
+        {typographic(recommendation.costOfDelayNote)}
       </span>
     </div>
   );

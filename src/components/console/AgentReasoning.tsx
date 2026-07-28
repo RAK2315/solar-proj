@@ -19,6 +19,7 @@
 
 import { useState } from 'react';
 
+import { typographic } from '@/lib/format';
 import { BEAT, useAgentCache, useStreamedText } from '@/store/selectors';
 
 function StageCard({
@@ -27,7 +28,7 @@ function StageCard({
   stage: string; model: string; text: string; startT: number; meta?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const streamed = useStreamedText(text, startT);
+  const streamed = useStreamedText(typographic(text), startT);
   if (!streamed) return null;
 
   const truncated = !expanded && streamed.length > 240;
