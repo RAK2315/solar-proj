@@ -1,0 +1,162 @@
+[
+  {
+    "id": "ev-01-scan",
+    "t": 0,
+    "source": "SYSTEM",
+    "severity": "info",
+    "title": "SCAN CYCLE COMPLETE",
+    "body": "120 arrays polled. 2 anomalies open, 0 critical.",
+    "expandable": false,
+    "timestamp": "09:47"
+  },
+  {
+    "id": "ev-02-queue",
+    "t": 3,
+    "source": "INSPECTION QUEUE",
+    "severity": "info",
+    "title": "QUEUE STEADY",
+    "body": "3 tasks scheduled. No dispatch pending.",
+    "expandable": false,
+    "timestamp": "09:47"
+  },
+  {
+    "id": "ev-03-shortfall",
+    "t": 6,
+    "source": "PANEL B-17",
+    "severity": "critical",
+    "title": "OUTPUT SHORTFALL — B-17",
+    "body": "INV-B is producing 15.02 kW against an expected 36.10 kW.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "timestamp": "09:48"
+  },
+  {
+    "id": "ev-04-triage",
+    "t": 10,
+    "source": "SYSTEM",
+    "severity": "active",
+    "title": "TRIAGE OPENED — B-17",
+    "body": "String B-17-S3 compared against INV-A and INV-C at 890 W/m².",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "timestamp": "09:48"
+  },
+  {
+    "id": "ev-05-dispatch",
+    "t": 18,
+    "source": "DRONE 01",
+    "severity": "active",
+    "title": "DRONE 01 DISPATCHED — B-17",
+    "body": "Telemetry cannot separate soiling from physical damage. Drone 01 dispatched to B-17. Battery 88%.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "logLine": "Anomaly detected: B-17, Zone B.",
+    "timestamp": "09:49"
+  },
+  {
+    "id": "ev-06-deviation",
+    "t": 22,
+    "source": "PANEL B-17",
+    "severity": "critical",
+    "title": "ARRAY DEVIATION HOLDING",
+    "body": "B-17 array output is 41.7% below expected and not recovering.",
+    "expandable": false,
+    "linkedPanelId": "B-17",
+    "logLine": "B-17 output is ~42% below expected.",
+    "timestamp": "10:04"
+  },
+  {
+    "id": "ev-07-transit",
+    "t": 28,
+    "source": "DRONE 01",
+    "severity": "active",
+    "title": "DRONE 01 OVER ZONE B",
+    "body": "En route to B-17. Altitude 40 m. Battery 86%.",
+    "expandable": false,
+    "logLine": "Drone reaching Zone B.",
+    "timestamp": "10:04"
+  },
+  {
+    "id": "ev-08-lock",
+    "t": 34,
+    "source": "DRONE 01",
+    "severity": "active",
+    "title": "TARGET LOCK — B-17",
+    "body": "Drone 01 on station over B-17. Altitude 12 m. Battery 84%.",
+    "expandable": false,
+    "linkedPanelId": "B-17",
+    "logLine": "Target lock: B-17.",
+    "timestamp": "10:04"
+  },
+  {
+    "id": "ev-09-rgb",
+    "t": 40,
+    "source": "SURFACE SCAN",
+    "severity": "warning",
+    "title": "SURFACE CRACK SUSPECTED — B-17",
+    "body": "RGB pass complete. Defect localised to module B2-07.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "logLine": "Surface crack suspected on B2-07.",
+    "timestamp": "10:04"
+  },
+  {
+    "id": "ev-10-thermal",
+    "t": 48,
+    "source": "THERMAL SCAN",
+    "severity": "warning",
+    "title": "THERMAL ANOMALY — ROW 2",
+    "body": "Contiguous hot band across R2 C3–C6, ΔT +2.8 °C. 1 cluster — bypass-diode signature.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "logLine": "Thermal scan: hotspot confirmed.",
+    "timestamp": "10:04"
+  },
+  {
+    "id": "ev-11-evidence",
+    "t": 56,
+    "source": "DRONE 01",
+    "severity": "active",
+    "title": "EVIDENCE UPLINKED",
+    "body": "RGB, thermal and inverter acoustic captured. Drone 01 returning to PAD-01.",
+    "expandable": false,
+    "linkedPanelId": "B-17",
+    "logLine": "Evidence of physical damage found.",
+    "timestamp": "10:05"
+  },
+  {
+    "id": "ev-12-prognosis",
+    "t": 62,
+    "source": "SYSTEM",
+    "severity": "critical",
+    "title": "PROGNOSIS — RISK HIGH",
+    "body": "Defect state fused with the 72 h forecast. Cracked cell crosses the propagation threshold at 14:00.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "logLine": "Inspection result: needs human intervention.",
+    "timestamp": "10:05"
+  },
+  {
+    "id": "ev-13-recommendation",
+    "t": 74,
+    "source": "INSPECTION QUEUE",
+    "severity": "critical",
+    "title": "RECOMMENDATION READY — INC-B17",
+    "body": "Ranked #1 of 4 by loss × severity × urgency. Est. loss 3.07 MWh/72h. Awaiting operator approval.",
+    "expandable": true,
+    "linkedPanelId": "B-17",
+    "logLine": "Recommendation ready — awaiting operator.",
+    "timestamp": "10:05"
+  },
+  {
+    "id": "ev-14-workorder",
+    "t": 84,
+    "source": "INSPECTION QUEUE",
+    "severity": "active",
+    "title": "WORK ORDER #INC-B17 CREATED",
+    "body": "B-17 scheduled. Queue 4 → 3 tasks. Approved by operator.",
+    "expandable": false,
+    "linkedPanelId": "B-17",
+    "timestamp": "10:06"
+  }
+]

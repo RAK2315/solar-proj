@@ -1,0 +1,31 @@
+# Secrets — never commit
+.env.local
+.env*.local
+.env
+
+# Node
+node_modules/
+.next/
+out/
+*.log
+npm-debug.log*
+*.tsbuildinfo
+.vercel
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ultralytics training scratch + raw dataset — large, regenerable via the Roboflow API.
+# NOTE: models/*.pt IS committed (provenance evidence, ~6MB). Only these are ignored.
+runs/
+dataset/
+datasets/
+solar-panel-fault-detection-*/
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db

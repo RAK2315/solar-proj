@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SURYA AGENT — design tokens
+   Source: plan/04-design-system.md §1-2, CLAUDE.md §12.
+
+   The bet: the entire semantic colour ramp IS the ironbow thermal LUT, the
+   false-colour palette thermographers actually use. So when the thermal feed
+   cuts in at t=48 it does not read as a different application — the console and
+   the camera speak one language.
+
+   Token rules, enforced:
+     1. No raw hex in src/components/. `npm run check:literals` fails on it.
+     2. Components use --sev-* and --panel-*, never --iron-* directly. The ramp
+        is the implementation; the semantics are the interface.
+     3. --iron-* is referenced directly in exactly two places: the ironbow()
+        interpolator in AnomalyMatrix.tsx and the GLSL LUT in ThermalPass.tsx.
+        Those two must agree for the same normalised value.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces — cool, near-black, slightly blue so the ironbow ramp sits on top */
+  --surface-void: #070a0f;      /* page background */
+  --surface-panel: #0e1219;     /* cards, rails */
+  --surface-raised: #151a24;    /* hover, nested */
+  --surface-inset: #05070b;     /* map background, unfilled matrix cells */
+
+  /* Structure */
+  --line-hairline: #1a2130;
+  --line-active: #2a3446;       /* C8 — CLAUDE.md §12 shipped "#2A3span" deliberately */
+  --line-focus: #3d4a63;
+
+  /* Text */
+  --text-primary: #dde4ee;      /* ~13.5:1 on --surface-panel */
+  --text-secondary: #8a95a8;    /* ~5.4:1 — clear AA */
+  --text-muted: #55606f;        /* ~2.8:1 — decorative chrome ONLY, never a number */
+  --text-inverse: #070a0f;
+
+  /* IRONBOW SEMANTIC RAMP — the signature choice */
+  --iron-00: #1b1035;           /* coldest / nominal-idle */
+  --iron-20: #4a1d6e;           /* healthy */
+  --iron-40: #9b2a63;           /* elevated */
+  --iron-60: #d94a3d;           /* warning */
+  --iron-80: #f08b2a;           /* high */
+  --iron-95: #ffc94d;           /* critical */
+  --iron-100: #fff3d6;          /* peak / saturated */
+
+  /* Semantic aliases — this is the interface components talk to */
+  --sev-info: var(--iron-20);
+  --sev-active: #3fd4b8;        /* the one off-ramp colour: agent/system activity.
+                                   Teal reads as "a machine is doing something"
+                                   without claiming heat, which would be a lie. */
+  --sev-warning: var(--iron-80);
+  --sev-critical: var(--iron-60);
+  --sev-peak: var(--iron-95);
+
+  /* Panel status on the map. Healthy is desaturated blue, not green: a control
+     room scans for anomalies, so healthy should recede to nearly-background. */
+  --panel-healthy: #24406b;
+  --panel-warning: var(--iron-80);
+  --panel-critical: var(--iron-60);
+  --panel-scheduled: #3fd4b8;
+
+  /* Geometry — nothing rounder than 3px, anywhere */
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  /* Rhythm — 4px base */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* Shell geometry — fixed 1920×1080, projector target */
+  --shell-w: 1920px;
+  --shell-h: 1080px;
+  --rail-left: 304px;
+  --rail-right: 448px;
+  --header-h: 72px;
+  --footer-h: 40px;
+
+  /* Type families, bound in layout.tsx via next/font */
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-cond: var(--font-plex-cond), var(--font-plex-sans), system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+
+html,
+body {
+  height: 100%;
+  background: var(--surface-void);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  /* Non-negotiable: farm health tweens 94→80 and output counts during the fault
+     ramp. Without tabular figures the digits jitter and it reads as a toy. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  /* A scrollbar on a projector is a bug. */
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--sev-active);
+  color: var(--text-inverse);
+}
+
+:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+}
+
+/* ── Type scale ──────────────────────────────────────────────────────────── */
+
+.t-kpi {
+  font: 700 34px/1 var(--font-mono);
+}
+.t-kpi-unit {
+  font: 600 12px/1 var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.t-h1 {
+  font: 600 13px/1.2 var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.t-h2 {
+  font: 600 11px/1.2 var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.t-data {
+  font: 400 12px/1.45 var(--font-mono);
+}
+.t-data-em {
+  font: 600 12px/1.45 var(--font-mono);
+}
+.t-prose {
+  /* The ONLY place non-condensed sans appears. */
+  font: 400 13px/1.55 var(--font-sans);
+}
+.t-micro {
+  font: 500 10px/1.3 var(--font-mono);
+}
+.t-log {
+  font: 700 28px/1.3 var(--font-mono);
+}
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+
+.console-root {
+  display: grid;
+  grid-template-columns: var(--rail-left) 1fr var(--rail-right);
+  grid-template-rows: var(--header-h) 1fr var(--footer-h);
+  grid-template-areas:
+    "header header header"
+    "left   map    right"
+    "footer footer footer";
+  width: var(--shell-w);
+  height: var(--shell-h);
+  background: var(--surface-void);
+}
+
+.area-header { grid-area: header; }
+.area-left { grid-area: left; }
+.area-map { grid-area: map; }
+.area-right { grid-area: right; }
+.area-footer { grid-area: footer; }
+
+/* Hairlines rather than borders: this is an engineering drawing, not a card deck. */
+.hair-b { border-bottom: 1px solid var(--line-hairline); }
+.hair-t { border-top: 1px solid var(--line-hairline); }
+.hair-r { border-right: 1px solid var(--line-hairline); }
+.hair-l { border-left: 1px solid var(--line-hairline); }
+
+.panel { background: var(--surface-panel); }
+.inset { background: var(--surface-inset); }
+
+/* Phase 2 scaffolding only — every one of these is replaced by a real component
+   in Phase 4. If you still see a dashed box after Phase 4, something is missing. */
+.slot {
+  border: 1px dashed var(--line-active);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  /* The typewriter is skipped in JS (full text at the reveal beat). The
+     sequential matrix fill STAYS — it is information, not decoration. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

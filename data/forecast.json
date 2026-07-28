@@ -1,0 +1,447 @@
+{
+  "points": [
+    {
+      "hourOffset": 0,
+      "ambientC": 35.0,
+      "irradiance": 890.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 1,
+      "ambientC": 35.68,
+      "irradiance": 939.9,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 2,
+      "ambientC": 36.27,
+      "irradiance": 956.4,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 3,
+      "ambientC": 36.72,
+      "irradiance": 939.9,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 4,
+      "ambientC": 37.0,
+      "irradiance": 890.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 5,
+      "ambientC": 37.1,
+      "irradiance": 804.2,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 6,
+      "ambientC": 37.0,
+      "irradiance": 676.3,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 7,
+      "ambientC": 36.72,
+      "irradiance": 486.5,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 8,
+      "ambientC": 36.27,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 9,
+      "ambientC": 35.68,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 10,
+      "ambientC": 35.0,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 11,
+      "ambientC": 34.27,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 12,
+      "ambientC": 33.53,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 13,
+      "ambientC": 32.85,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 14,
+      "ambientC": 32.76,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 15,
+      "ambientC": 32.31,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 16,
+      "ambientC": 32.03,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 17,
+      "ambientC": 31.93,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 18,
+      "ambientC": 32.03,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 19,
+      "ambientC": 32.31,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 20,
+      "ambientC": 32.76,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 21,
+      "ambientC": 33.35,
+      "irradiance": 489.1,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 22,
+      "ambientC": 34.03,
+      "irradiance": 679.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 23,
+      "ambientC": 34.77,
+      "irradiance": 808.4,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 24,
+      "ambientC": 35.5,
+      "irradiance": 894.7,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 25,
+      "ambientC": 36.18,
+      "irradiance": 944.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 26,
+      "ambientC": 36.77,
+      "irradiance": 961.4,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 27,
+      "ambientC": 37.22,
+      "irradiance": 944.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 28,
+      "ambientC": 37.5,
+      "irradiance": 894.7,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 29,
+      "ambientC": 37.6,
+      "irradiance": 808.4,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 30,
+      "ambientC": 37.5,
+      "irradiance": 679.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 31,
+      "ambientC": 37.22,
+      "irradiance": 489.1,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 32,
+      "ambientC": 36.77,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 33,
+      "ambientC": 36.18,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 34,
+      "ambientC": 35.5,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 35,
+      "ambientC": 34.77,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 36,
+      "ambientC": 34.03,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 37,
+      "ambientC": 33.35,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 38,
+      "ambientC": 33.26,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 39,
+      "ambientC": 32.81,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 40,
+      "ambientC": 32.53,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 41,
+      "ambientC": 32.43,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 42,
+      "ambientC": 32.53,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 43,
+      "ambientC": 32.81,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 44,
+      "ambientC": 33.26,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 45,
+      "ambientC": 33.85,
+      "irradiance": 491.6,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 46,
+      "ambientC": 34.53,
+      "irradiance": 683.3,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 47,
+      "ambientC": 35.27,
+      "irradiance": 812.6,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 48,
+      "ambientC": 36.0,
+      "irradiance": 899.3,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 49,
+      "ambientC": 36.68,
+      "irradiance": 949.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 50,
+      "ambientC": 37.27,
+      "irradiance": 966.4,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 51,
+      "ambientC": 37.72,
+      "irradiance": 949.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 52,
+      "ambientC": 38.0,
+      "irradiance": 899.3,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 53,
+      "ambientC": 38.1,
+      "irradiance": 812.6,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 54,
+      "ambientC": 38.0,
+      "irradiance": 683.3,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 55,
+      "ambientC": 37.72,
+      "irradiance": 491.6,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 56,
+      "ambientC": 37.27,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 57,
+      "ambientC": 36.68,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 58,
+      "ambientC": 36.0,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 59,
+      "ambientC": 35.27,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 60,
+      "ambientC": 34.53,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 61,
+      "ambientC": 33.85,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 62,
+      "ambientC": 33.76,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 63,
+      "ambientC": 33.31,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 64,
+      "ambientC": 33.03,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 65,
+      "ambientC": 32.93,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 66,
+      "ambientC": 33.03,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 67,
+      "ambientC": 33.31,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 68,
+      "ambientC": 33.76,
+      "irradiance": 0.0,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 69,
+      "ambientC": 34.35,
+      "irradiance": 494.2,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 70,
+      "ambientC": 35.03,
+      "irradiance": 686.9,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 71,
+      "ambientC": 35.77,
+      "irradiance": 816.8,
+      "cloudPct": 0.0
+    },
+    {
+      "hourOffset": 72,
+      "ambientC": 36.5,
+      "irradiance": 904.0,
+      "cloudPct": 0.0
+    }
+  ],
+  "peakAmbientC": 38.1,
+  "clearHours": 72,
+  "summary": "72H CLEAR \u2014 DELAY IS COSTLY",
+  "projected72hLossMWh": 3.07,
+  "actBefore": "14:00"
+}

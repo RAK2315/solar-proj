@@ -1,0 +1,34 @@
+[
+  {
+    "id": "INC-B17",
+    "panelId": "B-17",
+    "lossMWhPerDay": 1.01,
+    "severity": "critical",
+    "hoursUntilDeadline": 3.93,
+    "accessCost": 1.0
+  },
+  {
+    "id": "INC-A08",
+    "panelId": "A-08",
+    "lossMWhPerDay": 0.28,
+    "severity": "warning",
+    "hoursUntilDeadline": 26.0,
+    "accessCost": 1.0
+  },
+  {
+    "id": "INC-C31",
+    "panelId": "C-31",
+    "lossMWhPerDay": 0.28,
+    "severity": "warning",
+    "hoursUntilDeadline": 48.0,
+    "accessCost": 1.4
+  },
+  {
+    "id": "INC-A22",
+    "panelId": "A-22",
+    "lossMWhPerDay": 0.1,
+    "severity": "active",
+    "hoursUntilDeadline": 60.0,
+    "accessCost": 1.0
+  }
+]
