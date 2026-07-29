@@ -16,9 +16,16 @@ import { farm } from './data';
 
 /* ── Site layout, metres ─────────────────────────────────────────────────── */
 
-export const ARRAY_SPACING_X = 13;
-export const ARRAY_SPACING_Z = 9;
-export const ZONE_ORIGIN_Z: Record<string, number> = { A: -112, B: 0, C: 112 };
+export const ARRAY_SPACING_X = 12;
+export const ARRAY_SPACING_Z = 8;
+/**
+ * Zone origins. Each zone is 5 rows deep — 32 m at the spacing above — so ±48
+ * leaves a service corridor of about 16 m between blocks. The first cut used ±112,
+ * which put 76 m of empty sand between neighbouring zones: from the air the site
+ * read as three small islands rather than one field, and the pull-out had to fly
+ * absurdly far to get them all in frame.
+ */
+export const ZONE_ORIGIN_Z: Record<string, number> = { A: -48, B: 0, C: 48 };
 
 /** Panels per array in the 3D view. 120 arrays × 4 = 480 instances, cap is 600. */
 export const PANELS_PER_ARRAY = 4;
@@ -219,8 +226,16 @@ export interface CameraSample { pos: Vec3; look: Vec3; fov: number }
 
 export const ORBIT_DEG_PER_SEC = 15;   // CLAUDE.md §14
 
-/** The camera rides the drone from here until the evidence is in. */
-export const POV_IN = 21;
+/**
+ * When the camera stops watching the aircraft and starts BEING it.
+ *
+ * Was 21 — three seconds in, while the drone is still climbing vertically off the
+ * pad, so the cut happened before you had seen it go anywhere. Now it holds the
+ * external shot through the launch and the first part of the crossing, and takes
+ * the POV in mid-air with the field already streaming underneath. Same idea, but
+ * you actually see the aircraft leave before you are inside it.
+ */
+export const POV_IN = 26;
 export const POV_OUT = M.thermalDone;
 
 export const isPOV = (t: number) => t >= POV_IN && t < POV_OUT;
@@ -315,10 +330,12 @@ export function cameraAt(t: number, target: Vec3 = DAMAGED_MODULE): CameraSample
         INSPECT_ALT - GIMBAL_DROP,
         target.z + Math.cos(exitAngle) * ORBIT_RADIUS,
       ),
-      v(target.x - 62, 104, target.z + 132),
+      v(target.x - 26, 44, target.z + 54),
       k,
     ),
-    look: lerpVec(target, v(0, 0, 14), k),
+    // Keep looking near the array it just inspected. Swinging back to the world
+    // origin threw the target off frame entirely on any array that was not B-17.
+    look: lerpVec(target, v(target.x * 0.4, 0, target.z * 0.4), k),
     fov: lerp(45, 65, k),
   };
 }
@@ -424,15 +441,29 @@ export function reticleRect(
 }
 
 export interface Label {
-  id: string; x: number; y: number; faulted: boolean; near: number;
+  id: string;
+  x: number;
+  y: number;
+  faulted: boolean;
+  /** Metres from the camera — the label fades and shrinks with it. */
+  near: number;
 }
 
+/** How far the tags stay legible. Beyond this they would be a grey smear. */
+export const LABEL_RANGE = 74;
+
 /**
- * Array ID tags for the arrays currently in shot.
+ * Array ID tags for the arrays currently under the aircraft.
  *
  * These answer a specific doubt out loud: "did the drone actually go to B-17, or
  * to a panel that merely looks right?" With the neighbours labelled too, the
  * answer is legible on screen instead of asserted in a caption.
+ *
+ * Selected by distance FROM THE CAMERA, not from the target. Ringing the target
+ * meant nothing was labelled during the crossing — the tags appeared at the last
+ * moment, which is exactly when they stop being evidence and start looking like a
+ * flourish. Now whatever you are flying over is named the whole way in, and the
+ * target keeps its slot even when it is not the closest thing in frame.
  */
 export function visibleLabels(
   t: number,
@@ -447,17 +478,21 @@ export function visibleLabels(
   for (const zone of farm.zones) {
     for (const p of zone.panels) {
       const base = arrayPosition(zone.id, p.row, p.col, zone.cols);
-      const near = Math.hypot(base.x - target.x, base.z - target.z);
-      if (near > ARRAY_SPACING_X * 2.4) continue;
+      const isTarget = p.id === targetId;
+      const near = Math.hypot(base.x - cam.pos.x, base.z - cam.pos.z, cam.pos.y);
+      if (near > LABEL_RANGE && !isTarget) continue;
 
-      const s = projectToScreen({ x: base.x, y: POST_HEIGHT + 1.2, z: base.z }, cam, aspect);
+      const s = projectToScreen({ x: base.x, y: POST_HEIGHT + 0.9, z: base.z }, cam, aspect);
       if (!s.visible || s.x < 0.03 || s.x > 0.97 || s.y < 0.05 || s.y > 0.95) continue;
 
-      out.push({ id: p.id, x: s.x, y: s.y, faulted: p.id === targetId, near });
+      out.push({ id: p.id, x: s.x, y: s.y, faulted: isTarget, near });
     }
   }
 
-  return out.sort((a, b) => a.near - b.near).slice(0, max);
+  // The target is never crowded out by whatever happens to be nearer the lens.
+  return out
+    .sort((a, b) => Number(b.faulted) - Number(a.faulted) || a.near - b.near)
+    .slice(0, max);
 }
 
 /** 0 outside the thermal window, 1 inside. Drives the ironbow post-process. */

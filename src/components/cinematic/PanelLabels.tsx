@@ -1,59 +1,71 @@
 'use client';
 
 /**
- * PanelLabels — array ID tags floating over the arrays currently in shot.
+ * PanelLabels — the array ID set on each array, the way a real site paints its row
+ * numbers on the module frames.
  *
  * These exist to answer one specific doubt out loud: "did the drone actually go to
- * B-17, or to a panel that merely looks like the right one?" With B-17 highlighted
- * and its neighbours labelled around it, the answer is legible on screen instead of
- * asserted in a caption.
+ * B-17, or to a panel that merely looks like the right one?" With the target
+ * highlighted and its neighbours labelled around it, the answer is legible on
+ * screen instead of asserted in a caption.
  *
- * Rendered as DOM rather than as 3D text: it uses the console's own IBM Plex,
- * stays crisp at any distance, needs no font fetched at runtime, and is projected
- * with the SAME pure camera the scene is drawn with — so a tag cannot drift off
- * the array it names.
+ * Two things changed after watching this in flight. They were only up for the last
+ * few seconds before target lock, so they read as a flourish that arrived to make
+ * a point rather than as markings that were always there — now they are on from
+ * the moment the aircraft is over the field. And they were chips: boxed, bordered,
+ * bigger than the panels they sat on. Now they are small type set on the array,
+ * scaled and faded by distance so the near ones read and the far ones recede, with
+ * only the target given any weight.
+ *
+ * Rendered as DOM rather than as 3D text: it uses the console's own IBM Plex, is
+ * crisp at any distance, needs no font fetched at runtime, and is projected with
+ * the SAME pure camera the scene is drawn with — so a tag cannot drift off the
+ * array it names.
  */
 
-import { visibleLabels } from '@/lib/scene';
-import { M } from '@/lib/scene';
+import { LABEL_RANGE, M, visibleLabels } from '@/lib/scene';
 import { useFlightCue } from '@/store/flightCue';
 
 export function PanelLabels() {
   const cue = useFlightCue();
-  // Only once the aircraft is close enough for the tags to mean anything. During
-  // transit they would be a wall of text over a field of identical panels.
-  const near = cue.t >= M.lock - 4;
-  const gone = cue.t > M.thermalDone + 2;
 
-  if (!near || gone) return null;
+  // Up as soon as the aircraft is over the field, down once it has climbed away.
+  if (cue.t < M.transit || cue.t > M.thermalDone + 3) return null;
 
-  const labels = visibleLabels(cue.t, cue.targetId);
+  const labels = visibleLabels(cue.t, cue.targetId, undefined, 14);
 
   return (
     <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      {labels.map((l) => (
-        <span
-          key={l.id}
-          className={l.faulted ? 't-data-em' : 't-micro'}
-          style={{
-            position: 'absolute',
-            left: `${l.x * 100}%`,
-            top: `${l.y * 100}%`,
-            transform: 'translate(-50%, -50%)',
-            padding: l.faulted ? '3px var(--sp-2)' : '2px 5px',
-            whiteSpace: 'nowrap',
-            background: l.faulted
-              ? 'var(--sev-critical)'
-              : 'color-mix(in srgb, var(--surface-panel) 78%, transparent)',
-            color: l.faulted ? 'var(--text-inverse)' : 'var(--text-secondary)',
-            border: l.faulted ? 'none' : '1px solid var(--line-hairline)',
-            fontSize: l.faulted ? 13 : 10,
-            letterSpacing: '0.06em',
-          }}
-        >
-          {l.id}
-        </span>
-      ))}
+      {labels.map((l) => {
+        // Distance drives size and opacity, so the field reads with depth rather
+        // than as a flat sheet of identically-sized tags pasted over it.
+        const k = Math.max(0, Math.min(1, 1 - l.near / LABEL_RANGE));
+        return (
+          <span
+            key={l.id}
+            className="t-micro"
+            style={{
+              position: 'absolute',
+              left: `${l.x * 100}%`,
+              top: `${l.y * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              whiteSpace: 'nowrap',
+              fontSize: l.faulted ? 12 : Math.round(7 + k * 4),
+              letterSpacing: '0.08em',
+              color: l.faulted ? 'var(--iron-95)' : 'var(--text-primary)',
+              opacity: l.faulted ? 1 : 0.3 + k * 0.5,
+              fontWeight: l.faulted ? 700 : 500,
+              // A hairline shadow instead of a box: readable over both the panels
+              // and the sand without covering either of them up.
+              textShadow: '0 1px 2px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)',
+              borderBottom: l.faulted ? '1px solid var(--iron-95)' : 'none',
+              paddingBottom: l.faulted ? 1 : 0,
+            }}
+          >
+            {l.id}
+          </span>
+        );
+      })}
     </div>
   );
 }

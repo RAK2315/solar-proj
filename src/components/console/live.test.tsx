@@ -199,6 +199,37 @@ describe('evidence belongs to the array it was captured from', () => {
     const text = at(DONE, 'C-12');
     expect(text).not.toContain('THERMAL');
   });
+
+  /**
+   * The cached agent run is prose ABOUT B-17: it names INV-B, string B-17-S3 and
+   * module B2-07, and its deadline comes from that cracked cell's thermal dose.
+   * Inspecting A-08 was printing all of it under A-08's heading — recommending a
+   * technician remove a module from a different array.
+   */
+  it('does not recommend work on B-17 while describing another array', () => {
+    useSession.getState().dispatch('A-08');
+    const text = at(DONE, 'A-08');
+
+    expect(text).toContain('A-08');
+    expect(text).not.toContain('B2-07');
+    expect(text).not.toContain('B-17-S3');
+    expect(text).not.toContain('INV-B output');
+  });
+
+  it('does not hang B-17’s deadline on another array’s forecast', () => {
+    useSession.getState().dispatch('A-08');
+    const text = at(DONE, 'A-08');
+    expect(text).not.toContain('ACT BEFORE');
+    // The weather itself is the site's, so the outlook still renders.
+    expect(text).toContain('72H CLEAR');
+  });
+
+  it('still shows both for the array they were computed for', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(DONE, 'B-17');
+    expect(text).toContain('B2-07');
+    expect(text).toContain('ACT BEFORE');
+  });
 });
 
 describe('the human gate still gates', () => {

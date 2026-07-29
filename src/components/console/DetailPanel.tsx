@@ -161,7 +161,11 @@ export function DetailPanel() {
         </Section>
       )}
 
-      {thermal && agent && (
+      {/* Findings and Recommendation are the CACHED agent run, and that run was
+          about B-17's cracked cell — it names INV-B, string B-17-S3 and module
+          B2-07. Rendering it under another array was the same substitution the
+          cell grid gate exists to stop, one section further down the rail. */}
+      {thermal && agent && captured && (
         <Section title="Findings">
           <Findings />
         </Section>
@@ -173,7 +177,7 @@ export function DetailPanel() {
         </Section>
       )}
 
-      {recommended && agent && (
+      {recommended && agent && captured && (
         <Section title="Recommendation">
           <Recommendation />
         </Section>
@@ -201,9 +205,12 @@ export function DetailPanel() {
         </Section>
       )}
 
+      {/* The weather is the site's, so the band is shown for any array. The RISK
+          badge and the 14:00 deadline are NOT the site's — they are the prognosis
+          for the cracked cell, computed from its own thermal dose. */}
       {prognosed && (
         <Section title="72-hour outlook">
-          <ForecastBand />
+          <ForecastBand showRisk={captured} />
         </Section>
       )}
 

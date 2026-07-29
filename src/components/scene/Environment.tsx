@@ -11,7 +11,9 @@
  * mid-morning, which is where the telemetry says we are.
  */
 
-import { BackSide } from 'three';
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { BackSide, type Mesh } from 'three';
 
 import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
 
@@ -39,13 +41,33 @@ const skyFragment = /* glsl */ `
 `;
 
 export function SceneEnvironment() {
+  const sky = useRef<Mesh>(null);
+
+  /**
+   * THE SKY RIDES THE CAMERA.
+   *
+   * It used to be a fixed sphere of radius 420 centred on the origin, with the
+   * camera's far plane at 600. That works while the camera stays near the middle
+   * of the site — but fly out to a zone-C array and the camera sits ~275 m from
+   * the origin, which puts the far side of the sphere at ~695 m, PAST the far
+   * plane. It got clipped away and the clear colour showed through as a black
+   * mass sitting on the horizon.
+   *
+   * Centring it on the camera makes that impossible at any distance, which is how
+   * a skybox is meant to work anyway. Reading the camera and writing a transform
+   * is presentational — it drives no state and no selector reads it.
+   */
+  useFrame((state) => {
+    sky.current?.position.copy(state.camera.position);
+  });
+
   return (
     <>
       {/* Fog colour matches the horizon so the field dissolves rather than ends. */}
-      <fog attach="fog" args={[SKY_HORIZON, 90, 340]} />
+      <fog attach="fog" args={[SKY_HORIZON, 70, 260]} />
 
-      <mesh scale={[1, 1, 1]}>
-        <sphereGeometry args={[420, 24, 16]} />
+      <mesh ref={sky}>
+        <sphereGeometry args={[300, 24, 16]} />
         <shaderMaterial
           side={BackSide}
           depthWrite={false}
@@ -60,7 +82,7 @@ export function SceneEnvironment() {
       </mesh>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow={false}>
-        <planeGeometry args={[900, 900]} />
+        <planeGeometry args={[700, 700]} />
         <meshStandardMaterial color={GROUND} roughness={SCENE_MATERIAL.groundRoughness} metalness={0} />
       </mesh>
 

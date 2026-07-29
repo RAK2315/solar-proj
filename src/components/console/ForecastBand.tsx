@@ -19,7 +19,13 @@ import {
 import { MWh, degC } from '@/lib/format';
 import { useForecast } from '@/store/selectors';
 
-export function ForecastBand() {
+/**
+ * `showRisk` — the forecast curve is the SITE's weather and applies to every
+ * array. The RISK HIGH badge and the act-before hour are not: they come from the
+ * cracked cell's own thermal-dose calculation, and hanging them off a soiled array
+ * would be claiming a deadline nobody computed for it.
+ */
+export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
   const forecast = useForecast();
 
   const data = forecast.points.map((p) => ({
@@ -31,15 +37,17 @@ export function ForecastBand() {
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
-        <span
-          className="t-h2"
-          style={{
-            background: 'var(--sev-critical)', color: 'var(--text-inverse)',
-            padding: '3px var(--sp-2)',
-          }}
-        >
-          RISK HIGH · ACT BEFORE {forecast.actBefore}
-        </span>
+        {showRisk && (
+          <span
+            className="t-h2"
+            style={{
+              background: 'var(--sev-critical)', color: 'var(--text-inverse)',
+              padding: '3px var(--sp-2)',
+            }}
+          >
+            RISK HIGH · ACT BEFORE {forecast.actBefore}
+          </span>
+        )}
         <span
           className="t-h2"
           style={{

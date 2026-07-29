@@ -16,14 +16,21 @@
  *
  * And it is B-17's output, about B-17. When an operator flies this same camera to
  * another array the brackets still frame the module the aircraft is over, but the
- * label does NOT claim a crack there — there is no classifier run for that array,
- * and saying so is the whole difference between an instrument and a graphic.
+ * label does NOT claim a crack there — no classifier has been run on that array's
+ * imagery.
+ *
+ * What it shows instead is what IS measured for it: the array's own deviation from
+ * the model, right now. The first attempt printed "no classifier output for this
+ * array", which is true and useless — a reticle that spends its one line of text
+ * on what it does not know is worse than one that spends it on what it does. The
+ * absence of a defect claim is the honesty; the detail rail carries the full
+ * explanation under "no capture on file".
  */
 
-import { confidence } from '@/lib/format';
+import { confidence, pct } from '@/lib/format';
 import { M, reticleRect } from '@/lib/scene';
 import { useFlightCue } from '@/store/flightCue';
-import { useDetection } from '@/store/selectors';
+import { useCurrentFrame, useDetection } from '@/store/selectors';
 
 const ARM = 30;
 
@@ -39,6 +46,7 @@ function Corner({ style }: { style: React.CSSProperties }) {
 export function TargetReticle() {
   const cue = useFlightCue();
   const detection = useDetection();
+  const frame = useCurrentFrame();
 
   const locked = cue.t >= M.lock;
   const scanned = cue.t >= M.rgb;
@@ -46,11 +54,12 @@ export function TargetReticle() {
   const rect = reticleRect(cue.t, cue.target);
   if (!locked || !rect.visible) return null;
 
+  const reading = frame.panels[cue.targetId];
   const label = cue.cracked
     ? (detection
       ? `${cue.targetId} · B2-07 — ${detection.label.toLowerCase()} suspected (${confidence(detection.confidence)})`
       : `${cue.targetId} · B2-07 — surface scan in progress`)
-    : `${cue.targetId} — surface scan · no classifier output for this array`;
+    : `${cue.targetId} — RGB + thermal pass · ${pct(reading?.deviationPct ?? 0)} vs expected`;
 
   return (
     <div

@@ -13,10 +13,12 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { farm } from './data';
 import {
-  CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC, ORBIT_RADIUS,
-  PANELS_PER_ARRAY, PAD, POV_IN, cameraAt, crackVisible, droneAt, droneVisible,
-  isPOV, panelInstances, reticleRect, thermalAmount, visibleLabels,
+  ARRAY_SPACING_Z, CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC,
+  ORBIT_RADIUS, PANELS_PER_ARRAY, PAD, POV_IN, arrayPosition, cameraAt,
+  crackVisible, droneAt, droneVisible, inspectionTarget, isPOV, panelInstances,
+  projectToScreen, reticleRect, thermalAmount, visibleLabels,
 } from './scene';
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) =>
@@ -287,5 +289,74 @@ describe('array ID tags identify the target instead of asserting it', () => {
   it('never mislabels — every tag is a real array in farm.json', () => {
     const ids = new Set(panelInstances().map((p) => p.id.replace(/-\d+$/, '')));
     for (const l of visibleLabels(48)) expect(ids.has(l.id)).toBe(true);
+  });
+});
+
+
+/**
+ * THE BLACK MASS ON THE HORIZON.
+ *
+ * Flying to a zone-C array put the camera ~275 m from the origin at the end of the
+ * pull-out. The sky was a fixed sphere of radius 420 centred on the origin, so its
+ * far side sat at ~695 m — past the 600 m far plane. It was clipped away and the
+ * clear colour showed through as a black mass sitting on the horizon.
+ *
+ * The sphere now rides the camera, which makes the geometry impossible rather than
+ * merely unlikely. These assert the second half of the fix: the camera no longer
+ * flies far enough for anything centred on the site to be at risk either.
+ */
+describe('the camera stays inside the world it is drawn in', () => {
+  const CAMERA_FAR = 600;              // SolarFarmScene
+  const SKY_RADIUS = 300;              // Environment
+
+  const everyArray = farm.zones.flatMap((z) => z.panels.map((p) => p.id));
+
+  it('never flies further from the site than the sky is deep', () => {
+    for (const id of everyArray) {
+      const target = inspectionTarget(id);
+      for (let t = M.dispatch; t <= M.recommendation; t += 0.5) {
+        const { pos } = cameraAt(t, target);
+        const d = Math.hypot(pos.x, pos.y, pos.z);
+        expect(d + SKY_RADIUS).toBeLessThan(CAMERA_FAR);
+      }
+    }
+  });
+
+  it('keeps the inspected array in frame through the pull-out', () => {
+    for (const id of ['A-08', 'B-17', 'C-31']) {
+      const target = inspectionTarget(id);
+      const cam = cameraAt(M.recommendation - 0.5, target);
+      const s = projectToScreen(target, cam);
+      expect(s.visible).toBe(true);
+    }
+  });
+});
+
+describe('the field is one site, not three islands', () => {
+  it('leaves a service corridor between zones, not a desert', () => {
+    const a = arrayPosition('A', 5, 1, 8).z;
+    const b = arrayPosition('B', 1, 1, 8).z;
+    const gap = b - a;
+    expect(gap).toBeGreaterThan(ARRAY_SPACING_Z);
+    expect(gap).toBeLessThan(ARRAY_SPACING_Z * 3);
+  });
+});
+
+describe('array tags are up for the whole overflight', () => {
+  it('labels what is under the aircraft during the crossing, not just at lock', () => {
+    const midTransit = visibleLabels(M.transit + 6, 'C-31');
+    expect(midTransit.length).toBeGreaterThan(0);
+  });
+
+  it('always includes the target once it is in shot', () => {
+    const onStation = visibleLabels(M.rgb + 2, 'C-31');
+    expect(onStation.some((l) => l.id === 'C-31' && l.faulted)).toBe(true);
+  });
+
+  it('names the array it was sent to, whichever that is', () => {
+    for (const id of ['A-08', 'B-17', 'C-31']) {
+      const labels = visibleLabels(M.rgb + 2, id);
+      expect(labels.find((l) => l.faulted)?.id).toBe(id);
+    }
   });
 });
