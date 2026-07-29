@@ -12,17 +12,17 @@
  */
 
 import { kW, pct } from '@/lib/format';
-import { useInverterReadings } from '@/store/selectors';
-
-const FAULTED = 'INV-B';
-const STRING_LABEL: Record<string, string> = {
-  'INV-A': 'A-17-S3',
-  'INV-B': 'B-17-S3',
-  'INV-C': 'C-17-S3',
-};
+import { useInverterReadings, useSelectedPanelId } from '@/store/selectors';
 
 export function InverterTable() {
   const readings = useInverterReadings();
+  const selected = useSelectedPanelId();
+
+  // The peer comparison is at the INSPECTED position, so the row labels follow
+  // whichever array the operator is looking at rather than always naming B-17's.
+  const index = selected.split('-')[1] ?? '17';
+  const faultedInverter = `INV-${selected[0]}`;
+  const stringLabel = (inv: string) => `${inv.replace('INV-', '')}-${index}-S3`;
 
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -46,7 +46,7 @@ export function InverterTable() {
       </thead>
       <tbody>
         {Object.entries(readings).map(([id, r]) => {
-          const faulted = id === FAULTED;
+          const faulted = id === faultedInverter && r.deviationPct < -1;
           const colour = faulted ? 'var(--sev-critical)' : 'var(--text-primary)';
           return (
             <tr
@@ -61,7 +61,7 @@ export function InverterTable() {
                 {id}
               </td>
               <td className="t-data" style={{ color: 'var(--text-secondary)' }}>
-                {STRING_LABEL[id]}
+                {stringLabel(id)}
               </td>
               <td className={faulted ? 't-data-em' : 't-data'}
                 style={{ textAlign: 'right', color: colour, padding: '0 var(--sp-2)' }}>

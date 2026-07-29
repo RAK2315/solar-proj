@@ -11,8 +11,18 @@ waits for a human to approve it.
 > Prior art stops at **detection**: a panel is bad. This stops at **a deadline**: the
 > string becomes unrecoverable after 14:00, here is why, and a person has to say yes.
 
-**Status:** complete and deployable. Phases 0–10 built; the one outstanding item is the
-Colab training run, which fills in the detector's real metrics (see *Data provenance*).
+**Status:** deployable. Two modes over one console —
+
+  **LIVE** (default) — the site runs on the physics model in real time. Click any of
+  the 120 arrays, read its actual telemetry, dispatch a drone to it, watch the mission
+  fly, and raise a work order. Faults develop over site time from a committed
+  scenario, so the session is reproducible without being scripted.
+
+  **DEMO** (press `M`) — the 90-second scripted incident, preserved intact: the
+  cinematic, the drone POV, the agent reasoning, the human gate.
+
+The one outstanding item is the Colab training run, which fills in the detector's real
+metrics (see *Data provenance*).
 Build plan: `plan/05-build-plan.md` · Frozen numbers: `docs/contract-freeze.md` ·
 Phase-by-phase record incl. every correction: `report.txt`
 
@@ -235,6 +245,10 @@ The demo has no visible transport. It runs on the keyboard (`CLAUDE.md` §6):
 | `R` | reset |
 | `C` `V` | force console / cinematic — press again to hand the view back to `t` |
 | `D` | show / hide the debug readout |
+| `M` | switch between **live** and **demo** |
+
+In live mode only `Space` (pause site time), `D` and `M` apply — seeking a live site
+would be a lie about what a console can do.
 
 The view is otherwise a pure function of `t`: console on `[0,18) ∪ [74,90]`, cinematic
 on `[18,74)`.

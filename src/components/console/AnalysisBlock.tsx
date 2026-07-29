@@ -10,8 +10,15 @@
  */
 
 import { MWh, degC, kW, pct, serviceDate, wm2 } from '@/lib/format';
+
+/**
+ * The B-17 array shortfall the committed 3.07 MWh figure was integrated over.
+ * Scaling by the selected array's own shortfall keeps every other array's loss
+ * on the same curve rather than quoting B-17's number for all 120.
+ */
+const SHORTFALL_AT_REFERENCE = 105.41;
 import {
-  getPanel, useForecast, usePanelReading, useWeather,
+  getPanel, useForecast, usePanelReading, useSelectedPanelId, useWeather,
 } from '@/store/selectors';
 
 function Row({ label, value, colour, note }: {
@@ -32,10 +39,11 @@ function Row({ label, value, colour, note }: {
 }
 
 export function AnalysisBlock() {
-  const reading = usePanelReading('B-17');
+  const id = useSelectedPanelId();
+  const reading = usePanelReading(id);
   const weather = useWeather();
   const forecast = useForecast();
-  const panel = getPanel('B-17');
+  const panel = getPanel(id);
 
   if (!reading || !panel) return null;
 
@@ -43,14 +51,14 @@ export function AnalysisBlock() {
     <div>
       <Row
         label="Array deviation"
-        note="B-17, 7 strings"
+        note={`${id}, ${panel.stringsPerArray} strings`}
         value={pct(reading.deviationPct)}
         colour="var(--sev-critical)"
       />
       {reading.stringDeviationPct !== undefined && (
         <Row
           label="String deviation"
-          note="B-17-S3"
+          note={`${id}-S3`}
           value={pct(reading.stringDeviationPct)}
           colour="var(--sev-critical)"
         />
@@ -60,12 +68,21 @@ export function AnalysisBlock() {
       <Row label="Cell temperature" value={degC(reading.cellTempC)} colour="var(--sev-warning)" />
       <Row label="Irradiance" value={wm2(weather.irradiance)} />
       <Row label="Ambient" value={degC(weather.ambientC)} />
-      <Row
-        label="Est. energy loss"
-        note="72 h"
-        value={MWh(forecast.projected72hLossMWh)}
-        colour="var(--sev-warning)"
-      />
+      {/* The projected loss is an integral over THIS array's shortfall. An array
+          that is not losing anything has no projected loss, and printing one would
+          be inventing a number for it. */}
+      {reading.deviationPct < -1 && (
+        <Row
+          label="Est. energy loss"
+          note="72 h"
+          value={MWh(
+            forecast.projected72hLossMWh
+            * (reading.expectedKW - reading.actualKW)
+            / SHORTFALL_AT_REFERENCE,
+          )}
+          colour="var(--sev-warning)"
+        />
+      )}
       <Row label="Last serviced" value={serviceDate(panel.lastServiced)} />
       <Row label="Inverter" value={panel.inverterId} />
     </div>

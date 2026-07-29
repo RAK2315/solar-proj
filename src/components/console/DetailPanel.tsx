@@ -13,7 +13,11 @@
  * agent reasoning → outlook → timeline → the gate.
  */
 
-import { BEAT, useAfter, useAgentCache, useDetection, useEvidence } from '@/store/selectors';
+import {
+  BEAT, useAfter, useAgentCache, useDetection, useEvidence, useHasSelection,
+  useInspected, useMode, usePanelStatus, useSelectedPanelId,
+} from '@/store/selectors';
+import { DispatchPanel } from './DispatchPanel';
 import { AgentReasoning } from './AgentReasoning';
 import { AnalysisBlock } from './AnalysisBlock';
 import { AnomalyMatrix } from './AnomalyMatrix';
@@ -44,11 +48,25 @@ function Section({ title, note, children }: {
 }
 
 export function DetailPanel() {
-  const triaged = useAfter(BEAT.triage);
-  const scanned = useAfter(BEAT.rgbScan);
-  const thermal = useAfter(BEAT.thermalScan);
-  const prognosed = useAfter(BEAT.prognosis);
-  const recommended = useAfter(BEAT.recommendation);
+  const mode = useMode();
+  const panelId = useSelectedPanelId();
+  const selectedStatus = usePanelStatus(panelId);
+  const inspected = useInspected(panelId);
+  const hasSelection = useHasSelection();
+  const demoTriaged = useAfter(BEAT.triage);
+  const demoScanned = useAfter(BEAT.rgbScan);
+  const demoThermal = useAfter(BEAT.thermalScan);
+  const demoPrognosed = useAfter(BEAT.prognosis);
+  const demoRecommended = useAfter(BEAT.recommendation);
+
+  // Demo mode reveals sections on the script's beats. Live mode reveals them when
+  // the corresponding thing has ACTUALLY happened — an array is selected, a drone
+  // has been and looked. Same components, two different reasons to appear.
+  const triaged = mode === 'demo' ? demoTriaged : hasSelection;
+  const scanned = mode === 'demo' ? demoScanned : inspected;
+  const thermal = mode === 'demo' ? demoThermal : inspected;
+  const prognosed = mode === 'demo' ? demoPrognosed : inspected;
+  const recommended = mode === 'demo' ? demoRecommended : inspected;
   const evidence = useEvidence();
   const detection = useDetection();
   const agent = useAgentCache();
@@ -77,16 +95,24 @@ export function DetailPanel() {
           font: '400 21px var(--font-mono)', color: 'var(--text-primary)',
           margin: '2px 0 0', letterSpacing: '0.04em',
         }}>
-          {triaged ? <>PANEL <strong style={{ fontWeight: 700 }}>B-17</strong></> : 'NO ARRAY SELECTED'}
+          {triaged
+            ? <>PANEL <strong style={{ fontWeight: 700 }}>{panelId}</strong></>
+            : 'NO ARRAY SELECTED'}
         </h1>
         <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-          {triaged ? 'ZONE B · INV-B · STRING B-17-S3 · MODULE B2-07' : 'Awaiting triage'}
+          {!triaged
+            ? (mode === 'live' ? 'Select an array on the map' : 'Awaiting triage')
+            : mode === 'demo'
+              ? 'ZONE B · INV-B · STRING B-17-S3 · MODULE B2-07'
+              : `ZONE ${panelId[0]} · INV-${panelId[0]} · ${selectedStatus.toUpperCase()}`}
         </span>
       </div>
 
       {!triaged && (
         <p className="t-data" style={{ color: 'var(--text-muted)', paddingTop: 'var(--sp-4)' }}>
-          Fleet nominal. Detail opens when the agent triages an anomaly.
+          {mode === 'live'
+            ? 'Click any array on the map to inspect it.'
+            : 'Fleet nominal. Detail opens when the agent triages an anomaly.'}
         </p>
       )}
 
@@ -99,6 +125,12 @@ export function DetailPanel() {
       {thermal && (
         <Section title="Anomaly matrix" note="5 × 7 cells, measured">
           <AnomalyMatrix />
+        </Section>
+      )}
+
+      {mode === 'live' && triaged && (
+        <Section title="Inspection">
+          <DispatchPanel />
         </Section>
       )}
 

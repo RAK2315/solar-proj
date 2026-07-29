@@ -14,7 +14,9 @@
 import { AnimatePresence } from 'framer-motion';
 
 import { num, pctPlain } from '@/lib/format';
-import { useDroneState, useVisibleEvents } from '@/store/selectors';
+import {
+  useActiveMissions, useDroneState, useFeedEvents, useMode,
+} from '@/store/selectors';
 import { EventCard } from './EventCard';
 
 /** Segmented meter. Ten discrete cells read as an instrument; a smooth bar does not. */
@@ -80,8 +82,21 @@ function DroneRow({ id, status, battery, pad }: {
 }
 
 export function LeftRail() {
-  const visible = useVisibleEvents();
-  const drone = useDroneState();
+  const mode = useMode();
+  const visible = useFeedEvents();
+  const demoDrone = useDroneState();
+  const missions = useActiveMissions();
+
+  // Live mode reports the drones that are actually flying; demo mode reports the
+  // scripted one.
+  const drone = mode === 'demo'
+    ? demoDrone
+    : {
+      status: (missions[0]?.phase === 'returning' ? 'RETURNING'
+        : missions.length > 0 ? 'ACTIVE' : 'STANDBY') as 'STANDBY' | 'ACTIVE' | 'RETURNING',
+      batteryPct: missions.length > 0 ? 88 - 12 * (missions[0]?.progress ?? 0) : 100,
+      padId: 'PAD-01',
+    };
 
   const active = drone.status !== 'STANDBY';
   const uplink = active ? 92 : 74;

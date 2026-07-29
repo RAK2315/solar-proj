@@ -14,6 +14,7 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEMO_DURATION, useDemoClock, viewAt } from '@/store/demoClock';
+import { useSession } from '@/store/session';
 import { BEAT } from '@/store/selectors';
 import { ConsoleRoot } from './ConsoleRoot';
 
@@ -35,6 +36,9 @@ function firstAppearance(probes: Record<string, string | RegExp>): Record<string
   const found: Record<string, number | null> = {};
   for (const key of Object.keys(probes)) found[key] = null;
 
+  // This runs while the describe body is evaluated, which is BEFORE beforeEach.
+  // Live is the default mode now, so say which world we are playing.
+  useSession.setState({ mode: 'demo' });
   useDemoClock.setState({ t: 0, playing: true, speed: 1, approved: false, viewOverride: null });
 
   for (let step = 0; step * TICK <= DEMO_DURATION; step += 1) {
@@ -51,6 +55,9 @@ function firstAppearance(probes: Record<string, string | RegExp>): Record<string
 }
 
 beforeEach(() => {
+  // These describe DEMO mode — the scripted 90 seconds. Live mode is the
+  // default now, so the tests state which world they are asserting about.
+  useSession.setState({ mode: 'demo' });
   useDemoClock.setState({
     t: 0, playing: false, speed: 1, approved: false, viewOverride: null, debug: false,
   });

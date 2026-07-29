@@ -19,7 +19,7 @@ import { useRef } from 'react';
 import type { Group, Mesh } from 'three';
 
 import { droneAt, droneVisible } from '@/lib/scene';
-import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
+import { SCENE } from '@/lib/scenePalette';
 import { useDemoClock } from '@/store/demoClock';
 
 const ARM = 0.55;

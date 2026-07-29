@@ -16,8 +16,10 @@
  */
 
 import {
-  useFarm, usePanelStatus, useRouteProgress, useZoneSummary,
+  useActiveMissions, useFarm, useMode, usePanelStatus, useRouteProgress,
+  useSelectedPanelId, useZoneSummary,
 } from '@/store/selectors';
+import { useSession } from '@/store/session';
 import type { PanelArray, PanelStatus, Zone } from '@/lib/types';
 
 const VIEW_W = 1000;
@@ -39,14 +41,25 @@ const STATUS_FILL: Record<PanelStatus, string> = {
 const cellX = (zone: Zone, p: PanelArray) => zone.originX + (p.col - 1) * (CELL_W + GAP_X);
 const cellY = (zone: Zone, p: PanelArray) => zone.originY + (p.row - 1) * (CELL_H + GAP_Y);
 
-function PanelCell({ zone, panel }: { zone: Zone; panel: PanelArray }) {
+function PanelCell({
+  zone, panel, selected, onSelect,
+}: {
+  zone: Zone; panel: PanelArray; selected: boolean; onSelect: (id: string) => void;
+}) {
   const status = usePanelStatus(panel.id);
   const anomalous = status !== 'healthy';
   const x = cellX(zone, panel);
   const y = cellY(zone, panel);
 
   return (
-    <g>
+    <g
+      onClick={() => onSelect(panel.id)}
+      style={{ cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Array ${panel.id}, ${status}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(panel.id); }}
+    >
       <rect
         x={x} y={y} width={CELL_W} height={CELL_H}
         fill={STATUS_FILL[status]}
@@ -59,6 +72,13 @@ function PanelCell({ zone, panel }: { zone: Zone; panel: PanelArray }) {
       {anomalous && (
         <rect x={x} y={y} width={CELL_W} height={CELL_H} fill={`url(#hatch-${status})`} />
       )}
+      {selected && (
+        <rect
+          x={x - 3} y={y - 3} width={CELL_W + 6} height={CELL_H + 6}
+          fill="none" stroke="var(--text-primary)" strokeWidth={1.5}
+        />
+      )}
+      <title>{`${panel.id} — ${status}`}</title>
     </g>
   );
 }
@@ -97,7 +117,9 @@ function ZoneCard({ zone }: { zone: Zone }) {
   );
 }
 
-function ZoneBlock({ zone }: { zone: Zone }) {
+function ZoneBlock({
+  zone, selectedId, onSelect,
+}: { zone: Zone; selectedId: string; onSelect: (id: string) => void }) {
   const w = zone.cols * CELL_W + (zone.cols - 1) * GAP_X;
   const h = zone.rows * CELL_H + (zone.rows - 1) * GAP_Y;
   return (
@@ -117,7 +139,15 @@ function ZoneBlock({ zone }: { zone: Zone }) {
           {String(r + 1).padStart(2, '0')}
         </text>
       ))}
-      {zone.panels.map((p) => <PanelCell key={p.id} zone={zone} panel={p} />)}
+      {zone.panels.map((p) => (
+        <PanelCell
+          key={p.id}
+          zone={zone}
+          panel={p}
+          selected={p.id === selectedId}
+          onSelect={onSelect}
+        />
+      ))}
     </g>
   );
 }
@@ -125,12 +155,34 @@ function ZoneBlock({ zone }: { zone: Zone }) {
 export function FarmMap() {
   const farm = useFarm();
   const progress = useRouteProgress();
+  const mode = useMode();
+  const selected = useSelectedPanelId();
+  const select = useSession((s) => s.selectPanel);
+  // In live mode the route is drawn to whatever the operator dispatched to; in
+  // demo mode it is the scripted run to B-17.
   const status = usePanelStatus(FAULTED);
 
   const zoneB = farm.zones.find((z) => z.id === 'B')!;
   const target = zoneB.panels.find((p) => p.id === FAULTED)!;
   const tx = cellX(zoneB, target);
   const ty = cellY(zoneB, target);
+
+  const missions = useActiveMissions();
+
+  /** Route geometry to any array — live missions and the scripted one share it. */
+  const routeTo = (targetId: string, padIndex: number) => {
+    const zone = farm.zones.find((z) => z.panels.some((p) => p.id === targetId));
+    const panel = zone?.panels.find((p) => p.id === targetId);
+    if (!zone || !panel) return null;
+    const px = cellX(zone, panel) + CELL_W / 2;
+    const py = cellY(zone, panel) + CELL_H / 2;
+    const from = farm.dronePads[padIndex % farm.dronePads.length];
+    const ctrlPt = { x: (from.x + px) / 2 - 60, y: (from.y + py) / 2 };
+    return {
+      d: `M ${from.x} ${from.y} Q ${ctrlPt.x} ${ctrlPt.y} ${px} ${py}`,
+      from, ctrl: ctrlPt, end: { x: px, y: py },
+    };
+  };
 
   const pad = farm.dronePads[0];
   // A single quadratic bend so the route reads as a flight path, not a ruler line.
@@ -167,7 +219,7 @@ export function FarmMap() {
             padding: '4px var(--sp-3)', whiteSpace: 'nowrap',
           }}
         >
-          MAP MODE: SCHEMATIC ▾
+          {mode === 'live' ? 'CLICK AN ARRAY TO INSPECT' : 'MAP MODE: SCHEMATIC ▾'}
         </span>
       </div>
 
@@ -191,7 +243,9 @@ export function FarmMap() {
           </marker>
         </defs>
 
-        {farm.zones.map((z) => <ZoneBlock key={z.id} zone={z} />)}
+        {farm.zones.map((z) => (
+          <ZoneBlock key={z.id} zone={z} selectedId={selected} onSelect={select} />
+        ))}
         {farm.zones.map((z) => <ZoneCard key={`card-${z.id}`} zone={z} />)}
 
         {/* Drone pads */}
@@ -204,11 +258,41 @@ export function FarmMap() {
           </g>
         ))}
 
+        {/* LIVE routes: one per airborne mission, drawn to the array the operator
+            actually dispatched to. Same geometry as the scripted route — the demo
+            is just the case where the target happens to be B-17. */}
+        {mode === 'live' && missions.map((m, i) => {
+          const r = routeTo(m.panelId, i);
+          if (!r) return null;
+          const k = m.phase === 'outbound' ? m.progress : 1;
+          const bez2 = (a: number, b: number, c: number, t2: number) =>
+            (1 - t2) * (1 - t2) * a + 2 * (1 - t2) * t2 * b + t2 * t2 * c;
+          const dp = {
+            x: bez2(r.from.x, r.ctrl.x, r.end.x, k),
+            y: bez2(r.from.y, r.ctrl.y, r.end.y, k),
+          };
+          return (
+            <g key={m.id}>
+              <path d={r.d} fill="none" stroke="var(--line-active)" strokeWidth={1}
+                strokeDasharray="2 4" opacity={0.5} />
+              <path d={r.d} fill="none" stroke="var(--sev-active)" strokeWidth={1.75}
+                strokeLinecap="round" pathLength={1} strokeDasharray={`${k} 1`} />
+              <circle cx={dp.x} cy={dp.y} r={4} fill="var(--sev-active)" />
+              <circle cx={dp.x} cy={dp.y} r={9} fill="none" stroke="var(--sev-active)"
+                strokeWidth={1} opacity={0.5} />
+              <text x={dp.x + 12} y={dp.y + 3} className="t-micro"
+                fill="var(--sev-active)" style={{ fontSize: 9 }}>
+                {m.droneId.replace('DRONE ', 'D')}
+              </text>
+            </g>
+          );
+        })}
+
         {/* Route: dash geometry computed from t, NOT a CSS keyframe. `pathLength={1}`
             normalises the path so `${progress} 1` draws exactly the flown fraction —
             which means seeking backwards retracts it, and seeking forwards does not
             replay it. That is the whole test. */}
-        {progress > 0 && (
+        {mode === 'demo' && progress > 0 && (
           <>
             <path
               d={route} fill="none" stroke="var(--line-active)" strokeWidth={1}

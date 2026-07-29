@@ -13,6 +13,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useDemoClock } from '@/store/demoClock';
+import { useSession } from '@/store/session';
 import { ConsoleRoot } from './ConsoleRoot';
 
 /** Whole-console text, whitespace-normalised. */
@@ -23,6 +24,9 @@ function textAt(t: number, approved = false): string {
 }
 
 beforeEach(() => {
+  // These describe DEMO mode — the scripted 90 seconds. Live mode is the
+  // default now, so the tests state which world they are asserting about.
+  useSession.setState({ mode: 'demo' });
   useDemoClock.setState({
     t: 0, playing: false, speed: 1, approved: false, viewOverride: null, debug: false,
   });

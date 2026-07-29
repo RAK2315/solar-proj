@@ -12,10 +12,11 @@
  * The agent writes prose about these; it never sources them.
  */
 
-import { useForecast, usePanelStatus } from '@/store/selectors';
+import { useForecast, usePanelStatus, useSelectedPanelId } from '@/store/selectors';
 import { getPanel } from '@/lib/data';
 
-export function StatusChips({ panelId = 'B-17' }: { panelId?: string }) {
+export function StatusChips() {
+  const panelId = useSelectedPanelId();
   const status = usePanelStatus(panelId);
   const forecast = useForecast();
   const panel = getPanel(panelId);
@@ -42,16 +43,27 @@ export function StatusChips({ panelId = 'B-17' }: { panelId?: string }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-        <span className="badge" style={{ color: 'var(--sev-warning)', borderColor: 'var(--sev-warning)' }}>
-          Risk high
-        </span>
-        <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
-          act before <span className="t-data-em" style={{ color: 'var(--sev-warning)' }}>
-            {forecast.actBefore}
+      {/* A deadline only exists if something is actually degrading. Showing
+          "act before 14:00" over a healthy array would be the clearest possible
+          sign that the panel is decoration rather than a readout. */}
+      {status === 'critical' ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+          <span className="badge" style={{ color: 'var(--sev-warning)', borderColor: 'var(--sev-warning)' }}>
+            Risk high
           </span>
+          <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
+            act before <span className="t-data-em" style={{ color: 'var(--sev-warning)' }}>
+              {forecast.actBefore}
+            </span>
+          </span>
+        </div>
+      ) : (
+        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+          {status === 'healthy'
+            ? 'Within tolerance. No intervention scheduled.'
+            : 'Degraded. Monitor; no hard deadline yet.'}
         </span>
-      </div>
+      )}
     </div>
   );
 }

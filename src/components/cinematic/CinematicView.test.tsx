@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ConsoleRoot } from '@/components/console/ConsoleRoot';
 import { useDemoClock } from '@/store/demoClock';
+import { useSession } from '@/store/session';
 import { BEAT } from '@/store/selectors';
 import { CinematicView } from './CinematicView';
 
@@ -28,6 +29,9 @@ function textAt(t: number, node: React.ReactElement): string {
 const cine = (t: number) => textAt(t, <CinematicView />);
 
 beforeEach(() => {
+  // These describe DEMO mode — the scripted 90 seconds. Live mode is the
+  // default now, so the tests state which world they are asserting about.
+  useSession.setState({ mode: 'demo' });
   useDemoClock.setState({
     t: 0, playing: false, speed: 1, approved: false, viewOverride: null, debug: false,
   });

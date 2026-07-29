@@ -25,6 +25,14 @@ const ROOT = 'src';
  */
 const EXEMPT = [
   'src/lib/types.ts',
+
+  // src/lib/physics.ts is THE MODEL, the TypeScript mirror of scripts/physics.py.
+  // Its constants are the model's coefficients, not display values copied out of a
+  // component — and they are not taken on trust either: physics.test.ts recomputes
+  // the whole committed telemetry.json from this file and fails on any divergence.
+  // That golden test is what earns the exemption. Without it this would just be a
+  // second place for the numbers to live, which is the thing being guarded against.
+  'src/lib/physics.ts',
 ];
 const isTest = (rel) => /\.test\.(ts|tsx)$/.test(rel);
 

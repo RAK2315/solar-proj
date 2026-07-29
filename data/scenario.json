@@ -1,0 +1,30 @@
+{
+  "epochHour": 10.0,
+  "defaultTimeScale": 60,
+  "soiling": [
+    {
+      "panelId": "A-08",
+      "fSoil": 0.86
+    },
+    {
+      "panelId": "C-31",
+      "fSoil": 0.86
+    },
+    {
+      "panelId": "A-22",
+      "fSoil": 0.93
+    }
+  ],
+  "events": [
+    {
+      "id": "evt-b17-crack",
+      "type": "mismatch-fault",
+      "panelId": "B-17",
+      "startHour": 10.066666666666666,
+      "rampMinutes": 3.0,
+      "moduleId": "B2-07",
+      "stringId": "B-17-S3",
+      "mechanism": "cracked cell driving its bypass diode into conduction"
+    }
+  ]
+}

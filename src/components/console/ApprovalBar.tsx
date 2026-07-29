@@ -12,21 +12,41 @@
  * application. If a second one ever appears, that is a design bug.
  */
 
-import { BEAT, useAgentCache, useApproved, useDemoClockT } from '@/store/selectors';
+import {
+  BEAT, useAgentCache, useApproved, useDemoClockT, useInspected, useMode,
+  useSelectedPanelId,
+} from '@/store/selectors';
 import { useDemoClock } from '@/store/demoClock';
+import { useSession } from '@/store/session';
 
 export function ApprovalBar() {
+  const mode = useMode();
   const t = useDemoClockT();
-  const approved = useApproved();
+  const demoApproved = useApproved();
   const cache = useAgentCache();
-  const approve = useDemoClock((s) => s.approve);
+  const approveDemo = useDemoClock((s) => s.approve);
 
-  // Live only once the agent has actually produced a recommendation. An approval
-  // button that works before there is anything to approve would be theatre.
-  const armed = t >= BEAT.recommendation;
+  const panelId = useSelectedPanelId();
+  const inspected = useInspected(panelId);
+  const workOrders = useSession((s) => s.workOrders);
+  const createWorkOrder = useSession((s) => s.createWorkOrder);
+
+  // The gate arms only once there is something real to approve. In demo mode that
+  // is the recommendation beat; in live mode it is a drone having actually been
+  // and looked. An approval button that works before either would be theatre.
+  const armed = mode === 'demo' ? t >= BEAT.recommendation : inspected;
   if (!armed) return null;
 
-  const ref = cache?.recommendation.workOrderRef ?? 'INC-B17';
+  const liveOrder = workOrders.find((w) => w.panelId === panelId);
+  const approved = mode === 'demo' ? demoApproved : Boolean(liveOrder);
+  const ref = mode === 'demo'
+    ? (cache?.recommendation.workOrderRef ?? 'INC-B17')
+    : `INC-${panelId.replace('-', '')}`;
+
+  const approve = () => {
+    if (mode === 'demo') approveDemo();
+    else createWorkOrder(panelId, `Inspection evidence captured for ${panelId}.`);
+  };
 
   return (
     <div
@@ -56,7 +76,7 @@ export function ApprovalBar() {
           transition: 'background 200ms linear',
         }}
       >
-        {approved ? `✓ WORK ORDER #${ref} CREATED` : 'APPROVE — CREATE WORK ORDER →'}
+        {approved ? `✓ WORK ORDER #${ref} CREATED` : `APPROVE — CREATE WORK ORDER → ${mode === 'live' ? panelId : ''}`}
       </button>
 
       <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
@@ -93,7 +113,7 @@ export function ApprovalBar() {
 
       <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
         {approved
-          ? 'B-17 scheduled. Autonomous up to this point; a person authorised the work.'
+          ? `${mode === 'demo' ? 'B-17' : panelId} scheduled. Autonomous up to this point; a person authorised the work.`
           : 'Nothing enters the work queue without operator approval.'}
       </span>
     </div>

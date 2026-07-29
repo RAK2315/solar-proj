@@ -20,12 +20,15 @@ import {
   agentCache as agentCacheData, cellGrid, detection as detectionData, evidenceUrl,
   events, farm, forecast, getPanel, hasEvidence, panels, repairQueue, telemetry,
 } from '@/lib/data';
+import { liveFrameAt } from '@/lib/live';
+import { liveEvents } from '@/lib/liveEvents';
 import { rankQueue } from '@/lib/ranking';
 import type {
   AgentCache, CellGrid, DemoEvent, Detection, Forecast, InverterReading,
   PanelArray, PanelReading, PanelStatus, RepairTask, TelemetryFrame, ZoneId,
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
+import { MISSION, missionPhaseAt, missionProgressAt, useSession } from './session';
 
 /* ── Beats — CLAUDE.md §2, in one place ──────────────────────────────────── */
 
@@ -75,18 +78,22 @@ function sample(t: number, pick: (f: TelemetryFrame) => number): number {
  * jittering while it counts.
  */
 export const useFarmHealth = (): number => {
+  const mode = useSession((s) => s.mode);
   const t = useDemoClock((s) => s.t);
-  return sample(t, (f) => f.farmHealth);
+  const live = useCurrentFrame();
+  return mode === 'demo' ? sample(t, (f) => f.farmHealth) : live.farmHealth;
 };
 
 export const useFarmOutputMW = (): number => {
+  const mode = useSession((s) => s.mode);
   const t = useDemoClock((s) => s.t);
-  return sample(t, (f) => f.farmOutputMW);
+  const live = useCurrentFrame();
+  return mode === 'demo' ? sample(t, (f) => f.farmOutputMW) : live.farmOutputMW;
 };
 
 /** Counts STATUSES, which count physics. Never a typed pair of numbers. */
 export function useAnomalyCounts(): { total: number; critical: number } {
-  const frame = useFrame();
+  const frame = useCurrentFrame();
   return useMemo(() => {
     let total = 0;
     let critical = 0;
@@ -99,13 +106,13 @@ export function useAnomalyCounts(): { total: number; critical: number } {
 }
 
 export function useWeather() {
-  const f = useFrame();
+  const f = useCurrentFrame();
   return {
     ambientC: f.ambientC,
     irradiance: f.irradiance,
     windMs: f.windMs,
     cloudPct: f.cloudPct,
-    timestamp: f.timestamp,
+    timestamp: f.clock,
   };
 }
 
@@ -166,7 +173,7 @@ export const usePanels = (): PanelArray[] => panels;
 export const useFarm = () => farm;
 
 export function usePanelReading(id: string): PanelReading | undefined {
-  return useFrame().panels[id];
+  return useCurrentFrame().panels[id];
 }
 
 /**
@@ -174,11 +181,16 @@ export function usePanelReading(id: string): PanelReading | undefined {
  * B-17: healthy → warning → critical (derived from deviation) → scheduled (on click).
  */
 export function usePanelStatus(id: string): PanelStatus {
-  const frame = useFrame();
+  const frame = useCurrentFrame();
+  const mode = useSession((s) => s.mode);
   const approved = useDemoClock((s) => s.approved);
   const reading = frame.panels[id];
   if (!reading) return 'healthy';
-  if (approved && id === 'B-17' && reading.status === 'critical') return 'scheduled';
+  // In demo mode the approval is a scripted beat on one array. In live mode the
+  // status already accounts for real work orders, inside liveFrameAt.
+  if (mode === 'demo' && approved && id === 'B-17' && reading.status === 'critical') {
+    return 'scheduled';
+  }
   return reading.status;
 }
 
@@ -197,8 +209,9 @@ export function useInverterReadings(): Record<string, InverterReading> {
 export function useZoneSummary(zoneId: ZoneId): {
   label: string; pct: number; critical: number; anomalous: number;
 } {
-  const frame = useFrame();
-  const approved = useDemoClock((s) => s.approved);
+  const frame = useCurrentFrame();
+  const mode = useSession((s) => s.mode);
+  const approved = useDemoClock((s) => s.approved) && mode === 'demo';
 
   return useMemo(() => {
     const zone = farm.zones.find((z) => z.id === zoneId);
@@ -365,3 +378,120 @@ export function useStreamedText(full: string, startT: number, cps = CPS): string
 /* ── Misc ────────────────────────────────────────────────────────────────── */
 
 export { getPanel };
+
+/* ── LIVE MODE ───────────────────────────────────────────────────────────────
+ *
+ * Everything above this line serves the scripted demo, where the world is 91
+ * committed frames indexed by `t`. Below it is the live console, where the site is
+ * evaluated from the physics model at whatever time it currently is and the
+ * operator picks what to look at.
+ *
+ * Both feed the SAME components. A component asks `useCurrentFrame()` and does not
+ * know or care which mode produced the answer — which is why live mode did not
+ * require rewriting the console.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** The array the console is describing. Demo mode is always looking at B-17. */
+export function useSelectedPanelId(): string {
+  const mode = useSession((s) => s.mode);
+  const selected = useSession((s) => s.selectedPanelId);
+  return mode === 'demo' ? 'B-17' : (selected ?? 'B-17');
+}
+
+export const useMode = () => useSession((s) => s.mode);
+
+/** Site time in seconds. Meaningless in demo mode, where `t` is the timeline. */
+export const useSiteSeconds = () => useSession((s) => s.siteSeconds);
+
+/**
+ * The site right now, whichever mode is running.
+ *
+ * Demo mode returns the committed frame for `t`. Live mode evaluates every array
+ * from the model. The shapes are deliberately compatible so no component branches.
+ */
+export function useCurrentFrame(): {
+  panels: Record<string, PanelReading>;
+  ambientC: number;
+  irradiance: number;
+  windMs: number;
+  cloudPct: number;
+  farmOutputMW: number;
+  farmHealth: number;
+  clock: string;
+} {
+  const mode = useSession((s) => s.mode);
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const workOrders = useSession((s) => s.workOrders);
+  const demoFrame = useFrame();
+
+  return useMemo(() => {
+    if (mode === 'demo') {
+      return { ...demoFrame, clock: demoFrame.timestamp };
+    }
+    const scheduled = new Set(workOrders.map((w) => w.panelId));
+    const live = liveFrameAt(siteSeconds, scheduled);
+    return {
+      panels: live.panels as unknown as Record<string, PanelReading>,
+      ambientC: live.ambientC,
+      irradiance: live.irradiance,
+      windMs: live.windMs,
+      cloudPct: live.cloudPct,
+      farmOutputMW: live.farmOutputMW,
+      farmHealth: live.farmHealth,
+      clock: live.clock,
+    };
+  }, [mode, siteSeconds, workOrders, demoFrame]);
+}
+
+/** Missions currently in the air, with their derived phase and progress. */
+export function useActiveMissions() {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const missions = useSession((s) => s.missions);
+  return useMemo(
+    () => missions
+      .map((m) => ({
+        ...m,
+        phase: missionPhaseAt(m, siteSeconds),
+        progress: missionProgressAt(m, siteSeconds),
+      }))
+      .filter((m) => m.phase !== 'complete'),
+    [missions, siteSeconds],
+  );
+}
+
+/** Has this array been inspected — i.e. did a mission reach it and finish looking? */
+export function useInspected(panelId: string): boolean {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const missions = useSession((s) => s.missions);
+  return missions.some(
+    (m) => m.panelId === panelId
+      && siteSeconds - m.startedAt >= MISSION.outbound + MISSION.inspecting,
+  );
+}
+
+/** Whether the operator has picked an array to look at. */
+export const useHasSelection = (): boolean => {
+  const mode = useSession((s) => s.mode);
+  const selected = useSession((s) => s.selectedPanelId);
+  return mode === 'demo' ? true : selected !== null;
+};
+
+
+/**
+ * The event feed, whichever mode is running.
+ *
+ * Demo mode replays the written script. Live mode derives events from what has
+ * actually happened. The feed component renders both without knowing which.
+ */
+export function useFeedEvents(): DemoEvent[] {
+  const mode = useSession((s) => s.mode);
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const missions = useSession((s) => s.missions);
+  const workOrders = useSession((s) => s.workOrders);
+  const demoEvents = useVisibleEvents();
+
+  return useMemo(
+    () => (mode === 'demo' ? demoEvents : liveEvents(siteSeconds, missions, workOrders)),
+    [mode, demoEvents, siteSeconds, missions, workOrders],
+  );
+}

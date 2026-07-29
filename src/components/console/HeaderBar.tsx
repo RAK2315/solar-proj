@@ -16,8 +16,9 @@ import { Bell, Cloud } from 'lucide-react';
 import { degC, ms, num, pctPlain, wm2 } from '@/lib/format';
 import {
   pickHealth, pickOutput, useAnomalyCounts, useFarmHealth, useFarmOutputMW,
-  useForecast, useSparkline, useWeather,
+  useForecast, useMode, useSparkline, useWeather,
 } from '@/store/selectors';
+import { useSession } from '@/store/session';
 import { Sparkline } from './Sparkline';
 
 function Kpi({
@@ -61,6 +62,8 @@ function useDailyHighs(): number[] {
 const DAY_LABEL = ['Today', 'Tomorrow', 'Day 3'];
 
 export function HeaderBar() {
+  const mode = useMode();
+  const running = useSession((s) => s.running);
   const health = useFarmHealth();
   const output = useFarmOutputMW();
   const { total, critical } = useAnomalyCounts();
@@ -128,7 +131,8 @@ export function HeaderBar() {
       }}>
         <Cloud size={15} strokeWidth={1.5} aria-hidden style={{ color: 'var(--text-muted)' }} />
         <span className="t-data">
-          {degC(weather.ambientC, 0)} / {pctPlain(weather.cloudPct)} cloud / {ms(weather.windMs)}
+          {weather.timestamp} · {degC(weather.ambientC, 0)} / {pctPlain(weather.cloudPct)} cloud
+          {' / '}{ms(weather.windMs)}
         </span>
         <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
           {wm2(weather.irradiance)}
@@ -161,6 +165,20 @@ export function HeaderBar() {
       <div style={{
         marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-4)',
       }}>
+        {/* Which world you are looking at. A live console and a recording of one
+            must never be confusable — see the note in store/session.ts. */}
+        <span
+          className="badge"
+          style={mode === 'live'
+            ? {
+              color: running ? 'var(--sev-active)' : 'var(--sev-warning)',
+              borderColor: 'currentColor',
+            }
+            : { color: 'var(--text-inverse)', background: 'var(--sev-warning)', borderColor: 'transparent' }}
+          title="Press M to switch"
+        >
+          {mode === 'live' ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
+        </span>
         <span style={{ position: 'relative', color: 'var(--text-muted)' }}>
           <Bell size={17} strokeWidth={1.5} aria-hidden />
           {critical > 0 && (

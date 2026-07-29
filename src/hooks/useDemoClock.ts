@@ -15,8 +15,18 @@
 import { useEffect } from 'react';
 
 import { DEMO_DURATION, SEEK_STEP, useDemoClock } from '@/store/demoClock';
+import { useSession } from '@/store/session';
 
-/** Advances `t` by wall-clock delta × speed. The only writer of `t` besides seek. */
+/**
+ * THE ONE LOOP. It advances whichever clock the current mode uses:
+ *
+ *   demo  → `t`, the scripted 0..90 timeline
+ *   live  → site time, which the live console derives everything from
+ *
+ * Adding a second loop for live mode would have been the obvious move and the
+ * wrong one: two loops means two answers to "what time is it", which is the exact
+ * failure the single-clock rule exists to prevent. One loop, two destinations.
+ */
 export function useDemoClockDriver(): void {
   useEffect(() => {
     let raf = 0;
@@ -26,8 +36,15 @@ export function useDemoClockDriver(): void {
       const dt = (now - last) / 1000;
       last = now;
       // Guard against a background tab returning with a multi-second delta and
-      // teleporting the demo past its own beats.
-      useDemoClock.getState()._tick(Math.min(dt, 0.1));
+      // teleporting past the beats.
+      const clamped = Math.min(dt, 0.1);
+
+      if (useSession.getState().mode === 'demo') {
+        useDemoClock.getState()._tick(clamped);
+      } else {
+        useSession.getState()._tickLive(clamped);
+      }
+
       raf = requestAnimationFrame(loop);
     };
 
@@ -45,6 +62,10 @@ export function useDemoClockDriver(): void {
  *   R       reset
  *   C V     force console / cinematic (press again to hand the view back to t)
  *   D       show / hide the debug readout
+ *   M       switch between LIVE and DEMO
+ *
+ * In live mode only Space (pause site time), D and M apply — seeking a live site
+ * would be a lie about what a console can do.
  *
  * These write only to rehearsal state. Nothing the audience sees reads them.
  */
@@ -53,6 +74,20 @@ export function useRehearsalKeys(): void {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useDemoClock.getState();
+      const session = useSession.getState();
+
+      // `M` swaps between the live console and the scripted demo. Everything below
+      // it only makes sense in demo mode, where `t` is the timeline.
+      if (e.key === 'm' || e.key === 'M') {
+        session.setMode(session.mode === 'demo' ? 'live' : 'demo');
+        return;
+      }
+      if (session.mode === 'live') {
+        // Live mode: space pauses site time rather than a recording.
+        if (e.key === ' ') { e.preventDefault(); session.toggleRunning(); }
+        if (e.key === 'd' || e.key === 'D') s.toggleDebug();
+        return;
+      }
 
       switch (e.key) {
         case ' ':

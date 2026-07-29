@@ -16,7 +16,8 @@
 
 import { MWh, hours, num } from '@/lib/format';
 import { leadMargin, scoreBreakdown } from '@/lib/ranking';
-import { useApproved, useRepairQueue } from '@/store/selectors';
+import { useApproved, useMode, useRepairQueue } from '@/store/selectors';
+import { useSession } from '@/store/session';
 import type { Severity } from '@/lib/types';
 
 const SEVERITY_COLOUR: Record<Severity, string> = {
@@ -27,15 +28,21 @@ const SEVERITY_COLOUR: Record<Severity, string> = {
 };
 
 export function RepairQueueBar() {
+  const mode = useMode();
   const queue = useRepairQueue();
   const approved = useApproved();
+  const workOrders = useSession((s) => s.workOrders);
   const next = queue[0];
   if (!next) return null;
 
   const b = scoreBreakdown(next);
   const margin = leadMargin(queue);
   // Approving moves B-17 out of "pending" and into scheduled work.
-  const pending = approved ? queue.length - 1 : queue.length;
+  // Live mode counts the orders the operator has actually raised; demo mode
+  // counts the scripted queue.
+  const pending = mode === 'live'
+    ? workOrders.length
+    : (approved ? queue.length - 1 : queue.length);
 
   return (
     <footer
@@ -45,7 +52,9 @@ export function RepairQueueBar() {
         padding: '0 var(--sp-5)',
       }}
     >
-      <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>Repair queue</span>
+      <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>
+        {mode === 'live' ? 'Work orders' : 'Repair queue'}
+      </span>
       <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
         {pending} {pending === 1 ? 'task' : 'tasks'}
       </span>
