@@ -298,6 +298,22 @@ export const RecommendationOutput = z.object({
   workOrderRef: z.literal('INC-B17'),
 });
 
+/**
+ * Runtime triage, for live mode.
+ *
+ * Identical to TriageOutput except that `requiresPhysicalVerification` is a real
+ * boolean rather than `literal(true)`. The cached version is about B-17, which IS
+ * faulted, so demanding true there is correct and invariant I12 enforces it. Live
+ * mode triages all 120 arrays, and an agent that insists a nominal array needs a
+ * drone is not being rigorous — it is being useless. Whether verification is
+ * required for a DEVIATING array is still checked, in agentCheck.ts.
+ */
+export const LiveTriageOutput = TriageOutput.extend({
+  requiresPhysicalVerification: z.boolean(),
+});
+
+export type LiveTriageOutput = z.infer<typeof LiveTriageOutput>;
+
 export const AgentCache = z.object({
   triage: TriageOutput,
   prognosis: PrognosisOutput,

@@ -18,6 +18,7 @@ import {
   useInspected, useMode, usePanelStatus, useSelectedPanelId,
 } from '@/store/selectors';
 import { DispatchPanel } from './DispatchPanel';
+import { LiveTriage } from './LiveTriage';
 import { AgentReasoning } from './AgentReasoning';
 import { AnalysisBlock } from './AnalysisBlock';
 import { AnomalyMatrix } from './AnomalyMatrix';
@@ -165,9 +166,18 @@ export function DetailPanel() {
         </Section>
       )}
 
-      {agent && triaged && (
+      {/* Demo mode shows the cached three-stage reasoning about B-17. Live mode
+          asks the model about whichever array is selected — and says so when it
+          cannot, rather than showing B-17's prose over someone else's array. */}
+      {mode === 'demo' && agent && triaged && (
         <Section title="Agent reasoning" note={`cached · ${agent.meta.model}`}>
           <AgentReasoning />
+        </Section>
+      )}
+
+      {mode === 'live' && triaged && (
+        <Section title="Agent reasoning" note="live · cross-checked">
+          <LiveTriage />
         </Section>
       )}
 

@@ -228,10 +228,25 @@ npm run lint         # includes the one-clock guardrails
 > quotes numbers from the telemetry, and the cross-check only protects you if it runs.
 > `validate:data` catches the structured fields (I9); the prose is checked at generation.
 
-**Deploying.** Vercel, static. The build gate runs first, so a deployment cannot ship
-data that contradicts the physics. Everything the app needs is committed — `/data`,
-`public/cinematic/`, `public/evidence/` — and the deployed app makes **zero network
-calls at runtime**: no LLM, no telemetry feed, no CDN font, no model inference.
+**Deploying.** Vercel. The build gate runs first, so a deployment cannot ship data that
+contradicts the physics. Everything the app needs is committed — `/data`,
+`public/cinematic/`, `public/evidence/`.
+
+Set **one** environment variable in Vercel:
+
+| Variable | Purpose |
+|---|---|
+| `GROQ_API_KEY` | Live-mode triage. **Server-side only** — never `NEXT_PUBLIC_`. |
+| `GROQ_MODEL` | Optional. Defaults to `openai/gpt-oss-120b`. |
+
+Without it the app still works: live triage reports **agent unavailable** with the
+reason, and everything else — telemetry, dispatch, evidence, the demo — is unaffected.
+
+**On network calls.** The demo path makes none: telemetry is pre-generated, agent
+prose is cached, fonts are self-hosted, the detector ran offline. Live mode adds
+exactly one, `POST /api/triage`, and only when an array is selected. That call is
+server-to-server; the browser never sees the key, and the server recomputes the
+telemetry itself rather than trusting anything the client sends.
 
 ### Rehearsal keys
 
