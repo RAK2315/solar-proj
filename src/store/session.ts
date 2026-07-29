@@ -21,13 +21,31 @@
  * Live mode stays reproducible: site time is deterministic, faults come from the
  * committed scenario, and nothing is random. Reload and you get the same site — the
  * operator's own actions are the only thing that differs, which is the point.
+ *
+ * PERSISTENCE. A work order that evaporates on refresh is not a work order, so the
+ * operator's session survives reload: site time, missions, work orders, selection.
+ *
+ * It goes through zustand's `persist` middleware rather than touching storage
+ * directly, and that is deliberate — the ESLint rule banning localStorage across
+ * src/ stays in force. Ad-hoc storage scattered through components is what that
+ * rule is for; ONE store, declaring exactly which fields outlive a refresh, is a
+ * different thing. Everything not listed in `partialize` is derived and is
+ * recomputed on load.
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 import { scenario } from '@/lib/live';
 
 export type Mode = 'live' | 'demo';
+
+/**
+ * The screens behind the icon rail. `site` is the map and the detail rail — the
+ * default and the one the demo needs. The other four are real screens over real
+ * state, which is why the rail is navigation now rather than decoration.
+ */
+export type ModuleId = 'site' | 'drones' | 'missions' | 'repairs' | 'analytics';
 
 /** Where a dispatched drone is in its mission. */
 export type MissionPhase = 'idle' | 'outbound' | 'inspecting' | 'returning' | 'complete';
@@ -51,6 +69,9 @@ export interface WorkOrder {
 export interface SessionState {
   mode: Mode;
 
+  /** Which screen the operator is on. */
+  module: ModuleId;
+
   /** Seconds of SITE time since the scenario epoch. */
   siteSeconds: number;
   /** Site seconds per real second. 60 = a solar day in 24 real minutes. */
@@ -64,6 +85,7 @@ export interface SessionState {
   workOrders: WorkOrder[];
 
   setMode: (m: Mode) => void;
+  setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
   setTimeScale: (s: number) => void;
   toggleRunning: () => void;
@@ -103,6 +125,7 @@ export function missionProgressAt(m: Mission, siteSeconds: number): number {
 
 const initial = {
   mode: 'live' as Mode,
+  module: 'site' as ModuleId,
   siteSeconds: 0,
   timeScale: scenario.defaultTimeScale,
   running: true,
@@ -111,10 +134,14 @@ const initial = {
   workOrders: [] as WorkOrder[],
 };
 
-export const useSession = create<SessionState>((set, get) => ({
+export const useSession = create<SessionState>()(persist((set, get) => ({
   ...initial,
 
-  setMode: (mode) => set({ mode }),
+  // Demo mode plays a scripted incident over the map, so entering it returns to
+  // the map. Otherwise pressing M mid-demo would play the beats behind a screen
+  // that cannot show them.
+  setMode: (mode) => set(mode === 'demo' ? { mode, module: 'site' } : { mode }),
+  setModule: (module) => set({ module }),
   selectPanel: (selectedPanelId) => set({ selectedPanelId }),
   setTimeScale: (timeScale) => set({ timeScale }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
@@ -153,6 +180,7 @@ export const useSession = create<SessionState>((set, get) => ({
     };
   }),
 
+  /** Clears the operator's session. The site itself is not resettable — it is a site. */
   resetSession: () => set({ ...initial }),
 
   _tickLive: (dt) => {
@@ -160,6 +188,25 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!running) return;
     set({ siteSeconds: siteSeconds + dt * timeScale });
   },
+}), {
+  name: 'surya-session',
+  version: 1,
+  // Hydrated explicitly after mount by ClockDriver. Reading storage during render
+  // would make the server and client disagree on the very first paint.
+  skipHydration: true,
+  // Exactly what an operator would expect to still be there after a refresh.
+  // Nothing derived is stored: readings, statuses, mission phases and the event
+  // feed are all recomputed from these.
+  partialize: (s) => ({
+    mode: s.mode,
+    module: s.module,
+    siteSeconds: s.siteSeconds,
+    timeScale: s.timeScale,
+    running: s.running,
+    selectedPanelId: s.selectedPanelId,
+    missions: s.missions,
+    workOrders: s.workOrders,
+  }),
 }));
 
 /** Arrays with an approved work order — they read as `scheduled`. */

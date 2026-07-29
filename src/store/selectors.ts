@@ -18,9 +18,12 @@ import { useMemo } from 'react';
 
 import {
   agentCache as agentCacheData, cellGrid, detection as detectionData, evidenceUrl,
-  events, farm, forecast, getPanel, hasEvidence, panels, repairQueue, telemetry,
+  events, farm, forecast, getPanel, hasCapturedEvidence, hasEvidence, panels,
+  repairQueue, telemetry,
 } from '@/lib/data';
-import { liveFrameAt } from '@/lib/live';
+import { eventFor, liveFrameAt, type LiveFrame } from '@/lib/live';
+import { F_SOIL, soilFor } from '@/lib/physics';
+import { liveQueueAt, type LiveQueue } from '@/lib/queue';
 import { liveEvents } from '@/lib/liveEvents';
 import { rankQueue } from '@/lib/ranking';
 import type {
@@ -28,7 +31,9 @@ import type {
   PanelArray, PanelReading, PanelStatus, RepairTask, TelemetryFrame, ZoneId,
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
-import { MISSION, missionPhaseAt, missionProgressAt, useSession } from './session';
+import {
+  MISSION, MISSION_TOTAL, missionPhaseAt, missionProgressAt, useSession,
+} from './session';
 
 /* ── Beats — CLAUDE.md §2, in one place ──────────────────────────────────── */
 
@@ -283,8 +288,15 @@ export const useAgentCache = (): AgentCache | null => agentCacheData;
 /** Which evidence slots are both revealed by the clock AND present on disk. */
 export function useEvidence() {
   const t = useDemoClock((s) => s.t);
+  const mode = useSession((s) => s.mode);
+  const selected = useSelectedPanelId();
+
+  // Live mode may be looking at any of 120 arrays, and we hold captured imagery for
+  // one of them. Showing B-17's thermal frame under another array's name would be
+  // presenting one array's evidence as another's.
+  const captured = mode === 'demo' || hasCapturedEvidence(selected);
   const show = (beat: number, key: Parameters<typeof hasEvidence>[0]) =>
-    (t >= beat && hasEvidence(key) ? evidenceUrl(key) : null);
+    (captured && t >= beat && hasEvidence(key) ? evidenceUrl(key) : null);
   return {
     rgb: show(BEAT.rgbScan, 'rgb'),
     rgbAnnotated: show(BEAT.rgbScan, 'rgbAnnotated'),
@@ -494,4 +506,207 @@ export function useFeedEvents(): DemoEvent[] {
     () => (mode === 'demo' ? demoEvents : liveEvents(siteSeconds, missions, workOrders)),
     [mode, demoEvents, siteSeconds, missions, workOrders],
   );
+}
+
+/* ── Module screens ──────────────────────────────────────────────────────────
+ *
+ * The screens behind the icon rail. Everything here is derived from the same two
+ * sources the map is: the operator's session and the physics model at the current
+ * site time. No screen holds its own copy of anything.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export const useModule = () => useSession((s) => s.module);
+export const useSetModule = () => useSession((s) => s.setModule);
+
+/** The raw live frame, for screens that need site time alongside the readings. */
+export function useSiteFrame(): LiveFrame {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const workOrders = useSession((s) => s.workOrders);
+  return useMemo(
+    () => liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId))),
+    [siteSeconds, workOrders],
+  );
+}
+
+export const useWorkOrders = () => useSession((s) => s.workOrders);
+
+/**
+ * Every mission the session has ever flown, newest first, with its phase derived.
+ * Unlike `useActiveMissions` this keeps completed ones — a mission log that
+ * forgets what it did is not a log.
+ */
+export function useAllMissions() {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const missions = useSession((s) => s.missions);
+  return useMemo(
+    () => missions
+      .map((m) => ({
+        ...m,
+        phase: missionPhaseAt(m, siteSeconds),
+        progress: missionProgressAt(m, siteSeconds),
+        elapsed: Math.max(0, siteSeconds - m.startedAt),
+      }))
+      .reverse(),
+    [missions, siteSeconds],
+  );
+}
+
+export interface DroneRecord {
+  id: string;
+  padId: string;
+  status: 'STANDBY' | 'OUTBOUND' | 'INSPECTING' | 'RETURNING';
+  target: string | null;
+  missionId: string | null;
+  batteryPct: number;
+  sorties: number;
+}
+
+/**
+ * The two drones on the site.
+ *
+ * Battery is derived from mission elapsed time at the same rate the demo quotes —
+ * 88% at dispatch falling to 84% by the end of the inspection leg, both numbers
+ * already in events.json — and recharges on the pad. Derived, so it is identical
+ * on every render and cannot drift between two instances of the console.
+ */
+export const DRONE_IDS = ['DRONE 01', 'DRONE 02'] as const;
+const BATTERY_FULL = 88;
+const BATTERY_AT_LOCK = 84;
+const RECHARGE_SECONDS = 45 * 60;
+
+export function useFleet(): DroneRecord[] {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const missions = useSession((s) => s.missions);
+
+  return useMemo(() => DRONE_IDS.map((id) => {
+    const mine = missions.filter((m) => m.droneId === id);
+    const flying = mine.find((m) => missionPhaseAt(m, siteSeconds) !== 'complete');
+
+    if (!flying) {
+      const last = mine[mine.length - 1];
+      // On the pad. Back to full over the recharge window after the last landing.
+      const since = last ? siteSeconds - (last.startedAt + MISSION_TOTAL) : Infinity;
+      const charged = BATTERY_AT_LOCK
+        + (BATTERY_FULL - BATTERY_AT_LOCK) * clamp01(since / RECHARGE_SECONDS);
+      return {
+        id,
+        padId: id === 'DRONE 01' ? 'PAD-01' : 'PAD-02',
+        status: 'STANDBY' as const,
+        target: null,
+        missionId: null,
+        batteryPct: mine.length === 0 ? 100 : charged,
+        sorties: mine.length,
+      };
+    }
+
+    const phase = missionPhaseAt(flying, siteSeconds);
+    const drain = clamp01(
+      (siteSeconds - flying.startedAt) / (MISSION.outbound + MISSION.inspecting),
+    );
+    return {
+      id,
+      padId: id === 'DRONE 01' ? 'PAD-01' : 'PAD-02',
+      status: phase.toUpperCase() as DroneRecord['status'],
+      target: flying.panelId,
+      missionId: flying.id,
+      batteryPct: BATTERY_FULL - (BATTERY_FULL - BATTERY_AT_LOCK) * drain,
+      sorties: mine.length,
+    };
+  }), [missions, siteSeconds]);
+}
+
+/** The ranked queue as the site actually stands right now. */
+export function useLiveQueue(): LiveQueue {
+  const frame = useSiteFrame();
+  const workOrders = useSession((s) => s.workOrders);
+  return useMemo(
+    () => liveQueueAt(frame, new Set(workOrders.map((w) => w.panelId))),
+    [frame, workOrders],
+  );
+}
+
+export interface DayPoint { hourOffset: number; outputMW: number; shortfallKW: number }
+
+/**
+ * Site output across the forecast day, from the model.
+ *
+ * Sampled rather than continuous — 4 points an hour over 24 hours is 97 whole-site
+ * evaluations, which is cheap enough to memoise and dense enough that the fault
+ * ramp is visible as a step rather than a corner. The curve is a PREDICTION for the
+ * hours ahead of site time, not a recording, and the chart says so.
+ */
+export const DAY_SAMPLES_PER_HOUR = 4;
+
+export function useDayCurve(): DayPoint[] {
+  const workOrders = useSession((s) => s.workOrders);
+  return useMemo(() => {
+    const scheduled = new Set(workOrders.map((w) => w.panelId));
+    const n = 24 * DAY_SAMPLES_PER_HOUR;
+    return Array.from({ length: n + 1 }, (_, i) => {
+      const hourOffset = i / DAY_SAMPLES_PER_HOUR;
+      const f = liveFrameAt(hourOffset * 3600, scheduled);
+      let shortfallKW = 0;
+      for (const r of Object.values(f.panels)) shortfallKW += r.expectedKW - r.actualKW;
+      return { hourOffset, outputMW: f.farmOutputMW, shortfallKW };
+    });
+  }, [workOrders]);
+}
+
+/** Where the site's lost energy is going, by mechanism. */
+export function useLossAttribution(): Array<{ cause: string; kW: number; arrays: string[] }> {
+  const frame = useSiteFrame();
+  return useMemo(() => {
+    const buckets = new Map<string, { kW: number; arrays: string[] }>();
+    for (const [id, r] of Object.entries(frame.panels)) {
+      const shortfall = r.expectedKW - r.actualKW;
+      if (shortfall <= 0.01) continue;
+      // The cause is read off the site record, not guessed from the shape of the
+      // shortfall: a scenario fault is a fault, a soiled array is soiling, and the
+      // 0.97 nominal derate every array carries is the third bucket.
+      const cause = eventFor(id) ? 'Cell mismatch / bypass diode'
+        : soilFor(id) < F_SOIL ? 'Soiling above nominal'
+          : 'Nominal soiling derate';
+      const b = buckets.get(cause) ?? { kW: 0, arrays: [] };
+      b.kW += shortfall;
+      if (cause !== 'Nominal soiling derate') b.arrays.push(id);
+      buckets.set(cause, b);
+    }
+    return [...buckets.entries()]
+      .map(([cause, v]) => ({ cause, ...v, arrays: v.arrays.sort() }))
+      .sort((a, b) => b.kW - a.kW);
+  }, [frame]);
+}
+
+export interface ZoneBreakdown {
+  id: ZoneId;
+  total: number;
+  warning: number;
+  critical: number;
+  scheduled: number;
+  /** Shortfall across the zone right now, kW. */
+  shortfallKW: number;
+}
+
+/**
+ * All three zones in one pass. Deliberately not `useZoneSummary` called in a map —
+ * that is a rules-of-hooks violation even when the list length is fixed, and it is
+ * a bug this project has already made once.
+ */
+export function useZoneBreakdown(): ZoneBreakdown[] {
+  const frame = useSiteFrame();
+  return useMemo(() => farm.zones.map((z) => {
+    const out: ZoneBreakdown = {
+      id: z.id, total: z.panels.length,
+      warning: 0, critical: 0, scheduled: 0, shortfallKW: 0,
+    };
+    for (const p of z.panels) {
+      const r = frame.panels[p.id];
+      if (!r) continue;
+      if (r.status === 'warning') out.warning += 1;
+      if (r.status === 'critical') out.critical += 1;
+      if (r.status === 'scheduled') out.scheduled += 1;
+      out.shortfallKW += Math.max(0, r.expectedKW - r.actualKW);
+    }
+    return out;
+  }), [frame]);
 }

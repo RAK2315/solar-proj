@@ -218,6 +218,10 @@ body {
 .area-right { grid-area: right; }
 .area-footer { grid-area: footer; }
 
+/* A module screen takes the map AND the right rail — the left rail keeps running
+   because events do not stop happening because you changed screens. */
+.area-module { grid-column: 3 / 5; grid-row: 2; min-width: 0; }
+
 /* Badges and chips — the reference console labels every state in words as well as
    colour, which is both the accessibility fix and what makes it read as an
    instrument rather than a dashboard. */

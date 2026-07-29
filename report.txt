@@ -649,3 +649,105 @@
    whatever you decide about the interactive product shape (selecting an
    arbitrary panel and dispatching a drone to it) — which is deliberately NOT in
    this plan, and is scoped in README.md under "Post-project TODO".
+
+===============================================================================
+ PHASES 11-13 - FROM A RECORDING TO A PRODUCT
+===============================================================================
+
+ The brief changed: not a 90-second demo, an end-to-end product where every part
+ is workable. The 90 seconds is now ONE ARTEFACT the product can produce, not the
+ product. Phases 11-13 close that gap.
+
+ PHASE 11 - LIVE MODE
+   src/lib/physics.ts      the PVWatts model, ported to TypeScript so the browser
+                           can evaluate ANY array at ANY conditions.
+   src/lib/physics.test.ts THE GOLDEN TEST. Recomputes the entire committed
+                           telemetry.json from the TypeScript - all 91 frames, all
+                           120 arrays, the 73-point forecast, farm output and
+                           fleet health. Without it the port is "a second opinion
+                           about the numbers"; with it there is still one model.
+   src/lib/live.ts         liveFrameAt(siteSeconds) - the whole site at any
+                           moment, faults from data/scenario.json. Reproducible.
+   src/store/session.ts    live state: site time, selection, missions, orders.
+                           STILL ONE rAF LOOP - the driver advances whichever
+                           clock the current mode uses.
+   Result: select any of 120 arrays, dispatch a drone, watch a real mission fly on
+   site time, approve work. Demo mode is now a mode, reachable with M.
+
+ PHASE 12 - RUNTIME AGENT
+   src/app/api/triage/     server-side triage for ANY array. The facts are
+                           RECOMPUTED there - the client sends only a panel ID and
+                           a site time, so a caller cannot have the agent reason
+                           about a fiction.
+   src/lib/agentCheck.ts   the cross-check from run_agent.py, ported. A fabricated
+                           number is retried with the rejection as a correction
+                           and then REFUSED with a 503 - it never falls back to
+                           another array's cached prose.
+
+ PHASE 13 - THE THREE GAPS (this session)
+
+   1. EVIDENCE HONESTY
+      We hold captured imagery for exactly one array. Inspecting A-03 was showing
+      B-17's thermal cell grid under A-03's name - the same failure the agent
+      cross-check exists to prevent, one layer down.
+      - src/lib/data.ts  ARRAYS_WITH_CAPTURED_EVIDENCE, a named set of one.
+      - useEvidence() and DetailPanel gate on it; an uncaptured array gets an
+        honest "no capture on file" section instead, which also states that the
+        telemetry and agent reasoning above ARE computed for that array.
+      A second entry only appears there alongside a second real capture.
+
+   2. MODULE SCREENS
+      The icon rail was five honest-but-inert labels. That was the right call
+      while there was nothing real to put behind them. There is now, and all five
+      navigate:
+      - SITE       the map and detail rail (unchanged, still the default)
+      - DRONES     both aircraft; status, target, battery and sortie count DERIVED
+                   from the missions in the session - nothing stored per drone
+      - MISSIONS   the flight log: every sortie, its target, its phase, its
+                   outcome. Phase is recomputed from site time, so scrubbing back
+                   rewinds the log rather than leaving rows stuck at COMPLETE.
+      - REPAIRS    THE SCREEN TO OPEN when asked how it prioritises. The ranked
+                   queue with all four score inputs beside the score they produce:
+                   loss x severity x urgency / access.
+      - ANALYTICS  24 h of site output from the model (97 whole-site evaluations),
+                   energy delivered vs lost by trapezoid, loss attributed to a
+                   NAMED mechanism, per-zone breakdown, and the model's own
+                   equation and coefficients.
+      Demo mode PINS the rail to SITE and says so - a beat cannot fire on a screen
+      that has no map.
+      - src/lib/queue.ts  the live queue. Loss is recomputed from the model at the
+        current moment; deadline and access cost come from the committed site
+        record because NEITHER IS DERIVABLE FROM IRRADIANCE. A deviating array
+        with no committed record is REPORTED as unrankable, not dropped.
+
+   3. PERSISTENCE
+      A work order that evaporates on refresh is not a work order. The session now
+      survives reload: mode, module, site time, time scale, selection, missions,
+      work orders. Through zustand's persist middleware rather than touching
+      storage - the ESLint rule banning localStorage across src/ stays in force,
+      and one store declares exactly which fields outlive a refresh.
+      Everything not in partialize is DERIVED and recomputed on load: readings,
+      statuses, mission phases, the event feed, the queue. skipHydration plus an
+      explicit rehydrate in ClockDriver, so server and client agree on the first
+      paint.
+
+ GATES AT THE END OF PHASE 13
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean - no headline number hardcoded in src/
+   vitest                256 passed / 15 files   (was 213 / 12)
+   next build            clean, 314 kB first load
+
+ NEW TESTS (43)
+   src/lib/queue.test.ts         the live queue reproduces the GENERATOR'S
+                                 integral for loss, tightens its deadline as site
+                                 time runs on, keeps approved work visible, and
+                                 reports what it cannot rank.
+   src/store/session.test.ts     the refresh round trip, and proof that only the
+                                 operator's own state is stored - the persisted
+                                 key list is asserted exactly.
+   modules/modules.test.tsx      each screen reports ACTUAL session state, says so
+                                 plainly when empty, and rewinds with site time.
+   live.test.tsx (+4)            evidence belongs to the array it was captured
+                                 from.
+

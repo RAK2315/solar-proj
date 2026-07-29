@@ -13,6 +13,7 @@
  * agent reasoning → outlook → timeline → the gate.
  */
 
+import { hasCapturedEvidence } from '@/lib/data';
 import {
   BEAT, useAfter, useAgentCache, useDetection, useEvidence, useHasSelection,
   useInspected, useMode, usePanelStatus, useSelectedPanelId,
@@ -77,6 +78,11 @@ export function DetailPanel() {
     || evidence.audio || evidence.flyover,
   );
 
+  // Cell-level findings are a MEASUREMENT of one specific array. We hold a real
+  // thermal capture for B-17 and for nothing else, so every other array gets told
+  // that plainly instead of being shown B-17's grid under its own name.
+  const captured = mode === 'demo' || hasCapturedEvidence(panelId);
+
   return (
     <section
       className="area-right panel hair-l"
@@ -123,9 +129,23 @@ export function DetailPanel() {
         </Section>
       )}
 
-      {thermal && (
+      {thermal && captured && (
         <Section title="Anomaly matrix" note="5 × 7 cells, measured">
           <AnomalyMatrix />
+        </Section>
+      )}
+
+      {thermal && !captured && (
+        <Section title="Anomaly matrix" note="no capture on file">
+          <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            No cell-level thermal capture exists for {panelId}. The drone recorded this
+            inspection, but the committed imagery in this build covers B-17 only —
+            so there is nothing measured to localise here.
+          </p>
+          <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+            The telemetry and the agent reasoning above are unaffected: both are
+            computed for {panelId} specifically.
+          </p>
         </Section>
       )}
 
@@ -147,7 +167,7 @@ export function DetailPanel() {
         </Section>
       )}
 
-      {thermal && (
+      {thermal && captured && (
         <Section title="Cell defects" note="classical CV, not a model">
           <CellDefectList />
         </Section>

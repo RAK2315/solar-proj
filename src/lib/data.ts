@@ -73,6 +73,23 @@ export const hasEvidence = (key: EvidenceKey): boolean => artefacts.files[key] !
 export const detection: Detection | null = artefacts.detection;
 
 /**
+ * The arrays we hold real captured imagery for.
+ *
+ * Exactly one. `b17_cellgrid.json` is a measurement from a specific Raptor Maps
+ * thermal frame and `b17_detection.json` is a specific model output on a specific
+ * held-out image — neither describes array A-03, and rendering them under A-03's
+ * name would be presenting one array's evidence as another's. That is the same
+ * failure as quoting B-17's agent prose for every array, and it gets the same
+ * answer: say there is no capture on file.
+ *
+ * A second entry only ever appears here alongside a second real capture.
+ */
+export const ARRAYS_WITH_CAPTURED_EVIDENCE = new Set(['B-17']);
+
+export const hasCapturedEvidence = (panelId: string): boolean =>
+  ARRAYS_WITH_CAPTURED_EVIDENCE.has(panelId);
+
+/**
  * Cached agent reasoning, or null until Phase 6. The LLM writes prose ABOUT
  * numbers; `run_agent.py` cross-checks every numeric field against telemetry.json
  * and refuses to write a cache that contradicts the physics.

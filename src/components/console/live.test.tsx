@@ -31,8 +31,8 @@ function at(siteSeconds: number, panelId: string | null = null): string {
 
 beforeEach(() => {
   useSession.setState({
-    mode: 'live', siteSeconds: 0, running: true, selectedPanelId: null,
-    missions: [], workOrders: [],
+    mode: 'live', module: 'site', siteSeconds: 0, running: true,
+    selectedPanelId: null, missions: [], workOrders: [],
   });
   useDemoClock.setState({ t: 0, playing: false, approved: false, debug: false });
 });
@@ -160,6 +160,44 @@ describe('the console refuses to claim what has not happened', () => {
     const text = at(done, 'B-17');
     expect(text).toContain('Anomaly matrix');
     expect(text).toContain('APPROVE — CREATE WORK ORDER');
+  });
+});
+
+/**
+ * We hold real captured imagery for exactly one array: a Raptor Maps thermal frame
+ * and a detector output on a specific held-out image, both of B-17. Rendering
+ * either under another array's name would be presenting one array's evidence as
+ * another's — the same failure as quoting B-17's agent prose for every array.
+ */
+describe('evidence belongs to the array it was captured from', () => {
+  const DONE = MISSION.outbound + MISSION.inspecting + 1;
+
+  it('shows the cell grid for the array it was measured on', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(DONE, 'B-17');
+    expect(text).toContain('Anomaly matrix');
+    expect(text).toContain('Cell defects');
+    expect(text).not.toContain('no capture on file');
+  });
+
+  it('refuses to show it for an array we have no capture of', () => {
+    useSession.getState().dispatch('A-03');
+    const text = at(DONE, 'A-03');
+    expect(text).toContain('no capture on file');
+    expect(text).not.toContain('Cell defects');
+  });
+
+  it('still reports telemetry and reasoning for that array — only imagery is missing', () => {
+    useSession.getState().dispatch('A-03');
+    const text = at(DONE, 'A-03');
+    expect(text).toContain('A-03');
+    expect(text).toContain('Irradiance');
+  });
+
+  it('shows no thumbnail strip for an uncaptured array', () => {
+    useSession.getState().dispatch('C-12');
+    const text = at(DONE, 'C-12');
+    expect(text).not.toContain('THERMAL');
   });
 });
 

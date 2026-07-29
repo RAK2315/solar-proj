@@ -7,14 +7,37 @@
  * because at Phase 7 the cinematic view renders a SECOND instance of it at
  * scale(0.31) as the PiP. Two live instances, one clock — which is what makes the
  * PiP prove the two halves are one system rather than claim it.
+ *
+ * The module screens swap out the map AND the right rail; the header, the event
+ * feed and the queue footer stay put, because events do not stop happening because
+ * an operator changed screens. Demo mode always renders the map: the scripted
+ * incident has beats that only exist there.
  */
 
+import { useMode, useModule } from '@/store/selectors';
 import { DetailPanel } from './DetailPanel';
 import { FarmMap } from './FarmMap';
 import { HeaderBar } from './HeaderBar';
 import { IconRail } from './IconRail';
 import { LeftRail } from './LeftRail';
 import { RepairQueueBar } from './RepairQueueBar';
+import { AnalyticsModule } from './modules/AnalyticsModule';
+import { DronesModule } from './modules/DronesModule';
+import { MissionsModule } from './modules/MissionsModule';
+import { RepairsModule } from './modules/RepairsModule';
+
+function ModuleArea() {
+  const mode = useMode();
+  const screen = useModule();
+
+  if (mode === 'demo' || screen === 'site') {
+    return <><FarmMap /><DetailPanel /></>;
+  }
+  if (screen === 'drones') return <DronesModule />;
+  if (screen === 'missions') return <MissionsModule />;
+  if (screen === 'repairs') return <RepairsModule />;
+  return <AnalyticsModule />;
+}
 
 export function ConsoleRoot() {
   return (
@@ -22,8 +45,7 @@ export function ConsoleRoot() {
       <HeaderBar />
       <IconRail />
       <LeftRail />
-      <FarmMap />
-      <DetailPanel />
+      <ModuleArea />
       <RepairQueueBar />
     </div>
   );
