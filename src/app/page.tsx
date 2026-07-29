@@ -16,10 +16,12 @@ import { MotionConfig } from 'framer-motion';
 import { CinematicView } from '@/components/cinematic/CinematicView';
 import { ConsoleRoot } from '@/components/console/ConsoleRoot';
 import { DebugReadout } from '@/components/DebugReadout';
-import { useView } from '@/store/demoClock';
+import { useActiveView } from '@/store/flightCue';
 
 export default function Page() {
-  const view = useView();
+  // Mode-aware: `t` decides during the scripted run, a dispatched mission decides
+  // in live mode, and the C/V rehearsal keys override both.
+  const view = useActiveView();
 
   return (
     // reducedMotion="user" makes framer-motion honour the OS setting. The CSS

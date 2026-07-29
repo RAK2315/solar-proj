@@ -18,7 +18,7 @@ import { useEffect, useRef } from 'react';
 import { Vector3 } from 'three';
 
 import { cameraAt } from '@/lib/scene';
-import { useDemoClock } from '@/store/demoClock';
+import { flightCueNow } from '@/store/flightCue';
 
 const SMOOTHING = 0.14;
 /** Beyond this, the target moved because someone seeked — so do not glide. */
@@ -32,15 +32,18 @@ export function CameraRig() {
   // Land on the right frame immediately on mount, including after a seek that
   // happened while the cinematic was hidden.
   useEffect(() => {
-    const s = cameraAt(useDemoClock.getState().t);
+    const cue = flightCueNow();
+    const s = cameraAt(cue.t, cue.target);
     camera.position.set(s.pos.x, s.pos.y, s.pos.z);
     look.current.set(s.look.x, s.look.y, s.look.z);
     camera.lookAt(look.current);
   }, [camera]);
 
   useFrame(() => {
-    const t = useDemoClock.getState().t;
-    const s = cameraAt(t);
+    // The cue, not the clock: in demo mode it IS the clock, and in live mode it
+    // is wherever the dispatched mission has got to. One spline, two sources.
+    const cue = flightCueNow();
+    const s = cameraAt(cue.t, cue.target);
 
     target.current.set(s.pos.x, s.pos.y, s.pos.z);
     const jumped = camera.position.distanceTo(target.current) > SNAP_DISTANCE;

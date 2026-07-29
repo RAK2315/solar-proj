@@ -15,18 +15,19 @@
  */
 
 import { visibleLabels } from '@/lib/scene';
-import { BEAT, useAfter, useDemoClockT } from '@/store/selectors';
+import { M } from '@/lib/scene';
+import { useFlightCue } from '@/store/flightCue';
 
 export function PanelLabels() {
-  const t = useDemoClockT();
+  const cue = useFlightCue();
   // Only once the aircraft is close enough for the tags to mean anything. During
   // transit they would be a wall of text over a field of identical panels.
-  const near = useAfter(BEAT.targetLock - 4);
-  const gone = useAfter(BEAT.thermalDone + 2);
+  const near = cue.t >= M.lock - 4;
+  const gone = cue.t > M.thermalDone + 2;
 
   if (!near || gone) return null;
 
-  const labels = visibleLabels(t);
+  const labels = visibleLabels(cue.t, cue.targetId);
 
   return (
     <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>

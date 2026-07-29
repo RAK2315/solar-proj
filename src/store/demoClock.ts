@@ -70,6 +70,7 @@ export interface DemoClockState {
   seekBy: (dt: number) => void;
   setSpeed: (s: number) => void;
   forceView: (v: DemoView) => void;   // pressing the same view again clears it
+  clearViewOverride: () => void;
   toggleDebug: () => void;
   approve: () => void;
   reset: () => void;
@@ -93,6 +94,7 @@ export const useDemoClock = create<DemoClockState>((set, get) => ({
   seekBy: (dt) => set((s) => ({ t: clampT(s.t + dt) })),
   setSpeed: (speed) => set({ speed }),
   forceView: (v) => set((s) => ({ viewOverride: s.viewOverride === v ? null : v })),
+  clearViewOverride: () => set({ viewOverride: null }),
   toggleDebug: () => set((s) => ({ debug: !s.debug })),
   approve: () => set({ approved: true }),
   // `debug` deliberately survives a reset — it is a property of the rehearsal

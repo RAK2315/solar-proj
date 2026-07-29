@@ -13,11 +13,17 @@
  * Until the Colab run lands there is no detection, so the label says what is true
  * at that moment rather than borrowing the spec's placeholder 0.84 — which
  * invariant I11 would fail the build over anyway.
+ *
+ * And it is B-17's output, about B-17. When an operator flies this same camera to
+ * another array the brackets still frame the module the aircraft is over, but the
+ * label does NOT claim a crack there — there is no classifier run for that array,
+ * and saying so is the whole difference between an instrument and a graphic.
  */
 
 import { confidence } from '@/lib/format';
-import { reticleRect } from '@/lib/scene';
-import { BEAT, useAfter, useDemoClockT, useDetection } from '@/store/selectors';
+import { M, reticleRect } from '@/lib/scene';
+import { useFlightCue } from '@/store/flightCue';
+import { useDetection } from '@/store/selectors';
 
 const ARM = 30;
 
@@ -31,17 +37,20 @@ function Corner({ style }: { style: React.CSSProperties }) {
 }
 
 export function TargetReticle() {
-  const t = useDemoClockT();
-  const locked = useAfter(BEAT.targetLock);
-  const scanned = useAfter(BEAT.rgbScan);
+  const cue = useFlightCue();
   const detection = useDetection();
 
-  const rect = reticleRect(t);
+  const locked = cue.t >= M.lock;
+  const scanned = cue.t >= M.rgb;
+
+  const rect = reticleRect(cue.t, cue.target);
   if (!locked || !rect.visible) return null;
 
-  const label = detection
-    ? `B-17 · B2-07 — ${detection.label.toLowerCase()} suspected (${confidence(detection.confidence)})`
-    : 'B-17 · B2-07 — surface scan in progress';
+  const label = cue.cracked
+    ? (detection
+      ? `${cue.targetId} · B2-07 — ${detection.label.toLowerCase()} suspected (${confidence(detection.confidence)})`
+      : `${cue.targetId} · B2-07 — surface scan in progress`)
+    : `${cue.targetId} — surface scan · no classifier output for this array`;
 
   return (
     <div

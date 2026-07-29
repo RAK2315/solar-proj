@@ -9,10 +9,14 @@
  */
 
 import { timecode } from '@/lib/format';
-import { useMissionElapsed } from '@/store/selectors';
+import { M } from '@/lib/scene';
+import { useFlightCue } from '@/store/flightCue';
 
 export function Timecode() {
-  const elapsed = useMissionElapsed();
+  // Counts the cinematic's own seconds in both modes. In live mode that is site
+  // time compressed by the same factor the flight is — the readout matches what
+  // is on screen rather than a second, disagreeing clock.
+  const elapsed = Math.max(0, useFlightCue().t - M.dispatch);
 
   return (
     <div style={{

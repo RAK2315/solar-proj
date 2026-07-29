@@ -160,8 +160,8 @@ describe('THE SEEK GUARANTEE — nothing integrates', () => {
   });
 
   it('does not care what order t is sampled in', () => {
-    const forwards = [20, 30, 40, 50, 60].map(cameraAt);
-    const backwards = [60, 50, 40, 30, 20].map(cameraAt).reverse();
+    const forwards = [20, 30, 40, 50, 60].map((t) => cameraAt(t));
+    const backwards = [60, 50, 40, 30, 20].map((t) => cameraAt(t)).reverse();
     expect(backwards).toEqual(forwards);
   });
 

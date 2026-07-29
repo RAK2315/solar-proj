@@ -26,7 +26,7 @@ import { Uniform } from 'three';
 
 import { ironbowGlsl } from '@/lib/ironbow';
 import { thermalAmount } from '@/lib/scene';
-import { useDemoClock } from '@/store/demoClock';
+import { flightCueNow } from '@/store/flightCue';
 
 /**
  * The ramp is GENERATED from src/lib/ironbow.ts rather than typed here, so the
@@ -75,7 +75,7 @@ const Ironbow = forwardRef<IronbowEffect>(function Ironbow(_props, ref) {
   }, [effect, ref]);
 
   useFrame(() => {
-    effect.setAmount(thermalAmount(useDemoClock.getState().t));
+    effect.setAmount(thermalAmount(flightCueNow().t));
   });
 
   return <primitive object={effect} dispose={null} />;

@@ -24,10 +24,10 @@ import { CanvasTexture, RepeatWrapping } from 'three';
 import { cellGrid } from '@/lib/data';
 import {
   B17, PANEL_H, PANEL_SPACING_X, PANEL_TILT, PANEL_W, PANELS_PER_ARRAY,
-  POST_HEIGHT, crackVisible, thermalAmount,
+  POST_HEIGHT, thermalAmount,
 } from '@/lib/scene';
 import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
-import { useDemoClock } from '@/store/demoClock';
+import { flightCueNow } from '@/store/flightCue';
 
 /**
  * Panel surface texture: cell grid lines, the measured hot band, and a crack.
@@ -105,14 +105,19 @@ function Panel({ x, z, cracked }: { x: number; z: number; cracked: boolean }) {
     if (!mesh) return;
     // Reads the clock, never writes it, never accumulates — the one legal use of
     // useFrame in this project (plan/02 §6).
-    const t = useDemoClock.getState().t;
+    const cue = flightCueNow();
     const mat = mesh.material as MeshStandardMaterial;
 
     // The hot band glows during the thermal pass so the ironbow LUT has real heat
-    // to map rather than inventing a blob.
-    const heat = cracked ? thermalAmount(t) : 0;
+    // to map rather than inventing a blob — and ONLY on the array that actually
+    // carries the crack. Flying the same camera move over a soiled array must not
+    // make it glow, or the picture would be evidence of a defect that isn't there.
+    const heat = cracked && cue.cracked ? thermalAmount(cue.t) : 0;
     mat.emissiveIntensity = heat * 1.6;
-    mesh.visible = !cracked || crackVisible(t) || heat > 0 || true;
+    // Always in the world. The crack is a property of B-17, not of the camera —
+    // it does not appear because we flew there and it does not vanish because we
+    // flew somewhere else.
+    mesh.visible = true;
   });
 
   return (

@@ -36,6 +36,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { useDemoClock } from './demoClock';
+
 import { scenario } from '@/lib/live';
 
 export type Mode = 'live' | 'demo';
@@ -156,6 +158,11 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
       (m) => missionPhaseAt(m, s.siteSeconds) !== 'complete',
     ).length;
     if (busy >= 2) return s;                    // two drones on the site, both real
+
+    // Clear any held view override, so this mission cuts to the cinematic rather
+    // than being silently suppressed by a decision the operator made two missions
+    // ago. Sending a drone is a request to watch it.
+    useDemoClock.getState().clearViewOverride();
 
     return {
       missions: [...s.missions, {

@@ -3,16 +3,15 @@
 /**
  * MissionLog — the typewriter caption bar, top-left.
  *
- * Reads the SAME events.json the console's feed reads, via each event's short-form
- * `logLine`. One t-ordered script, two renderings — which is why the log and the
- * feed can never tell different stories about when something happened.
+ * Reads the SAME feed the console's left rail reads: the scripted events in demo
+ * mode, the derived ones in live mode. One source, two renderings — which is why
+ * the log and the feed can never tell different stories about what happened.
  *
  * Colour by event class: anomaly/warning on the ironbow ramp, confirmations in
  * agent teal, status in plain text.
  */
 
-import { typographic } from '@/lib/format';
-import { useLogLines, useStreamedText } from '@/store/selectors';
+import { useMissionLogLine } from '@/store/selectors';
 import type { Severity } from '@/lib/types';
 
 const LOG_COLOUR: Record<Severity, string> = {
@@ -23,17 +22,11 @@ const LOG_COLOUR: Record<Severity, string> = {
 };
 
 export function MissionLog() {
-  const lines = useLogLines();
-  const current = lines[lines.length - 1];
-
-  // The newest line types in; it is a pure function of t, so seeking backwards
-  // un-types it rather than leaving a finished sentence on screen.
-  const typed = useStreamedText(
-    current ? typographic(`[${current.timestamp}] ${current.logLine}`) : '',
-    current?.t ?? 0,
-  );
-
+  // The newest line types in; it is a pure function of the clock, so scrubbing
+  // backwards un-types it rather than leaving a finished sentence on screen.
+  const current = useMissionLogLine();
   if (!current) return null;
+  const typed = current.text;
 
   return (
     <div
@@ -65,7 +58,7 @@ export function MissionLog() {
         }}
       >
         {typed}
-        {typed.length < `[${current.timestamp}] ${current.logLine}`.length && (
+        {!current.done && (
           <span style={{
             display: 'inline-block', width: 13, height: '0.9em',
             background: 'var(--sev-active)', marginLeft: 3,

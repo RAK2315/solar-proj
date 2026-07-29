@@ -129,6 +129,26 @@ export const DAMAGED_MODULE: Vec3 = {
   z: B17.z,
 };
 
+/**
+ * The same point for ANY array.
+ *
+ * The flight was written around B-17 because the scripted incident only ever goes
+ * there. In live mode an operator dispatches to whichever array they picked, so
+ * every function below takes the target as an argument and defaults to B-17 —
+ * which keeps the demo's geometry byte-identical while letting the same spline
+ * fly to any of the 120.
+ */
+export function inspectionTarget(panelId: string): Vec3 {
+  for (const zone of farm.zones) {
+    const p = zone.panels.find((x) => x.id === panelId);
+    if (p) {
+      const base = arrayPosition(zone.id, p.row, p.col, zone.cols);
+      return { x: base.x + moduleOffsetX(DAMAGED_INDEX), y: POST_HEIGHT, z: base.z };
+    }
+  }
+  return DAMAGED_MODULE;
+}
+
 /* ── Drone ───────────────────────────────────────────────────────────────── */
 
 /**
@@ -138,7 +158,7 @@ export const DAMAGED_MODULE: Vec3 = {
  * descending to inspection altitude, hold (34→56) hovers on station, return
  * (56→74) climbs out and heads home.
  */
-export function droneAt(t: number): Vec3 {
+export function droneAt(t: number, target: Vec3 = DAMAGED_MODULE): Vec3 {
   if (t < M.dispatch) return v(PAD.x, 0.4, PAD.z);
 
   if (t < M.transit) {
@@ -152,9 +172,9 @@ export function droneAt(t: number): Vec3 {
     const k = seg(t, M.transit, M.lock);
     const e = smooth(k);
     return v(
-      lerp(PAD.x, B17.x, e),
+      lerp(PAD.x, target.x, e),
       lerp(CRUISE_ALT, INSPECT_ALT, smooth(clamp01((k - 0.45) / 0.55))),
-      lerp(PAD.z, B17.z, e),
+      lerp(PAD.z, target.z, e),
     );
   }
 
@@ -168,9 +188,9 @@ export function droneAt(t: number): Vec3 {
     const settle = smooth(seg(t, M.lock, M.lock + 2))
       * (1 - smooth(seg(t, M.thermalDone - 2, M.thermalDone)));
     return v(
-      DAMAGED_MODULE.x + Math.sin(angle) * radius,
+      target.x + Math.sin(angle) * radius,
       INSPECT_ALT + Math.sin(t * 1.7) * 0.12 * settle,
-      DAMAGED_MODULE.z + Math.cos(angle) * radius,
+      target.z + Math.cos(angle) * radius,
     );
   }
 
@@ -179,9 +199,9 @@ export function droneAt(t: number): Vec3 {
     const k = smooth(seg(t, M.thermalDone, M.recommendation));
     const exitAngle = ((M.thermalDone - M.rgb) * ORBIT_DEG_PER_SEC * Math.PI) / 180;
     const from = v(
-      DAMAGED_MODULE.x + Math.sin(exitAngle) * ORBIT_RADIUS,
+      target.x + Math.sin(exitAngle) * ORBIT_RADIUS,
       INSPECT_ALT,
-      DAMAGED_MODULE.z + Math.cos(exitAngle) * ORBIT_RADIUS,
+      target.z + Math.cos(exitAngle) * ORBIT_RADIUS,
     );
     return v(
       lerp(from.x, PAD.x, k),
@@ -225,8 +245,8 @@ const GIMBAL_DROP = 0.4;
  * inspection is actually flown and what makes the reticle mean something, because
  * the thing in the crosshairs is the thing the camera is looking at.
  */
-export function cameraAt(t: number): CameraSample {
-  const drone = droneAt(t);
+export function cameraAt(t: number, target: Vec3 = DAMAGED_MODULE): CameraSample {
+  const drone = droneAt(t, target);
 
   // Before the cut, park behind the pad. Never seen, but a defined value means
   // seeking to t=0 cannot produce a NaN transform.
@@ -243,7 +263,7 @@ export function cameraAt(t: number): CameraSample {
         lerp(3, drone.y - GIMBAL_DROP, k),
         drone.z + lerp(15, 0.1, k),
       ),
-      look: lerpVec(drone, v(B17.x, drone.y - 12, B17.z), k * 0.35),
+      look: lerpVec(drone, v(target.x, drone.y - 12, target.z), k * 0.35),
       fov: 65,
     };
   }
@@ -252,13 +272,13 @@ export function cameraAt(t: number): CameraSample {
     // POV. The look point is a FORWARD SAMPLE of the same pure function, so the
     // view leads the aircraft without anything being integrated, then swings onto
     // the target as it arrives.
-    const ahead = droneAt(Math.min(t + 1.8, M.lock));
+    const ahead = droneAt(Math.min(t + 1.8, M.lock), target);
     const k = smooth(seg(t, POV_IN, M.lock));
     return {
       pos: v(drone.x, drone.y - GIMBAL_DROP, drone.z),
       look: lerpVec(
         v(ahead.x, ahead.y - 14, ahead.z),
-        DAMAGED_MODULE,
+        target,
         k,
       ),
       fov: lerp(65, 52, k),
@@ -270,7 +290,7 @@ export function cameraAt(t: number): CameraSample {
     const k = smooth(seg(t, M.lock, M.rgb));
     return {
       pos: v(drone.x, drone.y - GIMBAL_DROP, drone.z),
-      look: DAMAGED_MODULE,
+      look: target,
       fov: lerp(52, 45, k),
     };
   }
@@ -280,7 +300,7 @@ export function cameraAt(t: number): CameraSample {
     // it, so the orbit from CLAUDE.md §14 and the flight path are the same thing.
     return {
       pos: v(drone.x, drone.y - GIMBAL_DROP, drone.z),
-      look: DAMAGED_MODULE,
+      look: target,
       fov: 45,
     };
   }
@@ -291,14 +311,14 @@ export function cameraAt(t: number): CameraSample {
   return {
     pos: lerpVec(
       v(
-        DAMAGED_MODULE.x + Math.sin(exitAngle) * ORBIT_RADIUS,
+        target.x + Math.sin(exitAngle) * ORBIT_RADIUS,
         INSPECT_ALT - GIMBAL_DROP,
-        DAMAGED_MODULE.z + Math.cos(exitAngle) * ORBIT_RADIUS,
+        target.z + Math.cos(exitAngle) * ORBIT_RADIUS,
       ),
-      v(B17.x - 62, 104, B17.z + 132),
+      v(target.x - 62, 104, target.z + 132),
       k,
     ),
-    look: lerpVec(DAMAGED_MODULE, v(0, 0, 14), k),
+    look: lerpVec(target, v(0, 0, 14), k),
     fov: lerp(45, 65, k),
   };
 }
@@ -369,15 +389,17 @@ export interface Rect {
  * quietly undercut the claim the reticle is making. This projects that one
  * module's four corners, so the brackets sit on the thing the agent is discussing.
  */
-export function reticleRect(t: number, aspect = ASPECT): Rect {
-  const cam = cameraAt(t);
+export function reticleRect(
+  t: number, target: Vec3 = DAMAGED_MODULE, aspect = ASPECT,
+): Rect {
+  const cam = cameraAt(t, target);
   const hw = PANEL_W / 2;
   const hh = PANEL_H / 2;
   const corners: Vec3[] = [
-    { x: DAMAGED_MODULE.x - hw, y: DAMAGED_MODULE.y, z: DAMAGED_MODULE.z - hh },
-    { x: DAMAGED_MODULE.x + hw, y: DAMAGED_MODULE.y, z: DAMAGED_MODULE.z - hh },
-    { x: DAMAGED_MODULE.x - hw, y: DAMAGED_MODULE.y, z: DAMAGED_MODULE.z + hh },
-    { x: DAMAGED_MODULE.x + hw, y: DAMAGED_MODULE.y, z: DAMAGED_MODULE.z + hh },
+    { x: target.x - hw, y: target.y, z: target.z - hh },
+    { x: target.x + hw, y: target.y, z: target.z - hh },
+    { x: target.x - hw, y: target.y, z: target.z + hh },
+    { x: target.x + hw, y: target.y, z: target.z + hh },
   ];
 
   const pts = corners.map((c) => projectToScreen(c, cam, aspect));
@@ -412,20 +434,26 @@ export interface Label {
  * to a panel that merely looks right?" With the neighbours labelled too, the
  * answer is legible on screen instead of asserted in a caption.
  */
-export function visibleLabels(t: number, aspect = ASPECT, max = 9): Label[] {
-  const cam = cameraAt(t);
+export function visibleLabels(
+  t: number,
+  targetId: string = FAULTED_ARRAY_ID,
+  aspect = ASPECT,
+  max = 9,
+): Label[] {
+  const target = inspectionTarget(targetId);
+  const cam = cameraAt(t, target);
   const out: Label[] = [];
 
   for (const zone of farm.zones) {
     for (const p of zone.panels) {
       const base = arrayPosition(zone.id, p.row, p.col, zone.cols);
-      const near = Math.hypot(base.x - DAMAGED_MODULE.x, base.z - DAMAGED_MODULE.z);
+      const near = Math.hypot(base.x - target.x, base.z - target.z);
       if (near > ARRAY_SPACING_X * 2.4) continue;
 
       const s = projectToScreen({ x: base.x, y: POST_HEIGHT + 1.2, z: base.z }, cam, aspect);
       if (!s.visible || s.x < 0.03 || s.x > 0.97 || s.y < 0.05 || s.y > 0.95) continue;
 
-      out.push({ id: p.id, x: s.x, y: s.y, faulted: p.id === FAULTED_ARRAY_ID, near });
+      out.push({ id: p.id, x: s.x, y: s.y, faulted: p.id === targetId, near });
     }
   }
 

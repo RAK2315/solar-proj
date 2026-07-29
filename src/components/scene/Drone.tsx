@@ -20,7 +20,7 @@ import type { Group, Mesh } from 'three';
 
 import { droneAt, droneVisible } from '@/lib/scene';
 import { SCENE } from '@/lib/scenePalette';
-import { useDemoClock } from '@/store/demoClock';
+import { flightCueNow } from '@/store/flightCue';
 
 const ARM = 0.55;
 const ROTORS: Array<[number, number]> = [
@@ -33,8 +33,9 @@ export function Drone() {
   const shadow = useRef<Mesh>(null);
 
   useFrame((_, delta) => {
-    const t = useDemoClock.getState().t;
-    const p = droneAt(t);
+    const cue = flightCueNow();
+    const t = cue.t;
+    const p = droneAt(t, cue.target);
 
     if (group.current) {
       // Hidden while the camera is riding it — otherwise we would be looking at
@@ -43,7 +44,7 @@ export function Drone() {
       group.current.position.set(p.x, p.y, p.z);
       // Bank into the direction of travel. Sampled by differencing two samples of
       // a pure function — still no accumulated state.
-      const ahead = droneAt(t + 0.25);
+      const ahead = droneAt(t + 0.25, cue.target);
       const dx = ahead.x - p.x;
       const dz = ahead.z - p.z;
       const speed = Math.hypot(dx, dz);

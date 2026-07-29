@@ -26,11 +26,13 @@ import { F_SOIL, soilFor } from '@/lib/physics';
 import { liveQueueAt, type LiveQueue } from '@/lib/queue';
 import { liveEvents } from '@/lib/liveEvents';
 import { rankQueue } from '@/lib/ranking';
+import { typographic } from '@/lib/format';
 import type {
   AgentCache, CellGrid, DemoEvent, Detection, Forecast, InverterReading,
-  PanelArray, PanelReading, PanelStatus, RepairTask, TelemetryFrame, ZoneId,
+  PanelArray, PanelReading, PanelStatus, RepairTask, Severity, TelemetryFrame, ZoneId,
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
+import { useFlightCue } from './flightCue';
 import {
   MISSION, MISSION_TOTAL, missionPhaseAt, missionProgressAt, useSession,
 } from './session';
@@ -346,20 +348,27 @@ export const useApproved = (): boolean => useDemoClock((s) => s.approved);
  * A pure lookup on `t`, so it is correct the instant you seek rather than needing
  * to have passed through the intervening states.
  */
-const PILL: Array<[number, string]> = [
-  [BEAT.dispatch, 'ANOMALY DETECTED'],
-  [BEAT.transit, 'FLYING TO ZONE B'],
-  [BEAT.targetLock, 'TARGET LOCK — B-17'],
-  [BEAT.rgbScan, 'INSPECTING B-17'],
-  [BEAT.thermalScan, 'THERMAL SCAN'],
-  [BEAT.thermalDone, 'SURYA ANALYZING'],
-  [BEAT.prognosis, 'RECOMMENDATION READY'],
+const PILL: Array<[number, (id: string, zone: string) => string]> = [
+  [BEAT.dispatch, () => 'ANOMALY DETECTED'],
+  [BEAT.transit, (_id, zone) => `FLYING TO ZONE ${zone}`],
+  [BEAT.targetLock, (id) => `TARGET LOCK — ${id}`],
+  [BEAT.rgbScan, (id) => `INSPECTING ${id}`],
+  [BEAT.thermalScan, () => 'THERMAL SCAN'],
+  [BEAT.thermalDone, () => 'SURYA ANALYZING'],
+  [BEAT.prognosis, () => 'RECOMMENDATION READY'],
 ];
 
+/**
+ * The pill names the array the aircraft is ACTUALLY over, in both modes. The
+ * scripted run always says B-17 because that is where it always goes; a live
+ * mission to C-31 says C-31, because a caption that names the wrong panel is the
+ * fastest way to make the whole overlay read as decoration.
+ */
 export function useStatusPill(): string {
-  const t = useDemoClock((s) => s.t);
-  let label = PILL[0][1];
-  for (const [at, text] of PILL) if (t >= at) label = text;
+  const cue = useFlightCue();
+  const zone = getPanel(cue.targetId)?.zone ?? '—';
+  let label = PILL[0][1](cue.targetId, zone);
+  for (const [at, text] of PILL) if (cue.t >= at) label = text(cue.targetId, zone);
   return label;
 }
 
@@ -368,6 +377,47 @@ export const useMissionElapsed = (): number => {
   const t = useDemoClock((s) => s.t);
   return Math.max(0, t - BEAT.dispatch);
 };
+
+/**
+ * The mission log's current line, already typed.
+ *
+ * Demo mode streams the scripted `logLine` against `t`. Live mode has no script,
+ * so it streams the newest thing that actually happened, out of the same derived
+ * feed the console's left rail is showing — one source, two renderings, exactly as
+ * it was for the demo.
+ *
+ * The typing rate is 45 characters per REAL second in both modes. Live site time
+ * runs at `timeScale`, so streaming at 45 chars per SITE second would finish a
+ * sentence before it appeared. Dividing by the scale is what keeps the log
+ * readable without introducing a second clock to read it by.
+ */
+export function useMissionLogLine():
+  { text: string; severity: Severity; done: boolean } | null {
+  const mode = useSession((s) => s.mode);
+  const timeScale = useSession((s) => s.timeScale);
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const demoLines = useLogLines();
+  const liveFeed = useFeedEvents();
+  const t = useDemoClock((s) => s.t);
+
+  const reduced = typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  if (mode === 'demo') {
+    const current = demoLines[demoLines.length - 1];
+    if (!current) return null;
+    const full = typographic(`[${current.timestamp}] ${current.logLine}`);
+    const text = reduced ? full : full.slice(0, Math.floor(Math.max(0, t - current.t) * CPS));
+    return { text, severity: current.severity, done: text.length >= full.length };
+  }
+
+  const current = liveFeed[0];
+  if (!current) return null;
+  const full = typographic(`[${current.timestamp}] ${current.body}`);
+  const realSeconds = Math.max(0, siteSeconds - current.t) / Math.max(1, timeScale);
+  const text = reduced ? full : full.slice(0, Math.floor(realSeconds * CPS));
+  return { text, severity: current.severity, done: text.length >= full.length };
+}
 
 /* ── Typewriter ──────────────────────────────────────────────────────────── */
 
