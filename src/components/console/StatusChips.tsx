@@ -12,7 +12,9 @@
  * The agent writes prose about these; it never sources them.
  */
 
-import { useForecast, usePanelStatus, useSelectedPanelId } from '@/store/selectors';
+import {
+  useArrayFault, useForecast, useIsDark, useOverride, usePanelStatus, useSelectedPanelId,
+} from '@/store/selectors';
 import { getPanel } from '@/lib/data';
 
 export function StatusChips() {
@@ -20,6 +22,9 @@ export function StatusChips() {
   const status = usePanelStatus(panelId);
   const forecast = useForecast();
   const panel = getPanel(panelId);
+  const dark = useIsDark();
+  const fault = useArrayFault(panelId);
+  const override = useOverride(panelId);
   if (!panel) return null;
 
   const critical = status === 'critical';
@@ -59,9 +64,31 @@ export function StatusChips() {
         </div>
       ) : (
         <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-          {status === 'healthy'
-            ? 'Within tolerance. No intervention scheduled.'
-            : 'Degraded. Monitor; no hard deadline yet.'}
+          {dark
+            // At zero irradiance `healthy` means "producing nothing, as expected",
+            // which is not the same claim and must not be printed as if it were.
+            ? 'No generation at this hour. Status cannot be evaluated from output '
+              + 'until sunrise; any known fault is carried forward below.'
+            : status === 'healthy'
+              ? 'Within tolerance. No intervention scheduled.'
+              : 'Degraded. Monitor; no hard deadline yet.'}
+        </span>
+      )}
+
+      {/* The mechanism, when the site record actually holds one. Named rather than
+          inferred from the shape of the shortfall. */}
+      {fault?.mechanism && (
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+          Mechanism: {fault.mechanism}
+          {fault.injected && (
+            <span style={{ color: 'var(--sev-warning)' }}> · injected by operator</span>
+          )}
+        </span>
+      )}
+
+      {override && (
+        <span className="t-micro" style={{ color: 'var(--sev-warning)' }}>
+          OVERRIDDEN by operator — {override.reason}
         </span>
       )}
     </div>

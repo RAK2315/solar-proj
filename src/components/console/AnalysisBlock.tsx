@@ -10,15 +10,9 @@
  */
 
 import { MWh, degC, kW, pct, serviceDate, wm2 } from '@/lib/format';
-
-/**
- * The B-17 array shortfall the committed 3.07 MWh figure was integrated over.
- * Scaling by the selected array's own shortfall keeps every other array's loss
- * on the same curve rather than quoting B-17's number for all 120.
- */
-const SHORTFALL_AT_REFERENCE = 105.41;
 import {
-  getPanel, useForecast, usePanelReading, useSelectedPanelId, useWeather,
+  getPanel, useIsDark, usePanelReading, useProjectedLossMWh, useSelectedPanelId,
+  useWeather,
 } from '@/store/selectors';
 
 function Row({ label, value, colour, note }: {
@@ -42,44 +36,63 @@ export function AnalysisBlock() {
   const id = useSelectedPanelId();
   const reading = usePanelReading(id);
   const weather = useWeather();
-  const forecast = useForecast();
   const panel = getPanel(id);
+  const dark = useIsDark();
+  const projectedLoss = useProjectedLossMWh(id);
 
   if (!reading || !panel) return null;
 
   return (
     <div>
-      <Row
-        label="Array deviation"
-        note={`${id}, ${panel.stringsPerArray} strings`}
-        value={pct(reading.deviationPct)}
-        colour="var(--sev-critical)"
-      />
-      {reading.stringDeviationPct !== undefined && (
-        <Row
-          label="String deviation"
-          note={`${id}-S3`}
-          value={pct(reading.stringDeviationPct)}
-          colour="var(--sev-critical)"
-        />
+      {/* After sunset actual and expected are both zero, the deviation formula
+          floors to 0.0 %, and every array on the site reads clean. Printing those
+          rows anyway is how a console tells an operator that a cracked array is
+          fine — so at night the deviation is declared unobservable instead. */}
+      {dark ? (
+        <div style={{
+          border: '1px solid var(--sev-warning)', padding: 'var(--sp-2) var(--sp-3)',
+          marginBottom: 'var(--sp-2)',
+        }}>
+          <span className="t-h2" style={{ color: 'var(--sev-warning)' }}>
+            No generation — after sunset
+          </span>
+          <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+            Deviation is not measurable at zero irradiance. Known faults are still
+            tracked; the projection below is quoted at reference conditions, not at
+            this hour.
+          </p>
+        </div>
+      ) : (
+        <>
+          <Row
+            label="Array deviation"
+            note={`${id}, ${panel.stringsPerArray} strings`}
+            value={pct(reading.deviationPct)}
+            colour="var(--sev-critical)"
+          />
+          {reading.stringDeviationPct !== undefined && (
+            <Row
+              label="String deviation"
+              note={`${id}-S3`}
+              value={pct(reading.stringDeviationPct)}
+              colour="var(--sev-critical)"
+            />
+          )}
+          <Row label="Array output" value={kW(reading.actualKW)} />
+          <Row label="Expected" value={kW(reading.expectedKW)} />
+        </>
       )}
-      <Row label="Array output" value={kW(reading.actualKW)} />
-      <Row label="Expected" value={kW(reading.expectedKW)} />
       <Row label="Cell temperature" value={degC(reading.cellTempC)} colour="var(--sev-warning)" />
       <Row label="Irradiance" value={wm2(weather.irradiance)} />
       <Row label="Ambient" value={degC(weather.ambientC)} />
       {/* The projected loss is an integral over THIS array's shortfall. An array
           that is not losing anything has no projected loss, and printing one would
           be inventing a number for it. */}
-      {reading.deviationPct < -1 && (
+      {projectedLoss > 0.01 && (
         <Row
           label="Est. energy loss"
           note="72 h"
-          value={MWh(
-            forecast.projected72hLossMWh
-            * (reading.expectedKW - reading.actualKW)
-            / SHORTFALL_AT_REFERENCE,
-          )}
+          value={MWh(projectedLoss)}
           colour="var(--sev-warning)"
         />
       )}

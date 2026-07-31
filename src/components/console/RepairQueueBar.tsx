@@ -16,7 +16,7 @@
 
 import { MWh, hours, num } from '@/lib/format';
 import { leadMargin, scoreBreakdown } from '@/lib/ranking';
-import { useApproved, useMode, useRepairQueue } from '@/store/selectors';
+import { useApproved, useMode, useRepairQueue, useSetModule } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import type { Severity } from '@/lib/types';
 
@@ -32,6 +32,7 @@ export function RepairQueueBar() {
   const queue = useRepairQueue();
   const approved = useApproved();
   const workOrders = useSession((s) => s.workOrders);
+  const setModule = useSetModule();
   const next = queue[0];
   if (!next) return null;
 
@@ -83,7 +84,21 @@ export function RepairQueueBar() {
       <span className="t-micro" style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
         deadline in {hours(next.hoursUntilDeadline)} · ranked by a pure function, not a model
       </span>
-      <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>VIEW QUEUE →</span>
+      <button
+        type="button"
+        className="btn-reset t-h2"
+        disabled={mode === 'demo'}
+        onClick={() => setModule('repairs')}
+        aria-label={mode === 'demo'
+          ? 'View queue — unavailable while the scripted demo is playing'
+          : 'View the repair queue'}
+        style={{
+          color: mode === 'demo' ? 'var(--text-muted)' : 'var(--sev-active)',
+          opacity: mode === 'demo' ? 0.5 : 1,
+        }}
+      >
+        VIEW QUEUE →
+      </button>
     </footer>
   );
 }

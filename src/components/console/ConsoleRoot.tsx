@@ -25,6 +25,7 @@ import { AnalyticsModule } from './modules/AnalyticsModule';
 import { DronesModule } from './modules/DronesModule';
 import { MissionsModule } from './modules/MissionsModule';
 import { RepairsModule } from './modules/RepairsModule';
+import { ScenarioModule } from './modules/ScenarioModule';
 
 function ModuleArea() {
   const mode = useMode();
@@ -36,6 +37,7 @@ function ModuleArea() {
   if (screen === 'drones') return <DronesModule />;
   if (screen === 'missions') return <MissionsModule />;
   if (screen === 'repairs') return <RepairsModule />;
+  if (screen === 'scenario') return <ScenarioModule />;
   return <AnalyticsModule />;
 }
 

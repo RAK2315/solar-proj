@@ -11,7 +11,10 @@
  */
 
 import { clockAt } from './physics';
-import { faultProgressAt, forecastOffset, liveFrameAt, scenario } from './live';
+import {
+  allEvents, faultProgressAt, forecastOffset, liveFrameAt, scenario,
+  type ScenarioEvent,
+} from './live';
 import type { DemoEvent, Severity } from './types';
 import type { Mission, WorkOrder } from '@/store/session';
 import { MISSION, missionPhaseAt } from '@/store/session';
@@ -47,19 +50,23 @@ export function liveEvents(
   siteSeconds: number,
   missions: Mission[],
   workOrders: WorkOrder[],
+  injected: readonly ScenarioEvent[] = [],
 ): DemoEvent[] {
   const out: DemoEvent[] = [];
 
   out.push(ev('live-boot', 0, 'SYSTEM', 'info', 'MONITORING ACTIVE',
     '120 arrays polled on a 60-second cycle. Site model live.'));
 
+  // One evaluation of the site, not one per fault. Hoisted when a second and third
+  // fault landed and this became a 360-array loop inside a render.
+  const frame = liveFrameAt(siteSeconds, new Set(), injected);
+
   // Faults, as they cross the thresholds that make them visible.
-  for (const event of scenario.events) {
+  for (const event of allEvents(injected)) {
     const startSeconds = (event.startHour - scenario.epochHour) * 3600;
     if (siteSeconds < startSeconds) continue;
 
     const progress = faultProgressAt(event, siteSeconds);
-    const frame = liveFrameAt(siteSeconds);
     const reading = frame.panels[event.panelId];
     if (!reading) continue;
 
@@ -68,16 +75,24 @@ export function liveEvents(
     const crossedWarning = startSeconds + rampSeconds * 0.2;
     const crossedCritical = startSeconds + rampSeconds * 0.4;
 
+    // The source names the array the event is ABOUT. It used to read "PANEL B-17"
+    // for every fault on the site, which was invisible while B-17 was the only one.
+    const source = `PANEL ${event.panelId}`;
+    const provenance = event.injected ? ' Injected by operator.' : '';
+
     if (siteSeconds >= crossedWarning) {
-      out.push(ev(`live-${event.id}-warn`, crossedWarning, 'PANEL B-17', 'warning',
+      out.push(ev(`live-${event.id}-warn`, crossedWarning, source, 'warning',
         `OUTPUT DEVIATION — ${event.panelId}`,
         `${event.panelId} is ${Math.abs(reading.deviationPct).toFixed(1)}% below expected `
-        + `at ${frame.irradiance.toFixed(0)} W/m².`,
+        + `at ${frame.irradiance.toFixed(0)} W/m².${provenance}`,
         event.panelId));
     }
 
-    if (siteSeconds >= crossedCritical && progress > 0.4) {
-      out.push(ev(`live-${event.id}-crit`, crossedCritical, 'PANEL B-17', 'critical',
+    // Only if it ACTUALLY reaches critical. A two-string hairline tops out in
+    // warning, and announcing a critical shortfall over it would be the feed
+    // asserting a severity the physics never produced.
+    if (siteSeconds >= crossedCritical && progress > 0.4 && reading.status === 'critical') {
+      out.push(ev(`live-${event.id}-crit`, crossedCritical, source, 'critical',
         `CRITICAL SHORTFALL — ${event.panelId}`,
         'Telemetry cannot separate soiling from physical damage. '
         + 'Physical verification required.',
@@ -85,16 +100,16 @@ export function liveEvents(
     }
   }
 
-  // Missions, as the operator flew them.
+  // Missions, as the operator flew them. Sourced to the drone that actually flew.
   for (const m of missions) {
     const phase = missionPhaseAt(m, siteSeconds);
-    out.push(ev(`${m.id}-dispatch`, m.startedAt, 'DRONE 01', 'active',
+    out.push(ev(`${m.id}-dispatch`, m.startedAt, m.droneId, 'active',
       `${m.droneId} DISPATCHED — ${m.panelId}`,
       `Operator dispatched ${m.droneId} to ${m.panelId}. Battery 88%.`,
       m.panelId));
 
     if (phase === 'inspecting' || phase === 'returning' || phase === 'complete') {
-      out.push(ev(`${m.id}-lock`, m.startedAt + MISSION.outbound, 'DRONE 01', 'active',
+      out.push(ev(`${m.id}-lock`, m.startedAt + MISSION.outbound, m.droneId, 'active',
         `TARGET LOCK — ${m.panelId}`,
         `${m.droneId} on station. RGB and thermal passes starting.`,
         m.panelId));
@@ -103,7 +118,7 @@ export function liveEvents(
     if (phase === 'returning' || phase === 'complete') {
       out.push(ev(`${m.id}-evidence`,
         m.startedAt + MISSION.outbound + MISSION.inspecting,
-        'DRONE 01', 'warning',
+        m.droneId, 'warning',
         `EVIDENCE UPLINKED — ${m.panelId}`,
         'RGB, thermal and inverter acoustic captured. Returning to pad.',
         m.panelId));

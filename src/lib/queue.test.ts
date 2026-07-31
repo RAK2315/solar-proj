@@ -80,28 +80,90 @@ describe('the queue ranks the site as it stands', () => {
     expect(a).toEqual(b);
   });
 
-  it('reports a deviating array it cannot rank instead of dropping it', () => {
-    // An array with no committed deadline or access cost, forced to deviate.
-    const frame = liveFrameAt(FAULT_DONE);
-    const victim = 'C-07';
-    const healthy = frame.panels[victim];
-    frame.panels[victim] = {
-      ...healthy,
-      actualKW: healthy.expectedKW * 0.5,
-      deviationPct: -50,
-      status: 'critical',
-    };
+  it('ranks a cracked array the committed queue has never heard of', () => {
+    // This used to be the "cannot rank it, so report it" case: an array with no
+    // record in repair_queue.json fell out of the queue entirely and was listed as
+    // unrankable. Nothing about it was unrankable — a crack's deadline is COMPUTED
+    // from the dose model, which is the whole claim the prognosis stage makes. The
+    // lookup was just never asked to compute anything.
+    const injected = [{
+      id: 'inj-c-12', type: 'mismatch-fault', panelId: 'C-12',
+      startHour: 10, rampMinutes: 3,
+      faultedStrings: 5, terminalMismatch: 0.416, accessCost: 1.0,
+      injected: true,
+    }];
 
-    const { tasks, unscheduled } = liveQueueAt(frame, new Set());
-    expect(unscheduled).toContain(victim);
-    expect(tasks.map((t) => t.panelId)).not.toContain(victim);
+    const { tasks, unscheduled } = liveQueueAt(
+      liveFrameAt(FAULT_DONE, new Set(), injected), new Set(), injected,
+    );
+    const c12 = tasks.find((t) => t.panelId === 'C-12');
+
+    expect(unscheduled).not.toContain('C-12');
+    expect(c12).toBeDefined();
+    expect(c12!.injected).toBe(true);
+    expect(c12!.hoursUntilDeadline).toBeGreaterThan(0);
+    // Same depth as B-17 and the same access cost, so the same deadline — the
+    // deadline is a property of the mechanism, not of which array it is on.
+    expect(c12!.hoursUntilDeadline)
+      .toBeCloseTo(tasks.find((t) => t.panelId === 'B-17')!.hoursUntilDeadline, 2);
+  });
+
+  it('drops nothing silently — the committed site ranks in full', () => {
+    // `unscheduled` is the guard against exactly one drift: a soiled array added
+    // to physics.ts without a matching record in repair_queue.json. It should be
+    // empty for the site as committed, and if it ever is not, the console says so
+    // rather than quietly shortening the queue.
+    expect(liveQueueAt(liveFrameAt(FAULT_DONE), new Set()).unscheduled).toEqual([]);
   });
 
   it('leaves healthy arrays out entirely', () => {
     const { tasks, unscheduled } = liveQueueAt(liveFrameAt(0), new Set());
-    const healthyId = 'C-07';
+    const healthyId = 'C-12';
     expect(liveFrameAt(0).panels[healthyId].status).toBe('healthy');
     expect([...tasks.map((t) => t.panelId), ...unscheduled]).not.toContain(healthyId);
+  });
+});
+
+describe('a queue that survives nightfall', () => {
+  // 20:00 site time — the sun is down, every array reads 0.00 kW against 0.00 kW,
+  // and the deviation formula floors to 0.0 %. Reading the queue off the live frame
+  // emptied it completely and refilled it at dawn, which would tell an operator
+  // that three cracked arrays fixed themselves overnight.
+  const NIGHT = 10 * 3600;
+
+  it('is dark at the hour under test', () => {
+    expect(liveFrameAt(NIGHT).irradiance).toBe(0);
+  });
+
+  it('still holds the faulted arrays, with unchanged loss figures', () => {
+    const day = liveQueueAt(liveFrameAt(FAULT_DONE), new Set()).tasks
+      .find((t) => t.panelId === 'B-17')!;
+    const night = liveQueueAt(liveFrameAt(NIGHT), new Set()).tasks
+      .find((t) => t.panelId === 'B-17');
+
+    expect(night).toBeDefined();
+    expect(night!.lossMWhPerDay).toBe(day.lossMWhPerDay);
+  });
+});
+
+describe('three cracks, three depths', () => {
+  // Site time at which all three committed faults have fully developed: C-07
+  // starts at 12:40 and ramps over 6 minutes.
+  const ALL_DEVELOPED = (12 + 50 / 60 - 10) * 3600;
+
+  it('ranks them by depth, deepest first', () => {
+    const { tasks } = liveQueueAt(liveFrameAt(ALL_DEVELOPED), new Set());
+    const loss = (id: string) => tasks.find((t) => t.panelId === id)!.lossMWhPerDay;
+
+    expect(loss('C-07')).toBeGreaterThan(loss('B-17'));
+    expect(loss('B-17')).toBeGreaterThan(loss('A-31'));
+  });
+
+  it('lets the shallow one settle at warning, not critical', () => {
+    const frame = liveFrameAt(ALL_DEVELOPED);
+    expect(frame.panels['A-31'].status).toBe('warning');
+    expect(frame.panels['B-17'].status).toBe('critical');
+    expect(frame.panels['C-07'].status).toBe('critical');
   });
 });
 

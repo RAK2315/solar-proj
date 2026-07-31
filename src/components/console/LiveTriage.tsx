@@ -21,9 +21,14 @@
 
 import { useEffect } from 'react';
 
-import { typographic } from '@/lib/format';
+import { hours, typographic } from '@/lib/format';
+import { forecastOffset } from '@/lib/live';
+import { clockAt } from '@/lib/physics';
 import { useMode, useSelectedPanelId, useSiteSeconds } from '@/store/selectors';
 import { useTriage } from '@/store/triage';
+
+/** How far site time may move before the card's figures need a caveat. */
+const STALE_AFTER_SITE_HOURS = 0.5;
 
 export function LiveTriage() {
   const mode = useMode();
@@ -77,6 +82,9 @@ export function LiveTriage() {
   const t = entry.triage;
   if (!t) return null;
 
+  const elapsedHours = Math.max(0, (siteSeconds - (entry.requestedAt ?? siteSeconds)) / 3600);
+  const stale = elapsedHours >= STALE_AFTER_SITE_HOURS;
+
   return (
     <article style={{
       borderLeft: '2px solid var(--sev-active)',
@@ -88,8 +96,24 @@ export function LiveTriage() {
         <span className="t-h2" style={{ color: 'var(--sev-active)' }}>
           Triage · {panelId}
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{entry.model}</span>
+        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+          {/* Triage runs once per array and the site keeps moving afterwards, so
+              the readings above WILL drift away from the ones this paragraph was
+              written about. That is correct behaviour and it reads as two systems
+              contradicting each other unless the card says when it spoke. */}
+          {entry.requestedAt !== undefined && (
+            <>as at {clockAt(forecastOffset(entry.requestedAt))} · </>
+          )}
+          {entry.model}
+        </span>
       </div>
+
+      {stale && (
+        <span className="t-micro" style={{ color: 'var(--sev-warning)' }}>
+          Site time has advanced {hours(elapsedHours)} since this ran. The numbers in
+          State are current; the ones quoted here are from {clockAt(forecastOffset(entry.requestedAt ?? 0))}.
+        </span>
+      )}
 
       <p className="t-prose" style={{ color: 'var(--text-primary)', margin: 0 }}>
         {typographic(t.reasoning)}

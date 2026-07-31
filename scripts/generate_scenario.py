@@ -34,6 +34,28 @@ EPOCH_HOUR = P.DEMO_HOUR
 # slow enough to read and fast enough to watch a fault develop.
 DEFAULT_TIME_SCALE = 60
 
+# THREE CRACKS, NOT ONE.
+#
+# One fault was enough to tell the scripted story and far too few to USE the console
+# with: an operator could look at exactly one interesting array and 119 identical
+# healthy ones, so nothing could be compared against anything. These are the same
+# MECHANISM at three depths — a cracked cell driving its bypass diode into
+# conduction — separated by how many of the array's seven strings the crack has
+# reached and how far the mismatch derate has fallen on them.
+#
+# Depth is what the operator is meant to read, because it is what changes the
+# ranking. Array deviation works out as faultedStrings x (terminalMismatch - 1) / 7:
+#
+#   A-31   2 of 7 at 0.68   ->  string -32.0%,  array  -9.1%   warning
+#   B-17   5 of 7 at 0.4160 ->  string -58.4%,  array -41.7%   critical   (frozen)
+#   C-07   6 of 7 at 0.34   ->  string -66.0%,  array -56.6%   critical, worse
+#
+# B-17 keeps its frozen pair exactly. It is the array the committed evidence, the
+# cached agent run and every invariant describe, and it does not move.
+#
+# `accessCost` is a SITE FACT — how far the truck drives — in the same category as
+# which arrays are soiled. It belongs to the event because the live queue ranks
+# arrays the committed repair_queue.json has never heard of.
 EVENTS = [
     {
         'id': 'evt-b17-crack',
@@ -43,9 +65,39 @@ EVENTS = [
         'startHour': 10 + 4 / 60,
         # Develops over three site minutes, so health animates rather than jumping.
         'rampMinutes': 3.0,
+        'faultedStrings': P.FAULTED_STRINGS,
+        'terminalMismatch': P.F_MISMATCH_FAULTED,
+        'accessCost': 1.0,
         'moduleId': P.FAULTED_MODULE,
         'stringId': P.FAULTED_STRING_ID,
         'mechanism': 'cracked cell driving its bypass diode into conduction',
+    },
+    {
+        'id': 'evt-a31-crack',
+        'type': 'mismatch-fault',
+        'panelId': 'A-31',
+        'startHour': 11 + 20 / 60,
+        'rampMinutes': 4.0,
+        'faultedStrings': 2,
+        'terminalMismatch': 0.68,
+        'accessCost': 1.0,
+        'moduleId': 'A3-04',
+        'stringId': 'A-31-S1',
+        'mechanism': 'early hairline crack, two strings bypassed',
+    },
+    {
+        'id': 'evt-c07-crack',
+        'type': 'mismatch-fault',
+        'panelId': 'C-07',
+        'startHour': 12 + 40 / 60,
+        'rampMinutes': 6.0,
+        'faultedStrings': 6,
+        'terminalMismatch': 0.34,
+        # Far edge of the block, same longer drive C-31 carries in the committed queue.
+        'accessCost': 1.4,
+        'moduleId': 'C1-11',
+        'stringId': 'C-07-S5',
+        'mechanism': 'advanced crack propagation, six strings bypassed',
     },
 ]
 
@@ -77,8 +129,14 @@ def main() -> None:
     for e in EVENTS:
         h = int(e['startHour'])
         m = round((e['startHour'] % 1) * 60)
+        n, mm = e['faultedStrings'], e['terminalMismatch']
+        # Printed so the depth of each fault is checkable in one line, the same way
+        # generate_telemetry.py prints the figures it produced.
+        dev_string = (mm - 1.0) * 100.0
+        dev_array = dev_string * n / P.STRINGS_PER_ARRAY
         print(f'  event          {e["id"]}  {e["panelId"]}  at {h:02d}:{m:02d} '
-              f'over {e["rampMinutes"]} min')
+              f'over {e["rampMinutes"]} min  |  {n} of {P.STRINGS_PER_ARRAY} strings '
+              f'at f_mismatch {mm}  ->  string {dev_string:.1f}%, array {dev_array:.1f}%')
 
 
 if __name__ == '__main__':

@@ -78,9 +78,22 @@ export const DetectionClass = z.enum([
 
 /** The one class the demo actually shows. */
 export const ON_SCREEN_DETECTION_CLASS = 'Cracked';
-export const EventSource = z.enum([
-  'SYSTEM', 'PANEL B-17', 'DRONE 01', 'DRONE 02',
-  'SURFACE SCAN', 'THERMAL SCAN', 'INSPECTION QUEUE',
+/**
+ * Who reported an event.
+ *
+ * This used to be a closed enum containing the literal `PANEL B-17`, which was
+ * fine while B-17 was the only array anything ever happened to and became a
+ * quiet lie the moment a second one appeared: the live feed reported every fault
+ * on the site as coming from PANEL B-17, because the type would not let it say
+ * anything else. It is now the fixed subsystem names plus `PANEL <id>` for any
+ * array — still constrained, still validated, no longer hardcoded to one panel.
+ */
+export const EventSource = z.union([
+  z.enum([
+    'SYSTEM', 'DRONE 01', 'DRONE 02',
+    'SURFACE SCAN', 'THERMAL SCAN', 'INSPECTION QUEUE',
+  ]),
+  z.string().regex(/^PANEL [A-C]-\d{2}$/, 'array sources read "PANEL <id>"'),
 ]);
 
 /* ────────────────────────────────────────────────────────────────────────────

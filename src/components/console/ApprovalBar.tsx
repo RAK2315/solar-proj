@@ -14,10 +14,17 @@
 
 import {
   BEAT, useAgentCache, useApproved, useDemoClockT, useInspected, useMode,
-  useSelectedPanelId,
+  useOverride, useSelectedPanelId,
 } from '@/store/selectors';
 import { useDemoClock } from '@/store/demoClock';
 import { useSession } from '@/store/session';
+
+/** Why an operator declines. Fixed reasons, so the record is queryable later. */
+const OVERRIDE_REASONS = [
+  'deferred — crew already on site next cycle',
+  'false positive — array inspected manually',
+  'accepted risk — scheduled at next outage',
+] as const;
 
 export function ApprovalBar() {
   const mode = useMode();
@@ -30,6 +37,9 @@ export function ApprovalBar() {
   const inspected = useInspected(panelId);
   const workOrders = useSession((s) => s.workOrders);
   const createWorkOrder = useSession((s) => s.createWorkOrder);
+  const override = useOverride(panelId);
+  const overrideRecommendation = useSession((s) => s.overrideRecommendation);
+  const clearOverride = useSession((s) => s.clearOverride);
 
   // The gate arms only once there is something real to approve. In demo mode that
   // is the recommendation beat; in live mode it is a drone having actually been
@@ -79,43 +89,84 @@ export function ApprovalBar() {
         {approved ? `✓ WORK ORDER #${ref} CREATED` : `APPROVE — CREATE WORK ORDER → ${mode === 'live' ? panelId : ''}`}
       </button>
 
-      <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-        <span
-          className="t-h2"
-          style={{
-            flex: 1, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
-            border: `1px solid ${approved ? 'var(--panel-scheduled)' : 'var(--line-active)'}`,
-            color: approved ? 'var(--panel-scheduled)' : 'var(--text-muted)',
-          }}
-        >
-          {approved ? '✓ QUEUED' : 'QUEUED'}
-        </span>
-        <span
-          className="t-h2"
+      {/* These three were spans off the reference screenshot: they looked like
+          controls, sat where controls sit, and did nothing. QUEUED is a STATUS and
+          is now rendered as one; the other two are buttons that do what they say. */}
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'stretch' }}>
+        <button
+          type="button"
+          className="btn-reset t-h2"
+          onClick={() => document.getElementById('rail-inspection')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           style={{
             flex: 1.6, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
             border: '1px solid var(--line-active)', background: 'var(--surface-raised)',
-            color: 'var(--text-secondary)',
+            color: 'var(--text-secondary)', cursor: 'pointer',
           }}
         >
           INSPECT EVIDENCE
-        </span>
-        <span
-          className="t-h2"
-          style={{
-            flex: 1, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
-            border: '1px solid var(--line-active)', color: 'var(--text-muted)',
-          }}
-        >
-          OVERRIDE
-        </span>
+        </button>
+
+        {override ? (
+          <button
+            type="button"
+            className="btn-reset t-h2"
+            onClick={() => clearOverride(panelId)}
+            style={{
+              flex: 1.4, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
+              border: '1px solid var(--sev-warning)', color: 'var(--sev-warning)',
+              cursor: 'pointer',
+            }}
+          >
+            CLEAR OVERRIDE
+          </button>
+        ) : (
+          <label
+            className="t-h2"
+            style={{
+              flex: 1.4, display: 'grid', placeItems: 'center',
+              border: '1px solid var(--line-active)', color: 'var(--text-muted)',
+            }}
+          >
+            <span className="sr-only">Override — decline with a reason</span>
+            <select
+              className="btn-reset t-h2"
+              value=""
+              disabled={approved}
+              onChange={(e) => e.target.value
+                && overrideRecommendation(panelId, e.target.value)}
+              style={{
+                width: '100%', height: '100%', textAlign: 'center',
+                padding: 'var(--sp-3) var(--sp-2)', background: 'transparent',
+                color: 'inherit', cursor: approved ? 'default' : 'pointer',
+              }}
+            >
+              <option value="">OVERRIDE</option>
+              {OVERRIDE_REASONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
-      <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
-        {approved
-          ? `${mode === 'demo' ? 'B-17' : panelId} scheduled. Autonomous up to this point; a person authorised the work.`
-          : 'Nothing enters the work queue without operator approval.'}
-      </span>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        gap: 'var(--sp-2)',
+      }}>
+        <span className="t-micro" style={{
+          color: approved ? 'var(--panel-scheduled)' : 'var(--text-muted)',
+        }}>
+          {approved ? '✓ QUEUED' : 'NOT QUEUED'}
+        </span>
+        <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
+          {override
+            ? `Declined by operator — ${override.reason}.`
+            : approved
+              ? `${mode === 'demo' ? 'B-17' : panelId} scheduled. Autonomous up to this point; a person authorised the work.`
+              : 'Nothing enters the work queue without operator approval.'}
+        </span>
+      </div>
     </div>
   );
 }

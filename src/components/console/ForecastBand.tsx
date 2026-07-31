@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 
 import { MWh, degC } from '@/lib/format';
-import { useForecast } from '@/store/selectors';
+import { useForecast, useProjectedLossMWh, useSelectedPanelId } from '@/store/selectors';
 
 /**
  * `showRisk` — the forecast curve is the SITE's weather and applies to every
@@ -27,6 +27,11 @@ import { useForecast } from '@/store/selectors';
  */
 export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
   const forecast = useForecast();
+  const panelId = useSelectedPanelId();
+  // The committed 3.07 MWh belongs to B-17. This block printed it under every
+  // array in the site, which told an operator that a healthy array in zone C was
+  // about to lose three megawatt-hours to a crack it does not have.
+  const projectedLoss = useProjectedLossMWh(panelId);
 
   const data = forecast.points.map((p) => ({
     h: p.hourOffset,
@@ -113,10 +118,26 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
       }}>
         <span style={{ color: 'var(--text-secondary)' }}>Clear hours</span>
         <span className="t-data-em">{forecast.clearHours} h</span>
-        <span style={{ color: 'var(--text-secondary)' }}>Projected loss</span>
-        <span className="t-data-em" style={{ color: 'var(--sev-warning)' }}>
-          {MWh(forecast.projected72hLossMWh)} / 72 h
-        </span>
+        {projectedLoss > 0.01 ? (
+          <>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              Projected loss
+              <span className="t-micro" style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
+                {panelId}
+              </span>
+            </span>
+            <span className="t-data-em" style={{ color: 'var(--sev-warning)' }}>
+              {MWh(projectedLoss)} / 72 h
+            </span>
+          </>
+        ) : (
+          <>
+            <span style={{ color: 'var(--text-secondary)' }}>Projected loss</span>
+            <span className="t-data-em" style={{ color: 'var(--text-muted)' }}>
+              none — {panelId} is not deviating
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

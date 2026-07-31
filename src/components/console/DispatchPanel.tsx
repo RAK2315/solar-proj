@@ -16,6 +16,7 @@
  * Live mode only. Demo mode has its own scripted dispatch.
  */
 
+import { hasCapturedEvidence } from '@/lib/data';
 import { hours, pctPlain } from '@/lib/format';
 import {
   useActiveMissions, useInspected, usePanelStatus, useSelectedPanelId, useSiteSeconds,
@@ -33,6 +34,7 @@ export function DispatchPanel() {
   const dispatch = useSession((s) => s.dispatch);
 
   const mission = missions.find((m) => m.panelId === panelId);
+  const captured = hasCapturedEvidence(panelId);
   const dronesBusy = missions.length;
   const canDispatch = !mission && !inspected && dronesBusy < 2;
 
@@ -40,10 +42,17 @@ export function DispatchPanel() {
     return (
       <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
         <span className="t-data" style={{ color: 'var(--panel-scheduled)' }}>
-          ✓ Inspected — evidence captured
+          ✓ {panelId} inspected — drone completed both passes
         </span>
+        {/* This line used to read "evidence captured" for every array, and then sat
+            directly above a paragraph explaining that no capture exists. Two
+            statements, flatly contradictory, four lines apart. What the mission
+            proves is that the drone went and looked; whether committed imagery
+            came back is a separate fact and is now stated separately. */}
         <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-          Cell-level findings below are from that inspection.
+          {captured
+            ? 'Cell-level findings below are from that inspection.'
+            : `No committed imagery for ${panelId} in this build — see below.`}
         </span>
       </div>
     );

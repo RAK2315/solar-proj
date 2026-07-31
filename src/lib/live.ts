@@ -16,7 +16,7 @@ import scenarioJson from '@data/scenario.json';
 import { farm } from './data';
 import {
   type ArrayReading, type PanelStatusValue, evaluateArray, fleetHealth,
-  ambientAt, clockAt, irradianceAt, parkOutputMW, statusFor,
+  ambientAt, clockAt, irradianceAt, parkOutputMW, statusFor, G_REF, T_AMB_REF,
 } from './physics';
 
 export interface ScenarioEvent {
@@ -25,9 +25,22 @@ export interface ScenarioEvent {
   panelId: string;
   startHour: number;
   rampMinutes: number;
+  /** How many of the array's seven strings the fault reaches. */
+  faultedStrings?: number;
+  /** Mismatch derate on those strings once fully developed. */
+  terminalMismatch?: number;
+  /** Site fact: how far the truck drives. Used by the live queue's ranking. */
+  accessCost?: number;
   moduleId?: string;
   stringId?: string;
   mechanism?: string;
+  /**
+   * Raised by an operator at runtime rather than read from the committed
+   * scenario. Marked so the console can always say which of the two it is —
+   * an injected fault is a rehearsal, and presenting it as site history would
+   * be the same class of lie as showing B-17's evidence under another array.
+   */
+  injected?: boolean;
 }
 
 export const scenario = scenarioJson as {
@@ -62,10 +75,27 @@ export function faultProgressAt(event: ScenarioEvent, siteSeconds: number): numb
   return clamp01((siteSeconds - startSeconds) / rampSeconds);
 }
 
-/** The active fault on a given array, if any. */
-export function eventFor(panelId: string): ScenarioEvent | undefined {
-  return scenario.events.find((e) => e.panelId === panelId);
+/**
+ * The active fault on a given array, if any.
+ *
+ * `extra` carries faults an operator injected this session. They are merged
+ * ahead of the committed schedule so an injection on an array that already
+ * carries one wins — though the store refuses that case anyway, because two
+ * simultaneous faults on one array is an operator mistake, not a scenario.
+ */
+export function eventFor(
+  panelId: string,
+  extra: readonly ScenarioEvent[] = [],
+): ScenarioEvent | undefined {
+  return extra.find((e) => e.panelId === panelId)
+    ?? scenario.events.find((e) => e.panelId === panelId);
 }
+
+/** Every fault in force this session, committed and injected. */
+export const allEvents = (extra: readonly ScenarioEvent[] = []): ScenarioEvent[] =>
+  [...scenario.events, ...extra.filter(
+    (e) => !scenario.events.some((c) => c.panelId === e.panelId),
+  )];
 
 export interface LiveFrame {
   siteSeconds: number;
@@ -90,6 +120,7 @@ export interface LiveFrame {
 export function liveFrameAt(
   siteSeconds: number,
   scheduledIds: ReadonlySet<string> = new Set(),
+  injected: readonly ScenarioEvent[] = [],
 ): LiveFrame {
   const offset = forecastOffset(siteSeconds);
   const g = irradianceAt(offset);
@@ -102,12 +133,14 @@ export function liveFrameAt(
   let critical = 0;
 
   for (const p of allPanels) {
-    const event = eventFor(p.id);
+    const event = eventFor(p.id, injected);
     const progress = event ? faultProgressAt(event, siteSeconds) : 0;
     const fSoil = SOIL.get(p.id);
 
     const reading = evaluateArray(g, tAmb, {
       faultProgress: progress,
+      faultedStrings: event?.faultedStrings,
+      terminalMismatch: event?.terminalMismatch,
       fSoil,
       scheduled: scheduledIds.has(p.id),
     });
@@ -120,11 +153,29 @@ export function liveFrameAt(
     // Health is deducted against the TERMINAL status scaled by how far the fault has
     // developed, so the index is continuous rather than lurching when a deviation
     // crosses a display threshold.
+    // Terminal status is the status the array will REACH — the fully developed
+    // fault, evaluated. It used to be hardcoded to `critical` for any scenario
+    // event, which was true while B-17 was the only one; a two-string hairline
+    // ends at `warning` and deducting 14 health points for it would overstate
+    // the site by a factor of four.
+    // Terminal status is the status the array will REACH — the fully developed
+    // fault, evaluated at REFERENCE conditions rather than at the current hour.
+    //
+    // Two bugs in one line before this. It was hardcoded to `critical` for any
+    // scenario event, which was true while B-17 was the only one; a two-string
+    // hairline ends at `warning` and deducting 14 health points for it overstates
+    // the site fourfold. And evaluating at the current hour meant that after
+    // sunset every array divides 0 by 0, reads 0.0 %, and the fleet index climbs
+    // back to 100 with three cracked arrays on it. A fault is a property of the
+    // array, not of the time of day.
     const terminal: PanelStatusValue = scheduledIds.has(p.id)
       ? 'scheduled'
-      : event
-        ? 'critical'
-        : statusFor(evaluateArray(g, tAmb, { fSoil }).deviationPct);
+      : statusFor(evaluateArray(G_REF, T_AMB_REF, {
+        faultProgress: event ? 1 : 0,
+        faultedStrings: event?.faultedStrings,
+        terminalMismatch: event?.terminalMismatch,
+        fSoil,
+      }).deviationPct);
 
     rollup.push({ terminalStatus: terminal, progress: event ? progress : 1 });
   }
@@ -142,6 +193,42 @@ export function liveFrameAt(
     anomalies,
     critical,
   };
+}
+
+/**
+ * What one array is losing, measured at REFERENCE conditions rather than at the
+ * current hour.
+ *
+ * Every loss figure in the product — the committed 3.07 MWh, the queue's
+ * MWh/day, the rail's 72-hour projection — is an integral of a shortfall over a
+ * day's irradiance curve, and that integral is defined against a shortfall
+ * quoted at 890 W/m². Feeding it the CURRENT shortfall gives an answer that
+ * shrinks through the afternoon and reads zero at midnight, which would tell an
+ * operator a cracked array costs nothing overnight. It costs exactly the same;
+ * the sun is simply not up yet to prove it.
+ */
+export function referenceReadingAt(
+  panelId: string,
+  siteSeconds: number,
+  injected: readonly ScenarioEvent[] = [],
+): ArrayReading {
+  const event = eventFor(panelId, injected);
+  const progress = event ? faultProgressAt(event, siteSeconds) : 0;
+  return evaluateArray(G_REF, T_AMB_REF, {
+    faultProgress: progress,
+    faultedStrings: event?.faultedStrings,
+    terminalMismatch: event?.terminalMismatch,
+    fSoil: SOIL.get(panelId),
+  });
+}
+
+export function referenceShortfallKW(
+  panelId: string,
+  siteSeconds: number,
+  injected: readonly ScenarioEvent[] = [],
+): number {
+  const r = referenceReadingAt(panelId, siteSeconds, injected);
+  return Math.max(0, r.expectedKW - r.actualKW);
 }
 
 /** Peer strings on each inverter at the inspected position — see correction C17. */

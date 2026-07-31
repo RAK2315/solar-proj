@@ -142,6 +142,20 @@ body {
   outline-offset: 2px;
 }
 
+/* Visible to a screen reader, not to the projector. Used where a control's own
+   text is a terse operator label that reads as a fragment out of context. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Type scale ──────────────────────────────────────────────────────────────
    NOTE: the `font:` shorthand RESETS font-variant-numeric to normal, so the
    tabular-nums set on :root is wiped out on exactly the elements that hold

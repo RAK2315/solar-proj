@@ -33,6 +33,7 @@ beforeEach(() => {
   useSession.setState({
     mode: 'live', module: 'site', siteSeconds: 0, running: true,
     selectedPanelId: null, missions: [], workOrders: [],
+    overrides: [], injected: [], feedFilter: 'all',
   });
   useDemoClock.setState({ t: 0, playing: false, approved: false, debug: false });
 });
@@ -177,14 +178,27 @@ describe('evidence belongs to the array it was captured from', () => {
     const text = at(DONE, 'B-17');
     expect(text).toContain('Anomaly matrix');
     expect(text).toContain('Cell defects');
-    expect(text).not.toContain('no capture on file');
+    expect(text).not.toContain('No cell-level capture on file');
   });
 
   it('refuses to show it for an array we have no capture of', () => {
     useSession.getState().dispatch('A-03');
     const text = at(DONE, 'A-03');
-    expect(text).toContain('no capture on file');
+    expect(text).toContain('No cell-level capture on file for A-03');
     expect(text).not.toContain('Cell defects');
+  });
+
+  it('does not claim evidence was captured when none was', () => {
+    // The inspection line read "✓ Inspected — evidence captured" for every array,
+    // four lines above a paragraph saying no capture exists. Two flatly
+    // contradictory statements in the same section.
+    useSession.getState().dispatch('A-03');
+    // After the drone has LANDED — while it is still returning the panel shows
+    // mission progress instead.
+    const text = at(MISSION_TOTAL + 60, 'A-03');
+    expect(text).not.toContain('evidence captured');
+    expect(text).toContain('A-03 inspected');
+    expect(text).toContain('No committed imagery for A-03');
   });
 
   it('still reports telemetry and reasoning for that array — only imagery is missing', () => {

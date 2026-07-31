@@ -86,8 +86,8 @@ describe('only the operator’s own state is stored', () => {
     const keys = Object.keys(stored!.state as Record<string, unknown>);
 
     expect(keys.sort()).toEqual([
-      'missions', 'mode', 'module', 'running', 'selectedPanelId',
-      'siteSeconds', 'timeScale', 'workOrders',
+      'feedFilter', 'injected', 'missions', 'mode', 'module', 'overrides',
+      'running', 'selectedPanelId', 'siteSeconds', 'timeScale', 'workOrders',
     ]);
   });
 

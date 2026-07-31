@@ -13,7 +13,9 @@
  * over the map and a beat cannot fire on a screen that has no map.
  */
 
-import { Activity, BarChart3, ClipboardList, Map as MapIcon, Wrench } from 'lucide-react';
+import {
+  Activity, BarChart3, ClipboardList, FlaskConical, Map as MapIcon, Wrench,
+} from 'lucide-react';
 
 import { useMode, useModule, useSetModule } from '@/store/selectors';
 import type { ModuleId } from '@/store/session';
@@ -24,6 +26,10 @@ const MODULES: Array<{ id: ModuleId; label: string; Icon: typeof Activity }> = [
   { id: 'missions', label: 'Missions', Icon: ClipboardList },
   { id: 'repairs', label: 'Repairs', Icon: Wrench },
   { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
+  // Not an operations screen — a rehearsal one. It injects scenario events so the
+  // console can be exercised on cases the committed site does not happen to be in
+  // right now, and everything it produces is marked as injected.
+  { id: 'scenario', label: 'Scenario', Icon: FlaskConical },
 ];
 
 export function IconRail() {

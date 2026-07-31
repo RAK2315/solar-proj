@@ -751,3 +751,200 @@
    live.test.tsx (+4)            evidence belongs to the array it was captured
                                  from.
 
+
+================================================================================
+ PHASE 15 - THE DEAD CONTROLS, THREE MORE FAULTS, AND A RAIL THAT ARGUES
+================================================================================
+
+ Written after an audit of what was NOT built. The list itself is now a document
+ that ships: docs/backlog.md, kept current, replacing two stale and contradictory
+ "Post-project TODO" sections in the README that between them claimed the product
+ does less than it does.
+
+ 1. CONTROLS THAT WERE PROPS
+
+    Six controls were lifted off the reference screenshot and never wired. They
+    sat where controls sit, they looked like controls, and every one did nothing.
+
+      QUEUED              was a bordered box among two buttons. It is a STATUS,
+                          so it is now rendered as one - NOT QUEUED / v QUEUED -
+                          rather than as a third thing you can press.
+      INSPECT EVIDENCE    a real button. Scrolls the rail to the inspection group.
+      OVERRIDE            a real control, and the other half of the approval gate.
+                          A gate with only a yes is not a gate, it is a delay. It
+                          records the operator's decision WITH a reason, shows it
+                          on screen, and can be cleared. It raises no work order -
+                          declining is not approving.
+      FILTER              cycles the event feed's severity floor: all / warning+ /
+                          critical. It filters the FEED and deliberately not the
+                          mission log, because hiding rows from a list is a choice
+                          about a list; making the drone stop reporting what it
+                          found is a different thing.
+      VIEW ALL EVENTS     expands the feed past its six-row preview, and says how
+                          many rows that is.
+      VIEW QUEUE ->       navigates to the Repairs screen. It has sat next to a
+                          working repairs module since Phase 13.
+
+ 2. ONE FAULT WAS NEVER ENOUGH TO USE THE CONSOLE WITH
+
+    data/scenario.json carried a single event. An operator could look at exactly
+    one interesting array and 119 identical healthy ones, so nothing could be
+    compared against anything and most of the console could not be exercised at
+    all.
+
+    THREE CRACKS, THREE DEPTHS. The same mechanism - a cracked cell driving its
+    bypass diode into conduction - separated by how many of the array's seven
+    strings the crack has reached and how far the mismatch derate falls:
+
+      A-31  11:20   2 of 7 at 0.68     string -32.0%   array  -9.1%   warning
+      B-17  10:04   5 of 7 at 0.4160   string -58.4%   array -41.7%   critical
+      C-07  12:40   6 of 7 at 0.34     string -66.0%   array -56.6%   critical
+
+    B-17's pair is untouched. It is the array the committed evidence, the cached
+    agent run and every invariant describe, and it does not move.
+
+    evaluateArray gained faultedStrings and terminalMismatch as PARAMETERS,
+    defaulted to B-17's frozen pair - so the golden test that recomputes the whole
+    committed telemetry.json from the TypeScript is byte-identical, and a crack is
+    no longer one size.
+
+ 3. INJECTION, AND WHY IT IS NOT A BACK DOOR
+
+    A sixth module screen - SCENARIO - injects a fault onto any array on demand:
+    four mechanisms (hairline / established / advanced crack, string outage), a
+    ramp, a live preview of the deviation the physics WILL produce.
+
+    It writes a SCENARIO EVENT and nothing else. There is deliberately no way to
+    type a deviation onto an array. Everything that then appears - output,
+    deviation, status, cell temperature, queue position, the event feed line - is
+    computed by the same model that evaluates the committed faults. That is the
+    difference between a test case and a fabrication, and the whole project rests
+    on it. injection.test.ts asserts the injected object's key set exactly, so a
+    future field that smuggles in a reading fails the build.
+
+    Injected faults are marked wherever they surface: in the feed, in the verdict
+    block, in the queue. A rehearsal presented as site history would be the same
+    class of lie as B-17's evidence shown under another array's name.
+
+ 4. THE RIGHT RAIL NOW MAKES AN ARGUMENT
+
+    Reported: "too much info, seems unorganised, not telling a story". Correct.
+    It was twelve peer sections in the order they were BUILT, and on a healthy
+    array the first thing it said about C-29 was a three-line paragraph about
+    something it did not have.
+
+    Five groups, in the order an operator reasons:
+
+      STATE       what the array is doing, measured
+      ASSESSMENT  what the agent makes of it, and when it said so
+      INSPECTION  what a drone was sent to find out, and what came back
+      OUTLOOK     what the weather does to it over 72 hours
+      DECISION    what the operator is being asked to authorise
+
+    Each group is one claim; blocks inside it are the evidence. A block with
+    nothing to say is absent rather than apologetic - "no capture on file" went
+    from being a section header to one sentence at the point where the imagery
+    would have been.
+
+ 5. FOUR UNTRUTHS IN ONE SCREENSHOT
+
+    The reported C-29 panel had, in one view:
+
+      "Inspected - evidence captured"  directly above  "no capture on file"
+          Two flatly contradictory statements four lines apart. The mission proves
+          the drone went and looked; whether committed imagery came back is a
+          separate fact and is now stated separately.
+
+      Output 0.00 kW / Expected 0.00 kW / Irradiance 0 W/m2 at 35.6 C ambient
+          That is night. The deviation formula divides zero by zero, floors to
+          0.0%, and statusFor calls it HEALTHY - so a cracked array would read
+          clean all night. The console now says NO GENERATION - AFTER SUNSET and
+          withholds the deviation rather than printing arithmetic on two zeroes.
+
+      Fleet health climbing back toward 100 after dark
+          Terminal status was evaluated at the CURRENT hour. It is now evaluated
+          at reference conditions: a fault is a property of the array, not of the
+          time of day.
+
+      "Projected loss 3.07 MWh / 72 h" under a healthy array
+          B-17's committed integral printed under every array in the site. Now
+          scaled by the selected array's own shortfall at reference conditions -
+          B-17 still reads exactly 3.07, and C-29 reads "none - C-29 is not
+          deviating".
+
+    Related, found while fixing it: the live event feed sourced EVERY fault on the
+    site to "PANEL B-17", because the EventSource enum in types.ts contained that
+    literal and would not let it say anything else. It is now the fixed subsystem
+    names plus PANEL <id> for any array. Mission events were sourced to DRONE 01
+    regardless of which drone flew.
+
+ 6. THE LIVE QUEUE STOPPED DROPPING WORK, AND STOPPED EMPTYING AT NIGHT
+
+    A crack's deadline is COMPUTED - the hour its cumulative time above the
+    propagation threshold reaches the declared dose budget - which is the entire
+    claim the prognosis stage makes. The queue nevertheless LOOKED IT UP, and only
+    B-17 had a committed record, so a second cracked array fell out of the queue
+    and was reported as "unrankable". Nothing about it was unrankable; the
+    deadline was never asked for. crackDeadlineHour() now computes it, in
+    TypeScript, reproducing the Python's 14:00 for a fault beginning at the epoch.
+
+    The queue also read its shortfall off the live frame, so at sunset it emptied
+    completely and refilled at dawn. It now quotes shortfall at REFERENCE
+    conditions: a cracked array costs the same at midnight; the sun is simply not
+    up to prove it.
+
+ 7. LIVE_AGENT - THE FLAG THE SPEC PROMISED AND NOBODY BUILT
+
+    CLAUDE.md sec 3 and sec 9.4 both describe it. There were zero references to it
+    anywhere in the repo.
+
+      unset / false   verify the COMMITTED cache against current telemetry and
+                      forecast. No network, no tokens. Every numeric field and
+                      every number in the prose goes through the same cross-check
+                      a fresh run would.
+      true            call Groq and rewrite the cache.
+
+    Off by default, because the question that actually goes stale is not "did the
+    model answer" but "does the committed answer still agree with the physics" -
+    and that is answerable offline. It catches a regenerated telemetry.json
+    silently invalidating the cached prose, which nothing previously did.
+
+ 8. THE AGENT CARD SAYS WHEN IT SPOKE
+
+    Flagged at the end of Phase 14 and fixed here. Triage runs once per array and
+    the site keeps moving, so its figures drift from the ones in STATE above it.
+    That is correct behaviour and it reads as two systems contradicting each other
+    unless the card is stamped. It now carries "as at HH:MM", and past half an
+    hour of site time it says so explicitly.
+
+ GATES AT THE END OF PHASE 15
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean - no headline number hardcoded in src/
+   validate:data         PASS  I1..I16 (I11, I15 skipped - Colab / manual)
+   run_agent.py          committed cache verified offline against the physics
+   vitest                328 passed / 20 files   (was 289 / 17)
+   next build            clean, 320 kB first load
+
+ NEW TESTS (39)
+   src/store/injection.test.ts       an injected fault is a scenario event and not
+                                     a reading - the object's key set is asserted
+                                     exactly. Every injectable mechanism lands
+                                     where its own arithmetic says. The site's own
+                                     history is not overwritable from a form.
+   console/controls.test.tsx         every control that used to be a prop, tested
+                                     as a control. So it cannot silently go back.
+   console/night.test.tsx            the console knows the difference between fine
+                                     and unobservable, and projected loss belongs
+                                     to the array it was computed for.
+   lib/queue.test.ts (+4)            a cracked array the committed queue has never
+                                     heard of still ranks; the queue survives
+                                     nightfall; three cracks rank by depth.
+   console/live.test.tsx (+1)        no claim of captured evidence where none was.
+
+ STILL OPEN - see docs/backlog.md
+   The detector. models/defect_yolov8n.pt does not exist, no RGB evidence frame,
+   no measured mAP@50. It is the one thing this project claims to have trained and
+   the one thing that has not been run. Colab only - plan/COLAB-NOTEBOOK.md,
+   cells 1-5 and 7.
+

@@ -22,9 +22,38 @@
       "panelId": "B-17",
       "startHour": 10.066666666666666,
       "rampMinutes": 3.0,
+      "faultedStrings": 5,
+      "terminalMismatch": 0.416,
+      "accessCost": 1.0,
       "moduleId": "B2-07",
       "stringId": "B-17-S3",
       "mechanism": "cracked cell driving its bypass diode into conduction"
+    },
+    {
+      "id": "evt-a31-crack",
+      "type": "mismatch-fault",
+      "panelId": "A-31",
+      "startHour": 11.333333333333334,
+      "rampMinutes": 4.0,
+      "faultedStrings": 2,
+      "terminalMismatch": 0.68,
+      "accessCost": 1.0,
+      "moduleId": "A3-04",
+      "stringId": "A-31-S1",
+      "mechanism": "early hairline crack, two strings bypassed"
+    },
+    {
+      "id": "evt-c07-crack",
+      "type": "mismatch-fault",
+      "panelId": "C-07",
+      "startHour": 12.666666666666666,
+      "rampMinutes": 6.0,
+      "faultedStrings": 6,
+      "terminalMismatch": 0.34,
+      "accessCost": 1.4,
+      "moduleId": "C1-11",
+      "stringId": "C-07-S5",
+      "mechanism": "advanced crack propagation, six strings bypassed"
     }
   ]
 }

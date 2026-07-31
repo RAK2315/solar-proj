@@ -8,15 +8,26 @@
  * — and plan/04 §4 is explicit that "not yet" means absent from the DOM, not
  * greyed out. The rail is genuinely shorter early on.
  *
- * Section order follows the reference console: evidence → localisation → analysis
- * → findings → cell defects → recommendation → verdict → inverter comparison →
- * agent reasoning → outlook → timeline → the gate.
+ * WHY IT WAS REORGANISED. The rail used to be twelve peer sections in the order
+ * they were built, which on a healthy array opened with "Anomaly matrix — no
+ * capture on file": the first thing it said about C-29 was a paragraph about
+ * something it did not have. Twelve equal headers also carry no argument. They
+ * are now FIVE GROUPS in the order an operator reasons:
+ *
+ *   STATE       what the array is doing, measured
+ *   ASSESSMENT  what the agent makes of it, and how sure
+ *   INSPECTION  what a drone was sent to find out, and what came back
+ *   OUTLOOK     what the weather does to it over 72 hours
+ *   DECISION    what the operator is being asked to authorise
+ *
+ * Each group is one claim. Blocks inside a group are the evidence for it, and a
+ * block with nothing to say is absent rather than apologetic.
  */
 
 import { hasCapturedEvidence } from '@/lib/data';
 import {
   BEAT, useAfter, useAgentCache, useDetection, useEvidence, useHasSelection,
-  useInspected, useMode, usePanelStatus, useSelectedPanelId,
+  useInspected, useIsDark, useMode, usePanelStatus, useSelectedPanelId,
 } from '@/store/selectors';
 import { DispatchPanel } from './DispatchPanel';
 import { LiveTriage } from './LiveTriage';
@@ -31,21 +42,46 @@ import { InverterTable } from './InverterTable';
 import { StatusChips } from './StatusChips';
 import { Timeline } from './Timeline';
 
-function Section({ title, note, children }: {
-  title: string; note?: string; children: React.ReactNode;
+/** One step of the argument. Anchored so other controls can scroll to it. */
+function Group({ id, title, claim, children }: {
+  id?: string; title: string; claim?: string; children: React.ReactNode;
 }) {
   return (
-    <section style={{
-      borderTop: '1px solid var(--line-hairline)',
-      padding: 'var(--sp-3) 0',
-      display: 'grid', gap: 'var(--sp-3)',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 className="t-h1" style={{ color: 'var(--text-secondary)' }}>{title}</h2>
-        {note && <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{note}</span>}
+    <section
+      id={id}
+      style={{
+        borderTop: '1px solid var(--line-active)',
+        marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
+        display: 'grid', gap: 'var(--sp-3)', scrollMarginTop: 72,
+      }}
+    >
+      <div>
+        <h2 className="t-h1" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+        {claim && (
+          <p className="t-micro" style={{ color: 'var(--text-muted)', margin: '2px 0 0' }}>
+            {claim}
+          </p>
+        )}
       </div>
       {children}
     </section>
+  );
+}
+
+/** A piece of evidence inside a group. Quiet — the group carries the heading. */
+function Block({ label, note, children }: {
+  label?: string; note?: string; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+      {label && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+          {note && <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{note}</span>}
+        </div>
+      )}
+      {children}
+    </div>
   );
 }
 
@@ -55,6 +91,7 @@ export function DetailPanel() {
   const selectedStatus = usePanelStatus(panelId);
   const inspected = useInspected(panelId);
   const hasSelection = useHasSelection();
+  const dark = useIsDark();
   const demoTriaged = useAfter(BEAT.triage);
   const demoScanned = useAfter(BEAT.rgbScan);
   const demoThermal = useAfter(BEAT.thermalScan);
@@ -112,6 +149,9 @@ export function DetailPanel() {
             : mode === 'demo'
               ? 'ZONE B · INV-B · STRING B-17-S3 · MODULE B2-07'
               : `ZONE ${panelId[0]} · INV-${panelId[0]} · ${selectedStatus.toUpperCase()}`}
+          {triaged && dark && (
+            <span style={{ color: 'var(--sev-warning)', marginLeft: 8 }}>· NIGHT</span>
+          )}
         </span>
       </div>
 
@@ -123,101 +163,100 @@ export function DetailPanel() {
         </p>
       )}
 
-      {scanned && hasEvidence && (
-        <Section title="Evidence" note={detection ? detection.model : 'drone capture'}>
-          <EvidenceStrip />
-        </Section>
-      )}
-
-      {thermal && captured && (
-        <Section title="Anomaly matrix" note="5 × 7 cells, measured">
-          <AnomalyMatrix />
-        </Section>
-      )}
-
-      {thermal && !captured && (
-        <Section title="Anomaly matrix" note="no capture on file">
-          <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-            No cell-level thermal capture exists for {panelId}. The drone recorded this
-            inspection, but the committed imagery in this build covers B-17 only —
-            so there is nothing measured to localise here.
-          </p>
-          <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
-            The telemetry and the agent reasoning above are unaffected: both are
-            computed for {panelId} specifically.
-          </p>
-        </Section>
-      )}
-
-      {mode === 'live' && triaged && (
-        <Section title="Inspection">
-          <DispatchPanel />
-        </Section>
-      )}
-
+      {/* ── 1. STATE ─────────────────────────────────────────────────────── */}
       {triaged && (
-        <Section title="Analysis">
-          <AnalysisBlock />
-        </Section>
-      )}
-
-      {/* Findings and Recommendation are the CACHED agent run, and that run was
-          about B-17's cracked cell — it names INV-B, string B-17-S3 and module
-          B2-07. Rendering it under another array was the same substitution the
-          cell grid gate exists to stop, one section further down the rail. */}
-      {thermal && agent && captured && (
-        <Section title="Findings">
-          <Findings />
-        </Section>
-      )}
-
-      {thermal && captured && (
-        <Section title="Cell defects" note="classical CV, not a model">
-          <CellDefectList />
-        </Section>
-      )}
-
-      {recommended && agent && captured && (
-        <Section title="Recommendation">
-          <Recommendation />
-        </Section>
-      )}
-
-      {triaged && (
-        <Section title="Verdict">
+        <Group title="State" claim={`What ${panelId} is doing right now, from the site model.`}>
           <StatusChips />
-          <InverterTable />
-        </Section>
+          <AnalysisBlock />
+          <Block label="Peer strings" note="same position, each inverter">
+            <InverterTable />
+          </Block>
+        </Group>
       )}
 
+      {/* ── 2. ASSESSMENT ────────────────────────────────────────────────── */}
       {/* Demo mode shows the cached three-stage reasoning about B-17. Live mode
           asks the model about whichever array is selected — and says so when it
           cannot, rather than showing B-17's prose over someone else's array. */}
       {mode === 'demo' && agent && triaged && (
-        <Section title="Agent reasoning" note={`cached · ${agent.meta.model}`}>
+        <Group title="Assessment" claim={`Cached agent run · ${agent.meta.model}`}>
           <AgentReasoning />
-        </Section>
+        </Group>
       )}
 
       {mode === 'live' && triaged && (
-        <Section title="Agent reasoning" note="live · cross-checked">
+        <Group title="Assessment" claim="Run against this array's telemetry, then cross-checked against it.">
           <LiveTriage />
-        </Section>
+        </Group>
       )}
 
+      {/* ── 3. INSPECTION ────────────────────────────────────────────────── */}
+      {triaged && (
+        <Group
+          id="rail-inspection"
+          title="Inspection"
+          claim="Telemetry says an array is down. Only imaging says why."
+        >
+          {mode === 'live' && <DispatchPanel />}
+
+          {scanned && hasEvidence && (
+            <Block label="Evidence" note={detection ? detection.model : 'drone capture'}>
+              <EvidenceStrip />
+            </Block>
+          )}
+
+          {thermal && captured && (
+            <>
+              <Block label="Anomaly matrix" note="5 × 7 cells, measured">
+                <AnomalyMatrix />
+              </Block>
+              <Block label="Cell defects" note="classical CV, not a model">
+                <CellDefectList />
+              </Block>
+              {agent && (
+                <Block label="Findings">
+                  <Findings />
+                </Block>
+              )}
+            </>
+          )}
+
+          {/* Not a section of its own any more. An array we hold no imagery for
+              gets one sentence at the point where the imagery would have been,
+              rather than a three-paragraph header explaining an absence. */}
+          {thermal && !captured && (
+            <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
+              No cell-level capture on file for {panelId}. The committed imagery in
+              this build covers B-17 only, so there is nothing measured to localise
+              here — the telemetry and the assessment above are computed for{' '}
+              {panelId} specifically and are unaffected.
+            </p>
+          )}
+        </Group>
+      )}
+
+      {/* ── 4. OUTLOOK ───────────────────────────────────────────────────── */}
       {/* The weather is the site's, so the band is shown for any array. The RISK
           badge and the 14:00 deadline are NOT the site's — they are the prognosis
           for the cracked cell, computed from its own thermal dose. */}
       {prognosed && (
-        <Section title="72-hour outlook">
+        <Group title="Outlook" claim="72 hours of forecast, and what it costs to wait.">
           <ForecastBand showRisk={captured} />
-        </Section>
+        </Group>
       )}
 
+      {/* ── 5. DECISION ──────────────────────────────────────────────────── */}
       {triaged && (
-        <Section title="Timeline">
-          <Timeline />
-        </Section>
+        <Group title="Decision" claim="Nothing enters the work queue without an operator.">
+          {recommended && agent && captured && (
+            <Block label="Recommended action">
+              <Recommendation />
+            </Block>
+          )}
+          <Block label="Timeline">
+            <Timeline />
+          </Block>
+        </Group>
       )}
 
       <div style={{ marginTop: 'auto' }}>

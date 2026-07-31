@@ -165,8 +165,21 @@ export const CELL_TEMP_REF_C = cellTemp(T_AMB_REF, G_REF);
 export type PanelStatusValue = 'healthy' | 'warning' | 'critical' | 'scheduled';
 
 export interface ArrayConditions {
-  /** 0 = healthy, 1 = fully developed mismatch fault on FAULTED_STRINGS. */
+  /** 0 = healthy, 1 = fully developed mismatch fault. */
   faultProgress?: number;
+  /**
+   * How many of the array's strings the fault reaches, and how far the mismatch
+   * derate falls on them once it is fully developed.
+   *
+   * Defaulted to B-17's frozen pair, so every existing caller — the golden test
+   * included — computes byte-identical numbers. They are parameters rather than
+   * constants because a crack is not one size: a hairline that has reached two
+   * strings and one that has taken six are the same MECHANISM at different
+   * depths, and a console that can only render one of them cannot be used to
+   * compare two.
+   */
+  faultedStrings?: number;
+  terminalMismatch?: number;
   /** Soiling derate for this array. Defaults to nominal. */
   fSoil?: number;
   /** Already dispatched and scheduled for repair. */
@@ -192,7 +205,13 @@ export interface ArrayReading {
 export function evaluateArray(
   g: number,
   tAmb: number,
-  { faultProgress = 0, fSoil = F_SOIL, scheduled = false }: ArrayConditions = {},
+  {
+    faultProgress = 0,
+    faultedStrings = FAULTED_STRINGS,
+    terminalMismatch = F_MISMATCH_FAULTED,
+    fSoil = F_SOIL,
+    scheduled = false,
+  }: ArrayConditions = {},
 ): ArrayReading {
   const expected = pAc(ARRAY_RATED_KW, g, tAmb);
 
@@ -200,9 +219,9 @@ export function evaluateArray(
   let stringDeviationPct: number | undefined;
 
   if (faultProgress > 0) {
-    const fMismatch = 1 - (1 - F_MISMATCH_FAULTED) * faultProgress;
-    const faulted = pAc(P_RATED_STRING * FAULTED_STRINGS, g, tAmb, fSoil, fMismatch);
-    const healthy = pAc(P_RATED_STRING * (STRINGS_PER_ARRAY - FAULTED_STRINGS), g, tAmb, fSoil);
+    const fMismatch = 1 - (1 - terminalMismatch) * faultProgress;
+    const faulted = pAc(P_RATED_STRING * faultedStrings, g, tAmb, fSoil, fMismatch);
+    const healthy = pAc(P_RATED_STRING * (STRINGS_PER_ARRAY - faultedStrings), g, tAmb, fSoil);
     actual = faulted + healthy;
     stringDeviationPct = (fMismatch - 1) * 100;
   } else {
@@ -219,6 +238,42 @@ export function evaluateArray(
     cellTempC: cellTemp(tAmb, g) + HOT_BAND_DELTA_T_C * faultProgress,
     status: scheduled ? 'scheduled' : statusFor(deviationPct),
   };
+}
+
+/**
+ * After sunset there is no generation, so there is nothing to deviate FROM.
+ *
+ * This matters more than it sounds. A dark array reads 0.00 kW actual against
+ * 0.00 kW expected, which the deviation formula floors to 0.0 % and the status
+ * function then calls `healthy`. That is arithmetically right and operationally
+ * misleading: the array is not healthy, it is unobservable, and a console that
+ * cannot tell those apart will happily report a cracked panel as fine all night.
+ */
+export const isDark = (g: number): boolean => g <= 0;
+
+/**
+ * The hour at which a cracked cell's cumulative time above the propagation
+ * threshold reaches the declared dose budget — the deadline the prognosis stage
+ * is built on, as a function rather than as one frozen string.
+ *
+ * The mirror of the loop in scripts/generate_telemetry.py, and it reproduces
+ * that script's 14:00 for a fault beginning at the epoch. ΔT is the MEASURED
+ * band rise for a bypassed substring in reverse bias; it does not scale with how
+ * many strings the crack has reached, because the number of affected strings
+ * changes the power lost, not the temperature one shorted substring runs at.
+ *
+ * Returns hours since the epoch, or null if the forecast never accrues the dose.
+ */
+export function crackDeadlineHour(
+  faultStartHourOffset: number,
+  deltaTC = HOT_BAND_DELTA_T_C,
+): number | null {
+  let dose = 0;
+  for (let h = Math.max(0, Math.floor(faultStartHourOffset)); h <= FORECAST_HOURS; h += 1) {
+    if (cellTemp(ambientAt(h), irradianceAt(h)) + deltaTC > T_PROP_C) dose += 1;
+    if (dose >= DOSE_BUDGET_H) return h;
+  }
+  return null;
 }
 
 /** Status is DERIVED from deviation, never assigned. */

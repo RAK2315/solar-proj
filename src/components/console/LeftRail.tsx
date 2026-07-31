@@ -11,12 +11,15 @@
  * this project bans outright.
  */
 
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 import { num, pctPlain } from '@/lib/format';
 import {
-  useActiveMissions, useDroneState, useFeedEvents, useMode,
+  useActiveMissions, useAllFeedEvents, useDroneState, useFeedEvents, useFeedFilter,
+  useMode,
 } from '@/store/selectors';
+import { useSession, type FeedFilter } from '@/store/session';
 import { EventCard } from './EventCard';
 
 /** Segmented meter. Ten discrete cells read as an instrument; a smooth bar does not. */
@@ -32,7 +35,7 @@ function Meter({ value, colour = 'var(--sev-active)' }: { value: number; colour?
 }
 
 function Section({ title, action, children }: {
-  title: string; action?: string; children: React.ReactNode;
+  title: string; action?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
     <section style={{ display: 'grid', gap: 'var(--sp-3)', minHeight: 0 }}>
@@ -44,14 +47,21 @@ function Section({ title, action, children }: {
           <span style={{ color: 'var(--sev-active)', marginRight: 6 }}>●</span>
           {title}
         </h2>
-        {action && (
-          <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{action}</span>
-        )}
+        {action}
       </div>
       {children}
     </section>
   );
 }
+
+/** How many events the feed shows before VIEW ALL is needed. */
+const FEED_PREVIEW = 6;
+
+const FILTER_LABEL: Record<FeedFilter, string> = {
+  all: '⇄ ALL',
+  warning: '⇄ WARNING+',
+  critical: '⇄ CRITICAL',
+};
 
 function DroneRow({ id, status, battery, pad }: {
   id: string; status: string; battery: number; pad: string;
@@ -84,8 +94,17 @@ function DroneRow({ id, status, battery, pad }: {
 export function LeftRail() {
   const mode = useMode();
   const visible = useFeedEvents();
+  const total = useAllFeedEvents().length;
+  const filter = useFeedFilter();
+  const cycleFilter = useSession((s) => s.cycleFeedFilter);
+  const [showAll, setShowAll] = useState(false);
   const demoDrone = useDroneState();
   const missions = useActiveMissions();
+
+  // A view preference over a derived list — not demo content. The seek-backwards
+  // guarantee is about state that MIRRORS the clock; how many rows the operator
+  // wants visible is theirs and survives a seek unchanged, which is correct.
+  const shown = showAll ? visible : visible.slice(0, FEED_PREVIEW);
 
   // Live mode reports the drones that are actually flying; demo mode reports the
   // scripted one.
@@ -110,23 +129,45 @@ export function LeftRail() {
         gap: 'var(--sp-4)', padding: 'var(--sp-4) var(--sp-3)', minHeight: 0,
       }}
     >
-      <Section title="Live events" action="⇄ FILTER">
+      <Section
+        title="Live events"
+        action={(
+          <button
+            type="button"
+            className="btn-reset t-micro"
+            onClick={cycleFilter}
+            aria-label={`Event severity filter: ${filter}. Click to change.`}
+            style={{ color: filter === 'all' ? 'var(--text-muted)' : 'var(--sev-warning)' }}
+          >
+            {FILTER_LABEL[filter]}
+          </button>
+        )}
+      >
         <div style={{
           display: 'grid', gap: 'var(--sp-2)', overflowY: 'auto',
           minHeight: 0, alignContent: 'start',
         }}>
           <AnimatePresence initial={false}>
-            {visible.map((e) => <EventCard key={e.id} event={e} />)}
+            {shown.map((e) => <EventCard key={e.id} event={e} />)}
           </AnimatePresence>
           {visible.length === 0 && (
             <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-              Monitoring. No events this cycle.
+              {filter === 'all'
+                ? 'Monitoring. No events this cycle.'
+                : `No ${filter}-or-above events. ${total} hidden by the filter.`}
             </span>
           )}
-          {visible.length > 0 && (
-            <span className="t-micro" style={{ color: 'var(--text-muted)', paddingTop: 'var(--sp-2)' }}>
-              VIEW ALL EVENTS →
-            </span>
+          {visible.length > FEED_PREVIEW && (
+            <button
+              type="button"
+              className="btn-reset t-micro"
+              onClick={() => setShowAll((v) => !v)}
+              style={{ color: 'var(--text-muted)', paddingTop: 'var(--sp-2)', textAlign: 'left' }}
+            >
+              {showAll
+                ? '↑ SHOW FEWER'
+                : `VIEW ALL ${visible.length} EVENTS →`}
+            </button>
           )}
         </div>
       </Section>

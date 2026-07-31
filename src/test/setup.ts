@@ -33,3 +33,8 @@ globalThis.matchMedia ??= ((query: string) => ({
 // WebGL in jsdom, so the component correctly falls back to the video plate.
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as
   typeof HTMLCanvasElement.prototype.getContext;
+
+// jsdom has no layout, so it has no scrollIntoView either — INSPECT EVIDENCE
+// scrolls the rail to the inspection group. The assertion that matters is that the
+// target element exists; the scroll itself is the browser's job.
+Element.prototype.scrollIntoView ??= () => {};

@@ -20,9 +20,24 @@ A stage that fails the cross-check is retried with a correction. If it still fai
 the script exits non-zero and writes NOTHING. A stale cache is recoverable; a cache
 that contradicts the physics is the one thing this project cannot ship.
 
+LIVE_AGENT — the switch CLAUDE.md sec 3 and sec 9.4 promised and nobody built.
+
+    LIVE_AGENT unset / false   verify the COMMITTED cache against the current
+                               telemetry and forecast, and spend nothing. Every
+                               numeric field and every number in the prose goes
+                               through the same cross-check a fresh run would.
+    LIVE_AGENT=true            call Groq and rewrite the cache.
+
+Off by default, because the demo path must not depend on a network — and because
+the check that matters is not "did the model answer" but "does the committed
+answer still agree with the physics". That question is answerable offline, it is
+the one that catches a regenerated telemetry.json silently invalidating the
+cached prose, and it now runs in one command.
+
 Usage:
-    python scripts/run_agent.py              # writes data/agent_cache.json
-    python scripts/run_agent.py --dry-run    # prints, writes nothing
+    python scripts/run_agent.py              # verify the committed cache offline
+    LIVE_AGENT=true python scripts/run_agent.py           # re-run against Groq
+    LIVE_AGENT=true python scripts/run_agent.py --dry-run # re-run, write nothing
 """
 
 import argparse
@@ -433,12 +448,66 @@ def run_stage(client, model, name, system, user, validate, allowed, attempts=4):
 
 # ── main ────────────────────────────────────────────────────────────────────
 
+def verify_cache(f, allowed) -> int:
+    """Re-run every check against the COMMITTED cache. No network, no tokens.
+
+    This is the default path. It answers the question that actually goes stale —
+    whether the prose still agrees with the data underneath it — and it fails
+    loudly if telemetry was regenerated without re-running the agent."""
+    if not os.path.exists(OUT):
+        print(f'{OUT} does not exist. Run with LIVE_AGENT=true to generate it.')
+        return 1
+
+    cache = json.load(open(OUT, encoding='utf-8'))
+    stages = (
+        ('triage', check_triage),
+        ('prognosis', check_prognosis),
+        ('recommendation', check_recommendation),
+    )
+
+    failures = []
+    for name, validate in stages:
+        payload = cache.get(name)
+        if payload is None:
+            failures.append(f'{name}: missing from the cache')
+            continue
+        try:
+            validate(payload, f)
+            check_prose(name, payload, allowed)
+            print(f'  {name:15} ok')
+        except Exception as exc:                      # noqa: BLE001 - report all
+            failures.append(str(exc))
+            print(f'  {name:15} FAILED: {str(exc)[:200]}')
+
+    print()
+    if failures:
+        print(f'{len(failures)} stage(s) no longer agree with the data. The cache was '
+              'written against different numbers — regenerate it with '
+              'LIVE_AGENT=true python scripts/run_agent.py')
+        return 1
+
+    print('committed cache verified against telemetry.json and forecast.json.')
+    print(f'  model {cache["meta"]["model"]} · generated {cache["meta"]["generatedAt"]}')
+    print('  no network call, no tokens spent. LIVE_AGENT=true to re-run against Groq.')
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry-run', action='store_true', help='print, write nothing')
     args = ap.parse_args()
 
     load_env()
+    live = os.environ.get('LIVE_AGENT', '').strip().lower() in ('1', 'true', 'yes')
+
+    f = load_facts()
+    allowed = allowed_numbers(f)
+
+    if not live:
+        print('LIVE_AGENT is off — verifying the committed cache offline.')
+        print()
+        raise SystemExit(verify_cache(f, allowed))
+
     api_key = os.environ.get('GROQ_API_KEY')
     model = os.environ.get('GROQ_MODEL', 'openai/gpt-oss-120b')
     if not api_key:
@@ -446,9 +515,6 @@ def main():
 
     from groq import Groq
     client = Groq(api_key=api_key)
-
-    f = load_facts()
-    allowed = allowed_numbers(f)
 
     print(f'model  : {model}')
     print(f'facts  : string {f["b17"]["stringDeviationPct"]:.1f}%, '

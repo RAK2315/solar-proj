@@ -268,14 +268,20 @@ would be a lie about what a console can do.
 The view is otherwise a pure function of `t`: console on `[0,18) ∪ [74,90]`, cinematic
 on `[18,74)`.
 
-## Post-project TODO
+## What is not built
 
-Things deliberately not built, because they do not appear in the 90 seconds:
+The full, current list lives in **[`docs/backlog.md`](docs/backlog.md)** — what is
+missing, why, and what it would take. The two that matter most:
 
-- Auth, accounts, persistence. A work order writes to Zustand and nothing else.
-- Responsive layout. This is 1920×1080 on a projector.
-- A second site, a second fault, historical browsing, map zoom, feed filtering.
-- Live LLM calls in the demo path.
+- **The detector is not trained.** `models/defect_yolov8n.pt` does not exist,
+  `data/evidence/b17_rgb.jpg` does not exist, and the README carries no measured
+  mAP@50. Everything else in this project can be checked; this is the one claim that
+  is currently unmade. It runs on Colab — see [`plan/COLAB-NOTEBOOK.md`](plan/COLAB-NOTEBOOK.md).
+- **Inverter acoustic and flyover clips.** Never captured. The evidence strip renders
+  present slots and omits absent ones, so nothing on screen implies otherwise.
+
+Deliberately out of scope: auth and accounts, responsive layout, a second site,
+historical browsing, map zoom.
 
 ---
 
@@ -349,16 +355,7 @@ declared scaling, not a radiometric reading. The agent writes prose *about* numb
 never produces one, and `run_agent.py` refuses to write a cache containing a figure the
 telemetry does not support.
 
-## Post-project TODO
-
-Deliberately not built, because none of it appears in the 90 seconds:
-
-- Auth, accounts, persistence. A work order writes to Zustand and nothing else.
-- Responsive layout. This is 1920×1080 on a projector.
-- Selecting an arbitrary panel and dispatching a drone to it. The physics generator
-  already produces readings for all 120 arrays, so the data is there — but operator-
-  initiated dispatch means a second source of mutable state and a camera spline
-  generalised beyond this one mission, which is a different product shape.
-- Working screens behind the module rail; feed filtering; map zoom. The rail and the
-  `FILTER` control are honestly decorative, as in the reference console.
-- Live LLM calls in the demo path.
+**"What is left?"**
+[`docs/backlog.md`](docs/backlog.md), kept honest. The headline gap is the detector:
+it is the one component this project claims to have trained and the one that has not
+been run yet. Saying so is cheaper than being asked.

@@ -38,7 +38,7 @@ import { persist } from 'zustand/middleware';
 
 import { useDemoClock } from './demoClock';
 
-import { scenario } from '@/lib/live';
+import { scenario, type ScenarioEvent } from '@/lib/live';
 
 export type Mode = 'live' | 'demo';
 
@@ -47,7 +47,10 @@ export type Mode = 'live' | 'demo';
  * default and the one the demo needs. The other four are real screens over real
  * state, which is why the rail is navigation now rather than decoration.
  */
-export type ModuleId = 'site' | 'drones' | 'missions' | 'repairs' | 'analytics';
+export type ModuleId = 'site' | 'drones' | 'missions' | 'repairs' | 'analytics' | 'scenario';
+
+/** Severity floor for the event feed. `all` is the default. */
+export type FeedFilter = 'all' | 'warning' | 'critical';
 
 /** Where a dispatched drone is in its mission. */
 export type MissionPhase = 'idle' | 'outbound' | 'inspecting' | 'returning' | 'complete';
@@ -68,6 +71,53 @@ export interface WorkOrder {
   note: string;
 }
 
+/**
+ * An operator declining the agent's recommendation, with a reason.
+ *
+ * This is the other half of the approval gate and it was missing. A gate that
+ * only has a yes is not a gate — it is a delay. OVERRIDE is the no, it is
+ * recorded rather than swallowed, and it is reversible.
+ */
+export interface Override {
+  panelId: string;
+  createdAt: number;
+  reason: string;
+}
+
+/** The mechanisms an operator can inject. Each maps to a physics configuration. */
+export const INJECTABLE = {
+  'crack-early': {
+    label: 'Hairline crack — 2 strings',
+    faultedStrings: 2,
+    terminalMismatch: 0.68,
+    rampMinutes: 4,
+    mechanism: 'early hairline crack, two strings bypassed',
+  },
+  'crack-established': {
+    label: 'Established crack — 5 strings',
+    faultedStrings: 5,
+    terminalMismatch: 0.416,
+    rampMinutes: 3,
+    mechanism: 'cracked cell driving its bypass diode into conduction',
+  },
+  'crack-advanced': {
+    label: 'Advanced crack — 6 strings',
+    faultedStrings: 6,
+    terminalMismatch: 0.34,
+    rampMinutes: 6,
+    mechanism: 'advanced crack propagation, six strings bypassed',
+  },
+  'string-outage': {
+    label: 'String outage — 1 string open',
+    faultedStrings: 1,
+    terminalMismatch: 0.0,
+    rampMinutes: 1,
+    mechanism: 'string disconnected at the combiner — open circuit',
+  },
+} as const;
+
+export type InjectableId = keyof typeof INJECTABLE;
+
 export interface SessionState {
   mode: Mode;
 
@@ -85,15 +135,28 @@ export interface SessionState {
 
   missions: Mission[];
   workOrders: WorkOrder[];
+  overrides: Override[];
+
+  /** Faults the operator raised this session, on top of the committed scenario. */
+  injected: ScenarioEvent[];
+
+  feedFilter: FeedFilter;
 
   setMode: (m: Mode) => void;
   setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
   setTimeScale: (s: number) => void;
   toggleRunning: () => void;
+  cycleFeedFilter: () => void;
 
   dispatch: (panelId: string) => void;
   createWorkOrder: (panelId: string, note: string) => void;
+  overrideRecommendation: (panelId: string, reason: string) => void;
+  clearOverride: (panelId: string) => void;
+
+  injectFault: (panelId: string, kind: InjectableId) => void;
+  clearInjected: (panelId?: string) => void;
+
   resetSession: () => void;
 
   /** Called ONLY by the single rAF driver. */
@@ -134,7 +197,12 @@ const initial = {
   selectedPanelId: null as string | null,
   missions: [] as Mission[],
   workOrders: [] as WorkOrder[],
+  overrides: [] as Override[],
+  injected: [] as ScenarioEvent[],
+  feedFilter: 'all' as FeedFilter,
 };
+
+const FILTER_CYCLE: FeedFilter[] = ['all', 'warning', 'critical'];
 
 export const useSession = create<SessionState>()(persist((set, get) => ({
   ...initial,
@@ -147,6 +215,10 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   selectPanel: (selectedPanelId) => set({ selectedPanelId }),
   setTimeScale: (timeScale) => set({ timeScale }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
+
+  cycleFeedFilter: () => set((s) => ({
+    feedFilter: FILTER_CYCLE[(FILTER_CYCLE.indexOf(s.feedFilter) + 1) % FILTER_CYCLE.length],
+  })),
 
   dispatch: (panelId) => set((s) => {
     // One mission per array at a time. A second drone to the same panel is an
@@ -187,6 +259,59 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     };
   }),
 
+  /**
+   * The operator declines the recommendation. Recorded with a reason, visible in
+   * the rail and in the repairs screen, and reversible — an override is a
+   * decision, and a decision you cannot see or undo is just a lost click.
+   */
+  overrideRecommendation: (panelId, reason) => set((s) => (
+    s.overrides.some((o) => o.panelId === panelId) ? s : {
+      overrides: [...s.overrides, { panelId, createdAt: s.siteSeconds, reason }],
+    }
+  )),
+
+  clearOverride: (panelId) => set((s) => ({
+    overrides: s.overrides.filter((o) => o.panelId !== panelId),
+  })),
+
+  /**
+   * Inject a fault, so the console can be exercised on more than the three cases
+   * the committed scenario ships with.
+   *
+   * The injection writes a SCENARIO EVENT and nothing else. It never writes a
+   * reading: the array's output, deviation, status, cell temperature and place in
+   * the queue are all computed by the same physics that evaluates the committed
+   * faults. That is the difference between a test case and a fake — a fake would
+   * let you type −58.4 % onto an array, and this cannot.
+   */
+  injectFault: (panelId, kind) => set((s) => {
+    // One fault per array. The committed schedule wins; the site's own history is
+    // not something an operator gets to overwrite from a form.
+    if (s.injected.some((e) => e.panelId === panelId)) return s;
+    if (scenario.events.some((e) => e.panelId === panelId)) return s;
+
+    const spec = INJECTABLE[kind];
+    return {
+      injected: [...s.injected, {
+        id: `inj-${panelId.toLowerCase()}-${kind}`,
+        type: 'mismatch-fault',
+        panelId,
+        // Starts now, in site hours, so it ramps in while the operator watches.
+        startHour: scenario.epochHour + s.siteSeconds / 3600,
+        rampMinutes: spec.rampMinutes,
+        faultedStrings: spec.faultedStrings,
+        terminalMismatch: spec.terminalMismatch,
+        accessCost: 1.0,
+        mechanism: spec.mechanism,
+        injected: true,
+      }],
+    };
+  }),
+
+  clearInjected: (panelId) => set((s) => ({
+    injected: panelId ? s.injected.filter((e) => e.panelId !== panelId) : [],
+  })),
+
   /** Clears the operator's session. The site itself is not resettable — it is a site. */
   resetSession: () => set({ ...initial }),
 
@@ -213,8 +338,17 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     selectedPanelId: s.selectedPanelId,
     missions: s.missions,
     workOrders: s.workOrders,
+    overrides: s.overrides,
+    injected: s.injected,
+    feedFilter: s.feedFilter,
   }),
 }));
+
+/** Arrays the operator has declined to act on. */
+export const useOverrides = (): ReadonlySet<string> => {
+  const overrides = useSession((s) => s.overrides);
+  return new Set(overrides.map((o) => o.panelId));
+};
 
 /** Arrays with an approved work order — they read as `scheduled`. */
 export const useScheduledIds = (): ReadonlySet<string> => {

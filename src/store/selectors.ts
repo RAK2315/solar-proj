@@ -21,9 +21,13 @@ import {
   events, farm, forecast, getPanel, hasCapturedEvidence, hasEvidence, panels,
   repairQueue, telemetry,
 } from '@/lib/data';
-import { eventFor, liveFrameAt, type LiveFrame } from '@/lib/live';
-import { F_SOIL, soilFor } from '@/lib/physics';
-import { liveQueueAt, type LiveQueue } from '@/lib/queue';
+import {
+  eventFor, liveFrameAt, referenceShortfallKW, type LiveFrame,
+} from '@/lib/live';
+import { F_SOIL, isDark, soilFor } from '@/lib/physics';
+import {
+  liveQueueAt, projected72hLossMWh, REFERENCE_SHORTFALL_KW, type LiveQueue,
+} from '@/lib/queue';
 import { liveEvents } from '@/lib/liveEvents';
 import { rankQueue } from '@/lib/ranking';
 import { typographic } from '@/lib/format';
@@ -397,7 +401,7 @@ export function useMissionLogLine():
   const timeScale = useSession((s) => s.timeScale);
   const siteSeconds = useSession((s) => s.siteSeconds);
   const demoLines = useLogLines();
-  const liveFeed = useFeedEvents();
+  const liveFeed = useAllFeedEvents();
   const t = useDemoClock((s) => s.t);
 
   const reduced = typeof window !== 'undefined'
@@ -484,6 +488,7 @@ export function useCurrentFrame(): {
   const mode = useSession((s) => s.mode);
   const siteSeconds = useSession((s) => s.siteSeconds);
   const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
   const demoFrame = useFrame();
 
   return useMemo(() => {
@@ -491,7 +496,7 @@ export function useCurrentFrame(): {
       return { ...demoFrame, clock: demoFrame.timestamp };
     }
     const scheduled = new Set(workOrders.map((w) => w.panelId));
-    const live = liveFrameAt(siteSeconds, scheduled);
+    const live = liveFrameAt(siteSeconds, scheduled, injected);
     return {
       panels: live.panels as unknown as Record<string, PanelReading>,
       ambientC: live.ambientC,
@@ -502,7 +507,7 @@ export function useCurrentFrame(): {
       farmHealth: live.farmHealth,
       clock: live.clock,
     };
-  }, [mode, siteSeconds, workOrders, demoFrame]);
+  }, [mode, siteSeconds, workOrders, injected, demoFrame]);
 }
 
 /** Missions currently in the air, with their derived phase and progress. */
@@ -545,17 +550,44 @@ export const useHasSelection = (): boolean => {
  * Demo mode replays the written script. Live mode derives events from what has
  * actually happened. The feed component renders both without knowing which.
  */
-export function useFeedEvents(): DemoEvent[] {
+const FILTER_FLOOR: Record<string, Severity[]> = {
+  all: ['info', 'active', 'warning', 'critical'],
+  warning: ['warning', 'critical'],
+  critical: ['critical'],
+};
+
+/** Everything that has happened, unfiltered. The log and the filter both read this. */
+export function useAllFeedEvents(): DemoEvent[] {
   const mode = useSession((s) => s.mode);
   const siteSeconds = useSession((s) => s.siteSeconds);
   const missions = useSession((s) => s.missions);
   const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
   const demoEvents = useVisibleEvents();
 
   return useMemo(
-    () => (mode === 'demo' ? demoEvents : liveEvents(siteSeconds, missions, workOrders)),
-    [mode, demoEvents, siteSeconds, missions, workOrders],
+    () => (mode === 'demo'
+      ? demoEvents
+      : liveEvents(siteSeconds, missions, workOrders, injected)),
+    [mode, demoEvents, siteSeconds, missions, workOrders, injected],
   );
+}
+
+/**
+ * The feed as the operator has chosen to see it.
+ *
+ * The filter is a VIEW control on the left rail and nothing more. The mission log
+ * reads `useAllFeedEvents` instead, because hiding an event from a list is a
+ * choice about a list; having the drone stop narrating what it found because
+ * somebody set a severity floor would be a different thing entirely.
+ */
+export function useFeedEvents(): DemoEvent[] {
+  const all = useAllFeedEvents();
+  const filter = useSession((s) => s.feedFilter);
+  return useMemo(() => {
+    const allowed = FILTER_FLOOR[filter];
+    return allowed.length === 4 ? all : all.filter((e) => allowed.includes(e.severity));
+  }, [all, filter]);
 }
 
 /* ── Module screens ──────────────────────────────────────────────────────────
@@ -572,9 +604,10 @@ export const useSetModule = () => useSession((s) => s.setModule);
 export function useSiteFrame(): LiveFrame {
   const siteSeconds = useSession((s) => s.siteSeconds);
   const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
   return useMemo(
-    () => liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId))),
-    [siteSeconds, workOrders],
+    () => liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId)), injected),
+    [siteSeconds, workOrders, injected],
   );
 }
 
@@ -669,9 +702,10 @@ export function useFleet(): DroneRecord[] {
 export function useLiveQueue(): LiveQueue {
   const frame = useSiteFrame();
   const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
   return useMemo(
-    () => liveQueueAt(frame, new Set(workOrders.map((w) => w.panelId))),
-    [frame, workOrders],
+    () => liveQueueAt(frame, new Set(workOrders.map((w) => w.panelId)), injected),
+    [frame, workOrders, injected],
   );
 }
 
@@ -689,22 +723,24 @@ export const DAY_SAMPLES_PER_HOUR = 4;
 
 export function useDayCurve(): DayPoint[] {
   const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
   return useMemo(() => {
     const scheduled = new Set(workOrders.map((w) => w.panelId));
     const n = 24 * DAY_SAMPLES_PER_HOUR;
     return Array.from({ length: n + 1 }, (_, i) => {
       const hourOffset = i / DAY_SAMPLES_PER_HOUR;
-      const f = liveFrameAt(hourOffset * 3600, scheduled);
+      const f = liveFrameAt(hourOffset * 3600, scheduled, injected);
       let shortfallKW = 0;
       for (const r of Object.values(f.panels)) shortfallKW += r.expectedKW - r.actualKW;
       return { hourOffset, outputMW: f.farmOutputMW, shortfallKW };
     });
-  }, [workOrders]);
+  }, [workOrders, injected]);
 }
 
 /** Where the site's lost energy is going, by mechanism. */
 export function useLossAttribution(): Array<{ cause: string; kW: number; arrays: string[] }> {
   const frame = useSiteFrame();
+  const injected = useSession((s) => s.injected);
   return useMemo(() => {
     const buckets = new Map<string, { kW: number; arrays: string[] }>();
     for (const [id, r] of Object.entries(frame.panels)) {
@@ -713,7 +749,7 @@ export function useLossAttribution(): Array<{ cause: string; kW: number; arrays:
       // The cause is read off the site record, not guessed from the shape of the
       // shortfall: a scenario fault is a fault, a soiled array is soiling, and the
       // 0.97 nominal derate every array carries is the third bucket.
-      const cause = eventFor(id) ? 'Cell mismatch / bypass diode'
+      const cause = eventFor(id, injected) ? 'Cell mismatch / bypass diode'
         : soilFor(id) < F_SOIL ? 'Soiling above nominal'
           : 'Nominal soiling derate';
       const b = buckets.get(cause) ?? { kW: 0, arrays: [] };
@@ -724,8 +760,56 @@ export function useLossAttribution(): Array<{ cause: string; kW: number; arrays:
     return [...buckets.entries()]
       .map(([cause, v]) => ({ cause, ...v, arrays: v.arrays.sort() }))
       .sort((a, b) => b.kW - a.kW);
-  }, [frame]);
+  }, [frame, injected]);
 }
+
+/* ── The selected array, described honestly ──────────────────────────────── */
+
+/**
+ * After sunset there is nothing to measure. Every array reads 0.00 kW against
+ * 0.00 kW, the deviation floors to 0.0 %, and the console will call a cracked
+ * array `healthy` unless something says otherwise. This is that something.
+ */
+export const useIsDark = (): boolean => isDark(useCurrentFrame().irradiance);
+
+/**
+ * The selected array's own 72-hour projected loss, in MWh.
+ *
+ * The committed 3.07 belongs to B-17. Printing it under every array — which the
+ * outlook section did — told an operator that a healthy array in zone C was
+ * about to lose three megawatt-hours. Scaled by this array's own shortfall at
+ * reference conditions, B-17 still reads exactly 3.07 and a healthy array reads
+ * nothing at all.
+ */
+export function useProjectedLossMWh(panelId: string): number {
+  const mode = useSession((s) => s.mode);
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const injected = useSession((s) => s.injected);
+  const reading = usePanelReading(panelId);
+
+  if (mode === 'demo') {
+    // The scripted run is B-17 throughout, and its loss is the committed integral.
+    return forecast.projected72hLossMWh
+      * clamp01((reading ? reading.expectedKW - reading.actualKW : 0) / REFERENCE_SHORTFALL_KW);
+  }
+  return projected72hLossMWh(referenceShortfallKW(panelId, siteSeconds, injected));
+}
+
+/** The fault in force on an array, committed or injected — or nothing. */
+export function useArrayFault(panelId: string) {
+  const injected = useSession((s) => s.injected);
+  const mode = useSession((s) => s.mode);
+  return mode === 'demo' ? eventFor('B-17') : eventFor(panelId, injected);
+}
+
+/** The operator's recorded decision to decline work on this array, if any. */
+export function useOverride(panelId: string) {
+  const overrides = useSession((s) => s.overrides);
+  return overrides.find((o) => o.panelId === panelId);
+}
+
+export const useInjected = () => useSession((s) => s.injected);
+export const useFeedFilter = () => useSession((s) => s.feedFilter);
 
 export interface ZoneBreakdown {
   id: ZoneId;
