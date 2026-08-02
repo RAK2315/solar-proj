@@ -10,7 +10,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { cellGrid } from '@/lib/data';
 import { liveFrameAt } from '@/lib/live';
+import { M } from '@/lib/scene';
 import { useDemoClock } from '@/store/demoClock';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 import { ConsoleRoot } from './ConsoleRoot';
@@ -141,6 +143,72 @@ describe('dispatch is an operator decision with real consequences', () => {
     expect(at(MISSION.outbound + 60, 'A-03')).toContain('INSPECTING');
     cleanup();
     expect(at(MISSION.outbound + MISSION.inspecting + 60, 'A-03')).toContain('RETURNING');
+  });
+});
+
+/**
+ * B1. The matrix heading rendered in live mode and the grid beneath it was blank,
+ * because `useMatrixFillCount` read the demo clock — which live mode never
+ * advances. Every test here asserted the HEADING, so the suite stayed green while
+ * the signature element of the console showed nothing at all. These assert the
+ * measured ΔT values instead, which is the thing an operator actually looks at.
+ */
+describe('the anomaly matrix reads the live inspection, not the demo clock', () => {
+  const TOTAL_CELLS = cellGrid.rows * cellGrid.cols;
+  /** Site seconds into a mission at a given point on the scene's timeline. */
+  const elapsedAt = (sceneT: number) => (sceneT - M.dispatch) * 60;
+  /** Site seconds at which exactly `cells` have filled — mid-cell, so no rounding. */
+  const elapsedAtFill = (cells: number) =>
+    elapsedAt(M.thermal + ((cells + 0.5) / TOTAL_CELLS) * (M.thermalDone - M.thermal));
+
+  it('fills cell by cell as the drone scans, rather than all at once', () => {
+    useSession.getState().dispatch('B-17');
+
+    // Ten cells in: the first hot cell of the row-2 band has been read, the
+    // second has not. A grid that appeared whole would show both.
+    const text = at(elapsedAtFill(10), 'B-17');
+    expect(text).toContain('R2 · C3');
+    expect(text).not.toContain('R2 · C4');
+  });
+
+  it('shows the whole measured band once the scan completes', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    for (const col of [3, 4, 5, 6]) expect(text).toContain(`R2 · C${col}`);
+  });
+
+  it('holds the grid after the drone has flown home', () => {
+    useSession.getState().dispatch('B-17');
+    expect(at(MISSION_TOTAL + 600, 'B-17')).toContain('R2 · C3');
+  });
+
+  it('stays empty for an array no drone has inspected', () => {
+    expect(at(FAULT_AT + 600, 'B-17')).not.toContain('R2 · C3');
+  });
+
+  it('renders the ΔT list exactly once', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    expect(text.match(/R2 · C3/g)).toHaveLength(1);
+  });
+
+  /**
+   * `useEvidence` had the same defect and nobody had noticed: an operator could fly
+   * a mission to B-17, be shown a cell grid, and never see the thermal frame it was
+   * measured from — the imagery the drone was sent for in the first place.
+   */
+  it('brings back the captured frames, not just the numbers derived from them', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    expect(text).toContain('THERMAL');
+    expect(text).toContain('RGB');
+  });
+
+  it('shows the RGB pass before the thermal pass, as the drone flies them', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(elapsedAt(M.rgb) + 1, 'B-17');
+    expect(text).toContain('RGB');
+    expect(text).not.toContain('R2 · C3');
   });
 });
 

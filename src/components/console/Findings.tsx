@@ -8,38 +8,12 @@
  * a model's output belongs is exactly the substitution this project exists to
  * avoid. plan/04 §4 — absent means absent.
  *
- * The CELL DEFECTS list beneath is different: it is measured, not reasoned, so it
- * renders as soon as the thermal scan reaches each cell.
+ * The per-cell ΔT list lives in AnomalyMatrix, next to the grid it describes. A
+ * second copy used to live here, wrapped by DetailPanel under the same heading.
  */
 
-import { deltaT, typographic } from '@/lib/format';
-import { BEAT, useAgentCache, useCellGrid, useMatrixFillCount } from '@/store/selectors';
-
-export function CellDefectList() {
-  const grid = useCellGrid();
-  const filled = useMatrixFillCount();
-
-  const found = grid.defects
-    .slice()
-    .sort((a, b) => a.row - b.row || a.col - b.col)
-    .filter((d) => (d.row - 1) * grid.cols + (d.col - 1) < filled);
-
-  if (!found.length) return null;
-
-  return (
-    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4 }}>
-      {found.map((d) => (
-        <li key={`${d.row}-${d.col}`} className="t-data" style={{ color: 'var(--text-secondary)' }}>
-          <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>▸</span>
-          {d.type} at cell ({d.row},{d.col}) ·{' '}
-          <span className="t-data-em" style={{ color: 'var(--sev-warning)' }}>
-            ΔT {deltaT(d.deltaTC)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import { typographic } from '@/lib/format';
+import { BEAT, useAgentCache } from '@/store/selectors';
 
 export function Findings() {
   const cache = useAgentCache();

@@ -291,9 +291,40 @@ export const useDetection = (): Detection | null => detectionData;
 /** Cached agent prose, or null until Phase 6. Absent means absent — no empty card. */
 export const useAgentCache = (): AgentCache | null => agentCacheData;
 
+/**
+ * THE CLOCK THE INSPECTION SURFACES RUN ON — thumbnails, cell grid, defect list.
+ *
+ * All of them were written against the demo clock, because when they were written
+ * the only inspection that existed was the scripted one. Live mode never advances
+ * `t`, so on the selected array's own inspection every one of them read 0: the
+ * matrix painted blank, the ΔT lists filtered to nothing, and the thermal frame
+ * the grid was measured FROM never appeared at all. The heading rendered in each
+ * case, which is why 329 tests stayed green over it.
+ *
+ * Live mode reads the flight cue instead — a real mission on the scene's own
+ * timeline, which `flightCue.ts` already maps site seconds onto — so one set of
+ * beats serves both modes. Three rules:
+ *
+ *   · it must be THIS array's flight; a drone over C-07 reveals nothing about B-17
+ *   · an array already inspected holds, rather than emptying when the drone leaves
+ *   · nothing before a drone gets there, which is the whole point of the gate
+ */
+export function useInspectionClock(): number {
+  const mode = useSession((s) => s.mode);
+  const t = useDemoClock((s) => s.t);
+  const cue = useFlightCue();
+  const selected = useSelectedPanelId();
+  const inspected = useInspected(selected);
+
+  if (mode === 'demo') return t;
+  if (inspected) return BEAT.thermalDone;
+  if (cue.active && cue.targetId === selected) return cue.t;
+  return 0;
+}
+
 /** Which evidence slots are both revealed by the clock AND present on disk. */
 export function useEvidence() {
-  const t = useDemoClock((s) => s.t);
+  const t = useInspectionClock();
   const mode = useSession((s) => s.mode);
   const selected = useSelectedPanelId();
 
@@ -313,12 +344,12 @@ export function useEvidence() {
 }
 
 /**
- * How many matrix cells have filled, 0..35, in scan order across t=48..56.
+ * How many matrix cells have filled, 0..35, in scan order across the thermal beat.
  * The sequential fill is what sells that a sensor is reading the panel — a single
- * fade-in of the whole grid reads as a graphic.
+ * fade-in of the whole grid reads as a graphic. See `useInspectionClock`.
  */
 export function useMatrixFillCount(): number {
-  const t = useDemoClock((s) => s.t);
+  const t = useInspectionClock();
   const total = cellGrid.rows * cellGrid.cols;
   const k = clamp01((t - BEAT.thermalScan) / (BEAT.thermalDone - BEAT.thermalScan));
   return Math.floor(k * total);

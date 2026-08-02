@@ -3,7 +3,7 @@
 Kept current. If something on this list ships, it comes off the list; if something
 here is wrong, it is a bug in the document.
 
-Last reviewed: **2026-08-02**. Start at **§5b — open bugs**.
+Last reviewed: **2026-08-02**. §5b is clear — start at **§5c, the UI redesign**.
 
 ---
 
@@ -78,35 +78,55 @@ scenario event that the physics then evaluates. Still open:
 - **No export.** An injected case cannot be written back out to `scenario.json`, so a
   case worth keeping has to be added to `generate_scenario.py` by hand.
 
-## 5b. OPEN BUGS — found 2 Aug, not yet fixed
+## 5b. OPEN BUGS — found 2 Aug, ✅ ALL FIXED 2 Aug
 
-**These are the next thing to do.** All three were found by looking at live mode on
-screen, which is the only way any of the recent bugs have been found.
+All three were found by looking at live mode on screen, which is the only way any of
+the recent bugs have been found. A fourth, **B4**, was found while diagnosing B1 —
+same cause, same section, and it made B1's fix half a fix.
 
-### B1 — the anomaly matrix does not render in live mode 🔴
+### B1 — the anomaly matrix did not render in live mode ✅
 
-The signature element of the entire console is blank. `useMatrixFillCount()` in
-`src/store/selectors.ts` derives its fill from `useDemoClock(s => s.t)` and the
-`BEAT.thermalScan..thermalDone` window. Live mode never advances `t`, so the count is
-0, every cell paints `--surface-inset`, and both defect lists filter themselves to
-nothing.
+The signature element of the entire console was blank. `useMatrixFillCount()` derived
+its fill from `useDemoClock(s => s.t)` across the `BEAT.thermalScan..thermalDone`
+window. Live mode never advances `t`, so the count was 0, every cell painted
+`--surface-inset`, and both defect lists filtered themselves to nothing.
 
 Same class as the dispatch-doesn't-fly-the-scene bug: a live surface gated on a
-scripted clock. The fix is the same shape — derive the fill from the flight cue, or
-from "this array has been inspected", rather than from `t`.
+scripted clock. Fixed with the same shape of fix — `useInspectionClock()` in
+`selectors.ts` returns `t` in demo mode and the **flight cue's** scene-timeline
+position in live mode, holding at `BEAT.thermalDone` once the array has actually been
+inspected. `flightCue.ts` already maps site seconds onto that timeline, so one set of
+beats serves both modes.
 
-### B2 — "Cell defects" renders twice 🟡
+### B2 — "Cell defects" rendered twice ✅
 
-`AnomalyMatrix` renders its own sub-header and ΔT list (`AnomalyMatrix.tsx:65`), and
-the rail restructure wrapped `CellDefectList` in a second block with the same label
-(`DetailPanel.tsx`). Two headings, and in live mode the second list is empty because
-of B1. Pick one owner.
+`AnomalyMatrix` owned a sub-header and ΔT list, and the rail restructure wrapped a
+second `CellDefectList` in a block with the same label. `AnomalyMatrix` is now the
+sole owner — the grid and the list have to be adjacent to read as the same data.
+`CellDefectList` is deleted rather than left unused.
 
-### B3 — the forecast band does not say it is site weather 🟡
+### B3 — the forecast band did not say it was site weather ✅
 
-The chart is identical for all 120 arrays, which is correct — it is the site's
-weather, and only the RISK badge, deadline and projected loss are per-array. But
-nothing on the chart says so, so it reads as a bug. One caption fixes it.
+One caption above the chart: the curve is the site's ambient forecast and is the same
+for every array; the risk badge, deadline and projected loss below are computed for
+the selected array.
+
+### B4 — captured frames never appeared in live mode ✅ (found while fixing B1)
+
+`useEvidence()` had B1's defect exactly: it gated every slot on `t >= beat` against
+the demo clock. In live mode an operator could fly a mission to B-17, be shown the
+cell grid, and **never see the thermal frame the grid was measured from** — the
+imagery the drone was sent for. It now reads `useInspectionClock()`.
+
+The two imaging gates in `DetailPanel` moved onto the same clock, so a live capture
+plays out on its own beats — RGB while the drone is on station, then the grid filling
+cell by cell — rather than arriving whole after the mission ends, which read as a
+lookup rather than a sensor.
+
+**Why the suite did not catch any of this:** every test asserted the *heading*
+(`'Anomaly matrix'`, `'Cell defects'`), and headings render whether or not the thing
+beneath them has any content. The five new tests in `live.test.tsx` assert the
+measured ΔT values and the frames instead.
 
 ## 5c. UI REDESIGN — the highest-priority item after the bugs above 🔴
 

@@ -27,7 +27,8 @@
 import { hasCapturedEvidence } from '@/lib/data';
 import {
   BEAT, useAfter, useAgentCache, useDetection, useEvidence, useHasSelection,
-  useInspected, useIsDark, useMode, usePanelStatus, useSelectedPanelId,
+  useInspected, useInspectionClock, useIsDark, useMode, usePanelStatus,
+  useSelectedPanelId,
 } from '@/store/selectors';
 import { DispatchPanel } from './DispatchPanel';
 import { LiveTriage } from './LiveTriage';
@@ -36,7 +37,7 @@ import { AnalysisBlock } from './AnalysisBlock';
 import { AnomalyMatrix } from './AnomalyMatrix';
 import { ApprovalBar } from './ApprovalBar';
 import { EvidenceStrip } from './EvidenceStrip';
-import { CellDefectList, Findings, Recommendation } from './Findings';
+import { Findings, Recommendation } from './Findings';
 import { ForecastBand } from './ForecastBand';
 import { InverterTable } from './InverterTable';
 import { StatusChips } from './StatusChips';
@@ -101,9 +102,16 @@ export function DetailPanel() {
   // Demo mode reveals sections on the script's beats. Live mode reveals them when
   // the corresponding thing has ACTUALLY happened — an array is selected, a drone
   // has been and looked. Same components, two different reasons to appear.
+  //
+  // The two IMAGING gates run on the inspection clock rather than on `inspected`,
+  // so a live capture plays out on its own beats the way the scripted one does:
+  // RGB while the drone is on station, then the grid filling cell by cell. Gating
+  // them on "the mission finished" made the evidence arrive as one finished block
+  // after the fact, which reads as a lookup rather than a sensor.
+  const scanClock = useInspectionClock();
   const triaged = mode === 'demo' ? demoTriaged : hasSelection;
-  const scanned = mode === 'demo' ? demoScanned : inspected;
-  const thermal = mode === 'demo' ? demoThermal : inspected;
+  const scanned = mode === 'demo' ? demoScanned : scanClock >= BEAT.rgbScan;
+  const thermal = mode === 'demo' ? demoThermal : scanClock >= BEAT.thermalScan;
   const prognosed = mode === 'demo' ? demoPrognosed : inspected;
   const recommended = mode === 'demo' ? demoRecommended : inspected;
   const evidence = useEvidence();
@@ -207,11 +215,12 @@ export function DetailPanel() {
 
           {thermal && captured && (
             <>
-              <Block label="Anomaly matrix" note="5 × 7 cells, measured">
+              {/* The matrix owns its own ΔT list — the grid and the text have to
+                  be adjacent to read as the same data. The rail restructure wrapped
+                  a SECOND list in a block with the same heading, so "Cell defects"
+                  appeared twice, the lower one empty. One owner. */}
+              <Block label="Anomaly matrix" note="5 × 7 cells · classical CV, not a model">
                 <AnomalyMatrix />
-              </Block>
-              <Block label="Cell defects" note="classical CV, not a model">
-                <CellDefectList />
               </Block>
               {agent && (
                 <Block label="Findings">

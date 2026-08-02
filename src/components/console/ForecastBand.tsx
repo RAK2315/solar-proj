@@ -64,6 +64,16 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
         </span>
       </div>
 
+      {/* The chart is IDENTICAL for all 120 arrays and nothing said so, which read
+          as a bug: an operator clicks through four arrays, sees the same curve, and
+          concludes it is stuck. It is the site's weather. Say that on the chart. */}
+      <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+        Site ambient forecast — the same curve for every array.
+        {showRisk
+          ? ` Risk, deadline and projected loss below are computed for ${panelId}.`
+          : ` Projected loss below is computed for ${panelId}.`}
+      </p>
+
       <div style={{ height: 96, marginLeft: -8 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
