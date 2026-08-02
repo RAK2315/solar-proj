@@ -3,7 +3,7 @@
 Kept current. If something on this list ships, it comes off the list; if something
 here is wrong, it is a bug in the document.
 
-Last reviewed: **2026-08-02**.
+Last reviewed: **2026-08-02**. Start at **§5b — open bugs**.
 
 ---
 
@@ -77,6 +77,53 @@ scenario event that the physics then evaluates. Still open:
   site hour the way the committed ones are.
 - **No export.** An injected case cannot be written back out to `scenario.json`, so a
   case worth keeping has to be added to `generate_scenario.py` by hand.
+
+## 5b. OPEN BUGS — found 2 Aug, not yet fixed
+
+**These are the next thing to do.** All three were found by looking at live mode on
+screen, which is the only way any of the recent bugs have been found.
+
+### B1 — the anomaly matrix does not render in live mode 🔴
+
+The signature element of the entire console is blank. `useMatrixFillCount()` in
+`src/store/selectors.ts` derives its fill from `useDemoClock(s => s.t)` and the
+`BEAT.thermalScan..thermalDone` window. Live mode never advances `t`, so the count is
+0, every cell paints `--surface-inset`, and both defect lists filter themselves to
+nothing.
+
+Same class as the dispatch-doesn't-fly-the-scene bug: a live surface gated on a
+scripted clock. The fix is the same shape — derive the fill from the flight cue, or
+from "this array has been inspected", rather than from `t`.
+
+### B2 — "Cell defects" renders twice 🟡
+
+`AnomalyMatrix` renders its own sub-header and ΔT list (`AnomalyMatrix.tsx:65`), and
+the rail restructure wrapped `CellDefectList` in a second block with the same label
+(`DetailPanel.tsx`). Two headings, and in live mode the second list is empty because
+of B1. Pick one owner.
+
+### B3 — the forecast band does not say it is site weather 🟡
+
+The chart is identical for all 120 arrays, which is correct — it is the site's
+weather, and only the RISK badge, deadline and projected loss are per-array. But
+nothing on the chart says so, so it reads as a bug. One caption fixes it.
+
+## 5c. UI REDESIGN — in flight
+
+The console is too dense to read: 10–13 px type throughout, ~25 facts stacked at equal
+weight in the right rail, no size hierarchy, and it is shown on a projector. A design
+brief has been written and handed to a UI-generation tool.
+
+**Preserve:** the ironbow ramp as the semantic colour language, IBM Plex Mono/Sans
+Condensed/Sans in their three roles, units on every number, IDs on every component,
+3 px max radius, dark only.
+
+**Replace freely:** layout, spacing, type scale, density, grouping, progressive
+disclosure, chart styling.
+
+The data layer, physics, selectors and stores do not change — this is a presentation
+swap. Do not let a redesign introduce a surface that claims something the data cannot
+support; the evidence-scoping rule (CLAUDE.md §0 rule 5) applies to new components too.
 
 ## 6. Known cosmetic and structural gaps
 

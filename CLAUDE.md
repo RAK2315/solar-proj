@@ -1,7 +1,56 @@
 # CLAUDE.md — SURYA AGENT
 
 **Autonomous inspection & triage console for utility-scale solar.**
-Hackathon build spec. Read this file completely before writing any code.
+Read this file completely before writing any code.
+
+> ### 🟢 STATUS — 2 Aug 2026. Built. Read this box before §2.
+>
+> **This file was written as a hackathon spec for a 90-second recording. The product
+> outgrew it.** The spec is still correct about physics, schemas, identifiers, agent
+> prompts and design language. It is out of date about SCOPE, and §2 in particular
+> now describes **one artefact the product can produce**, not the product.
+>
+> The operating instruction, from the project owner, is:
+>
+> > *"this isn't for a 90 second demo, this is supposed to be an end to end project…
+> > I want an entire product where I can work and interact with everything mentioned."*
+>
+> So **§0 rule 2 — "never add a feature not in the demo script" — is REVOKED.**
+> Everything else in §0 stands and is load-bearing.
+>
+> #### What exists that this spec does not describe
+>
+> | | |
+> |---|---|
+> | **Two modes** | `demo` replays the scripted 90 s; `live` runs the site from the physics model at any site time. One set of components serves both. Press `M`. |
+> | **Live mode** | Operator selects any of 120 arrays, dispatches a drone to it, watches the 3D flight, approves or overrides work. Session persists across reload. |
+> | **Six screens** | Site · Drones · Missions · Repairs · Analytics · Scenario, behind a working icon rail. |
+> | **Three faults** | `A-31` (2 strings, −9.1 %), `B-17` (5, −41.7 %, frozen), `C-07` (6, −56.6 %) — plus operator fault injection on the Scenario screen. |
+> | **Live agent** | `/api/triage` calls Groq per array, cross-checks every number server-side. `LIVE_AGENT` in `scripts/run_agent.py` verifies the committed cache offline. |
+> | **Vision** | ✅ trained. `Cracked` AP@50 **0.995**, evidence confidence **0.9084**, test split. `docs/dataset-provenance.md`. |
+> | **Gates** | `prebuild` = sync:artefacts → validate:data → check:literals → **329 tests** → build. |
+>
+> #### Where to look instead of guessing
+>
+> | Question | File |
+> |---|---|
+> | What is still not built, and why | **`docs/backlog.md`** |
+> | What each phase changed, in order | **`report.txt`** |
+> | Frozen numbers, corrections C1–C19 | `docs/contract-freeze.md` |
+> | Schemas, invariants I1–I16 | `src/lib/types.ts` — sole owner |
+> | Dataset, licence, real metrics | `docs/dataset-provenance.md` |
+> | The PV model | `scripts/physics.py` ↔ `src/lib/physics.ts` (golden-tested against each other) |
+>
+> #### Known open bugs — see `docs/backlog.md` §6
+>
+> - **Anomaly matrix does not render in live mode.** `useMatrixFillCount()` derives
+>   its fill from the demo clock, which live mode never advances.
+> - **"Cell defects" heading appears twice** in the detail rail.
+> - **The forecast band is unlabelled as site-wide weather**, so it reads as a bug
+>   when it looks identical for every array.
+> - **A UI redesign is in flight.** The console is too dense — 10–13 px type
+>   throughout, no hierarchy. Treat §12/§13 as the *identity* to preserve (ironbow
+>   ramp, IBM Plex, units on every number) and the *layout* as replaceable.
 
 > ### ⚠️ Corrections applied 2026-07-28 — read `docs/contract-freeze.md` first
 >
@@ -33,11 +82,27 @@ This is the single source of truth for the build. It contains the demo script, t
 
 Rules for you (Claude Code):
 
-1. **Never invent a number.** Every number that appears on screen must come from `/data`, and every value in `/data` must come from `scripts/generate_telemetry.py`. If you need a number and it isn't there, add it to the generator, don't hardcode it in a component.
-2. **Never add a feature not in the demo script (§2).** If it isn't on screen during the 90 seconds, it doesn't get built. Surplus features are the main way this project fails.
-3. **Never create a second source of time.** See §6. Any `setInterval`, `setTimeout`, `requestAnimationFrame` loop, or CSS animation that drives *state* is a bug. Presentational CSS animation (pulse, glow) is fine.
-4. **Ask before deviating from a schema in §7.** The schemas are load-bearing across four workstreams.
-5. When a milestone in §16 is done, stop and report against its acceptance criteria before moving to the next one.
+1. **Never invent a number.** Every number that appears on screen must come from `/data` or from `src/lib/physics.ts`, and every value in `/data` must come from a script in `scripts/`. If you need a number and it isn't there, add it to the generator — don't hardcode it in a component. `npm run check:literals` enforces this.
+2. ~~**Never add a feature not in the demo script (§2).**~~ **REVOKED** — see the status box above. The 90 seconds is one output of the product, not its scope. The replacement rule: *never add a surface that claims something the data cannot support.* A feature is fine; a feature that fabricates evidence is not.
+3. **Never create a second source of time.** See §6. Any `setInterval`, `setTimeout`, `requestAnimationFrame` loop, or CSS animation that drives *state* is a bug. Presentational CSS animation (pulse, glow) is fine. There are two clocks — `demoClock.t` and `session.siteSeconds` — advanced by **one** rAF driver; `flightCue.ts` is the seam that lets one set of splines serve both.
+4. **Ask before deviating from a schema in `src/lib/types.ts`.** §7 below is documentation; that file is the owner.
+5. **Scope evidence to the array it was measured on.** We hold captured imagery for `B-17` and for nothing else. Any surface showing cell grids, detections, findings, recommendations or deadlines must be gated on `hasCapturedEvidence(panelId)`. This has been violated four separate times in four different components — it is the single most repeated bug in the project.
+6. **Report the real metric, per class, with its split.** Never round up, never quote a validation figure as a test figure.
+7. When a milestone is done, stop and report against its acceptance criteria before starting the next.
+
+### Code quality, enforced by review not by lint
+
+- **Comments explain WHY, never what.** A comment restating the line below it is noise.
+  Delete it. The ones worth keeping record a decision, a constraint, or a bug that
+  was already made once.
+- **No decorative markup in comments.** Backticks around a plain word, ASCII boxes,
+  and trailing punctuation runs add nothing. Backticks are for identifiers only,
+  and only where the identifier would otherwise be ambiguous.
+- **ASCII only in `.env*`, `scripts/*.py` string literals, and anything a shell reads.**
+  An em dash written by a UTF-8 editor and read by a cp1252 shell becomes `â€"`.
+  This has already happened once in `.env.local`.
+- **No dead controls.** A `<span>` styled to look like a button is a lie about what
+  the product does. Either wire it or delete it. This was true of six controls.
 
 ---
 
@@ -79,7 +144,14 @@ Three zones (A, B, C), 120 panel arrays, 3 inverters (INV-A, INV-B, INV-C).
 
 ---
 
-## 2. The demo script — SOURCE OF TRUTH
+## 2. The demo script — source of truth for DEMO MODE ONLY
+
+> **Scope note, 2 Aug 2026.** This table is the contract for `mode === 'demo'`, and
+> `beats.test.tsx` still asserts every row of it. It is **not** the scope of the
+> product — live mode has no script, and the six module screens have no beats.
+> Build for live mode first; the recording is what live mode looks like when you
+> drive it along a fixed path.
+
 
 Ninety seconds. Every beat maps to `t` in seconds on the demo clock. Build only what appears here.
 
@@ -104,12 +176,23 @@ Ninety seconds. Every beat maps to `t` in seconds on the demo clock. Build only 
 
 ## 3. Hard rules
 
-- All data is **pre-generated and replayed**, never generated live in the browser.
-- All LLM output is **pre-run and cached**. A `LIVE_AGENT=true` env flag re-runs it, and is off by default.
-- The **vision model is real** and its weights are in the repo. It is the one thing we cannot fake and the one thing that survives a judge asking "did you train anything?"
-- **One clock.** §6.
+- Data is **never invented in the browser**. `Math.random()` is banned across `src/`.
+  Demo mode replays 91 committed frames; live mode *computes* from `src/lib/physics.ts`,
+  which is golden-tested against the Python line for line. Both are reproducible: the
+  same input gives the same site, every reload.
+- **Demo-mode LLM output is pre-run and cached.** Live mode calls Groq per array through
+  `/api/triage`, which recomputes the facts server-side and cross-checks every number
+  before returning a word. `LIVE_AGENT=true` in `scripts/run_agent.py` regenerates the
+  committed cache; unset, it verifies that cache against the physics offline.
+- The **vision model is real** and its weights are in the repo. ✅ Trained 1 Aug 2026 —
+  `Cracked` AP@50 0.995 on the held-out test split.
+- **One clock.** §6 — updated for two modes.
 - The **repair queue ranking is deterministic**, never LLM-decided. §10.
-- No auth, no database, no user accounts, no settings page, no dark/light toggle, no onboarding. None of these appear in §2.
+- **A deadline is computed, never looked up.** `crackDeadlineHour()` derives it from the
+  thermal-dose model for any faulted array, in both languages.
+- No auth, no database, no user accounts, no settings page, no dark/light toggle, no
+  onboarding. A work order writes to Zustand; `persist` keeps the operator's own session
+  across reload and stores nothing derived.
 - Desktop only, fixed 1920×1080 target. Do not spend time on responsive layouts — this runs on a projector.
 
 ---
@@ -142,6 +225,24 @@ Deployment: Vercel. Vision inference runs offline at build time; no GPU at runti
 ---
 
 ## 5. Repo structure
+
+> **Planned, not actual.** The tree below is what was drawn at kickoff. Run
+> `git ls-files src scripts` for the truth. What it does not show, and you will need:
+>
+> ```
+> src/store/session.ts      live mode: site time, selection, missions, work
+>                           orders, overrides, injected faults. Persisted.
+> src/store/flightCue.ts    THE SEAM. Both modes emit a FlightCue { t, targetId,
+>                           cracked } and the 3D scene reads that, never a clock.
+> src/store/triage.ts       runtime agent results, cached per array
+> src/lib/live.ts           the site evaluated at any site time
+> src/lib/liveEvents.ts     the event feed, derived from what actually happened
+> src/lib/queue.ts          the live repair queue, ranked as the site stands
+> src/lib/physics.ts        the PV model — mirror of scripts/physics.py
+> src/lib/scene.ts          camera + drone splines, parametrised by target
+> src/app/api/triage/       the ONE runtime network call in the product
+> src/components/console/modules/   the six module screens
+> ```
 
 ```
 surya/
@@ -1212,6 +1313,18 @@ These overlays carry most of the cinematic impact and cost almost nothing. Build
 ---
 
 ## 16. Build order
+
+> **All of M0–M10 shipped, plus five phases this section never anticipated.**
+> `report.txt` is the record: what each phase changed, what it found, and what it
+> broke. `docs/backlog.md` is what is left. Use those two; the milestone list below
+> is history.
+>
+> Phases beyond M10: **11** live mode · **12** runtime agent triage · **13** evidence
+> scoping, module screens, session persistence · **14** the flight cue (a dispatched
+> drone flies the 3D scene, to the array it was sent to) · **15** dead controls wired,
+> three faults, fault injection, the rail restructured, night handling · **16** the
+> detector trained and the Vercel build fixed.
+
 
 Each milestone has acceptance criteria. **Report against them and stop before starting the next.**
 
