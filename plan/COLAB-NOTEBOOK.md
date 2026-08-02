@@ -12,6 +12,9 @@ New notebook at [colab.research.google.com](https://colab.research.google.com), 
 > **Run Cells 1–5 and Cell 7 only.** The thermal path (Cells 6a–6c) already ran locally
 > and its output is committed. Those cells are kept for reference and are marked
 > superseded — **running them would overwrite a measurement you cannot re-derive.**
+>
+> Cell **3b** is a recovery step, not part of the sequence: run it only if `BEST` is
+> undefined and Cell 5 has failed with `FileNotFoundError` on `best.pt`.
 
 ---
 
@@ -43,6 +46,7 @@ Your key is in `.env.local` as `ROBOFLOW_API_KEY`.
 ## Cell 3 — train (~20–30 min on T4)
 
 ```python
+from pathlib import Path
 from ultralytics import YOLO
 
 model = YOLO('yolov8n.pt')
@@ -51,6 +55,15 @@ results = model.train(
     epochs=50, imgsz=640, batch=16,
     project='surya', name='defect', exist_ok=True,
 )
+
+# WHERE THE RUN ACTUALLY LANDED. Ultralytics 8.4 resolves `project=` against its own
+# settings `runs_dir` rather than the working directory, so this is
+# /content/runs/detect/surya/defect and NOT surya/defect. Hardcoding the short path
+# fails at Cell 5 with FileNotFoundError on best.pt, ~25 minutes after the mistake.
+RUN_DIR = Path(results.save_dir)
+BEST = RUN_DIR / 'weights' / 'best.pt'
+print("run dir :", RUN_DIR)
+print("weights :", BEST, "exists" if BEST.exists() else "MISSING")
 ```
 
 Leave the tab open. Colab free sessions idle-timeout; 50 epochs finishes well inside the limit.
@@ -58,40 +71,71 @@ Leave the tab open. Colab free sessions idle-timeout; 50 epochs finishes well in
 Classes train **as the dataset ships them** — `BakimGereken, Cracked, Dirty, Good, Saglam`,
 two of them Turkish. Do not rename them. `src/lib/types.ts` expects exactly these.
 
+## Cell 3b — recover `RUN_DIR` without re-training
+
+Run this **only** if `BEST` is not defined — a lost session, or a run of Cell 3 from before
+it set `RUN_DIR`, which failed at Cell 5 with `FileNotFoundError: surya/defect/weights/best.pt`.
+
+The weights are on disk; only the path was wrong. **Do not re-run Cell 3** — that is another
+25 minutes to reproduce a file you already have.
+
+```python
+from pathlib import Path
+BEST = sorted(Path('/content').rglob('surya/defect/weights/best.pt'))[-1]
+RUN_DIR = BEST.parent.parent
+print("run dir :", RUN_DIR)
+print("weights :", BEST)
+```
+
+Expect `/content/runs/detect/surya/defect`. Then carry on from Cell 4.
+
 ## Cell 4 — the REAL metrics
 
 ```python
-metrics = model.val()
+# split='test' IS LOAD-BEARING. model.val() with no argument evaluates the VALIDATION
+# split — the 82 images the trainer already scored itself against after every epoch.
+# Those numbers are real, but they are not held-out, and quoting them as a test result
+# is precisely the metric-inflation this project keeps promising not to commit.
+# The evidence image in Cell 5 comes from test/ as well, so both claims rest on the
+# same 42 images the model has never seen.
+EVAL_SPLIT = 'test'
+
+metrics = model.val(split=EVAL_SPLIT)
 names = model.names
 
 # ap_class_index, NOT enumerate(). Ultralytics only reports AP for classes that have
-# instances in the eval set, so the arrays are indexed by ap_class_index. `Dirty` has
-# ZERO test instances, so enumerate() would silently shift every label by one and
-# attribute the wrong number to the wrong class.
+# instances in the eval set, so the arrays are indexed by ap_class_index. A class with
+# ZERO instances in this split is omitted, and enumerate() would silently shift every
+# label by one and attribute the wrong number to the wrong class.
 ap_per_class = {names[int(c)]: round(float(ap), 4)
                 for c, ap in zip(metrics.box.ap_class_index, metrics.box.ap50)}
 
+print(f"split             : {EVAL_SPLIT} (held out)")
 print(f"overall mAP@50    : {metrics.box.map50:.4f}")
 print(f"overall mAP@50-95 : {metrics.box.map:.4f}\n")
-print("per-class AP@50 (classes with test instances only):")
+print(f"per-class AP@50 (classes with {EVAL_SPLIT} instances only):")
 for name, ap in ap_per_class.items():
     print(f"  {name:<14} {ap:.4f}")
 
 missing = [n for n in names.values() if n not in ap_per_class]
-print("\nno test instances, AP undefined (NOT zero):", missing or "none")
+print(f"\nno {EVAL_SPLIT} instances, AP undefined (NOT zero):", missing or "none")
 ```
 
 **Screenshot this output.** These numbers go into `docs/dataset-provenance.md` exactly as
 printed, and `ap_per_class` is written into `b17_detection.json` in the next cell so the
 number is committed data rather than a figure retyped from a screenshot.
 
-Expect `Saglam` to score near zero — it has 27 boxes total, 1 in test. That drags the overall
-mean down, which is exactly why you report **per-class AP** and let `Cracked` (22 test boxes)
-stand on its own. Whatever `Cracked` scores is what you claim. Do not round up, and never
-quote the overall figure as if it were the crack number.
+**Record the split next to every figure.** The validation numbers and the test numbers are
+both real and they are not the same claim. Whatever you put on a slide must say which one
+it is.
 
-`Dirty` has **no test instances**, so its AP is *undefined*, not 0.0. Reporting a zero would
-imply the model failed at something it was never evaluated on.
+`Saglam` has 27 boxes across the whole dataset and will score low; that drags the overall
+mean down, which is exactly why you report **per-class AP** and let `Cracked` stand on its
+own. Whatever `Cracked` scores is what you claim. Do not round up, and never quote the
+overall figure as if it were the crack number.
+
+A class with no instances in the eval split has an *undefined* AP, not 0.0. Reporting a
+zero would imply the model failed at something it was never evaluated on.
 
 ## Cell 5 — pick the evidence image + run detection
 
@@ -100,13 +144,17 @@ import json, glob, os, shutil
 from ultralytics import YOLO
 
 os.makedirs('out', exist_ok=True)
-best_weights = 'surya/defect/weights/best.pt'
-model = YOLO(best_weights)
+
+# BEST comes from Cell 3 (or 3b), which read it off results.save_dir. Do not retype the
+# path — `surya/defect/weights/best.pt` is where you would expect the run to be and not
+# where Ultralytics 8.4 puts it.
+model = YOLO(str(BEST))
 
 CRACKED_IDX = 1            # verified against data.yaml: [BakimGereken, Cracked, Dirty, Good, Saglam]
 
 # TEST-split images the model has never seen whose label contains a crack.
-# Locally counted: 22 of the 42 test images qualify.
+# A local count of the downloaded labels said 22 of the 42 test images qualify — the
+# print below is the authority, and if the two disagree, believe the print.
 cracked = []
 for lbl in sorted(glob.glob(dataset.location + "/test/labels/*.txt")):
     if any(ln.strip().startswith(f'{CRACKED_IDX} ') for ln in open(lbl) if ln.strip()):
@@ -148,7 +196,9 @@ detection = {
     "mAP50": round(float(metrics.box.map50), 4),
     "apPerClass": ap_per_class,               # from Cell 4
     "sourceImage": os.path.basename(src),
-    "split": "test (held out)",
+    # The split BOTH claims rest on: the mAP above and the image below come from the
+    # same held-out set. If Cell 4 was run on validation, this string is a lie.
+    "split": f"{EVAL_SPLIT} (held out)",
 }
 json.dump(detection, open('out/b17_detection.json', 'w'), indent=2)
 print(json.dumps(detection, indent=2))
@@ -219,9 +269,11 @@ changed. The measurement leads; the story follows.
 ```python
 import shutil
 
-shutil.copy(best_weights, 'out/defect_yolov8n.pt')
-shutil.copy('surya/defect/results.csv', 'out/results.csv')
-shutil.copy('surya/defect/results.png', 'out/training_curves.png')
+# RUN_DIR and BEST come from Cell 3. Same reason as Cell 5: the run is not where the
+# short path says it is.
+shutil.copy(BEST, 'out/defect_yolov8n.pt')
+shutil.copy(RUN_DIR / 'results.csv', 'out/results.csv')
+shutil.copy(RUN_DIR / 'results.png', 'out/training_curves.png')
 
 # Note what is NOT here: b17_cellgrid.json and b17_thermal.png. The thermal artefacts
 # are local, measured, and committed. Shipping them in this zip is how you would

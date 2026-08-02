@@ -60,6 +60,22 @@ export function EvidenceStrip() {
         </div>
       )}
 
+      {/* WHAT THE RGB FRAME ACTUALLY IS. The detection is real, on an image the
+          model never saw — but the source dataset is ground-level photography, so
+          the frame is a panel on a floor with the photographer's shoes in it, not
+          an aerial capture of Bhadla. Presenting it as drone imagery would be the
+          one unforced error in an evidence panel built entirely around declared
+          provenance, and it is the first thing anyone will notice. Say it first. */}
+      {(evidence.rgb || evidence.rgbAnnotated) && detection && (
+        <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+          RGB frame is a <strong style={{ color: 'var(--text-secondary)' }}>detector
+          validation image</strong> from the held-out test split — ground-level
+          photography from the training dataset, not a capture of this site. The box
+          and the {confidence(detection.confidence)} are the model&rsquo;s real output
+          on an image it never saw. Thermal is a UAV frame; see the cell grid below.
+        </p>
+      )}
+
       {evidence.audio && (
         <div style={{ display: 'grid', gap: 3 }}>
           <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Inverter audio · INV-B</span>

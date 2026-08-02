@@ -3,29 +3,38 @@
 Kept current. If something on this list ships, it comes off the list; if something
 here is wrong, it is a bug in the document.
 
-Last reviewed: **2026-07-31**.
+Last reviewed: **2026-08-02**.
 
 ---
 
-## 1. The detector — the one outstanding claim
+## 1. The detector — ✅ DONE, 1 Aug 2026
 
-**Status: not done. Nothing about it is faked, which is why it is visible.**
+Trained on Colab T4, 50 epochs, 13 minutes. All artefacts committed; invariant **I11**
+went from `skip` to `PASS`.
 
-| Missing | Consequence on screen |
+| Figure | Value |
 |---|---|
-| `models/defect_yolov8n.pt` | no weights committed; nothing to show a judge who asks "what did you train?" |
-| `data/evidence/b17_rgb.jpg` | RGB slot in the evidence strip is absent, not empty |
-| `data/evidence/b17_rgb_annotated.jpg` | no burned-in box |
-| `data/evidence/b17_detection.json` | reticle shows the array's deviation instead of a confidence; invariant I11 is skipped |
-| measured mAP@50 / per-class AP | README has no metrics table |
+| AP@50 `Cracked` — **the number this project quotes** | **0.995** |
+| mAP@50, four-class mean (test, held out) | 0.9813 |
+| Evidence-frame confidence | 0.9084 |
+| `Dirty` | *undefined* — zero test instances, not 0.0 |
 
-The dataset is already downloaded (`dataset/rgb-solar-panel-fault-v2/`, CC BY 4.0,
-921 images). Training and inference run on Colab only — **this laptop never installs
-torch or ultralytics**. Procedure: `plan/COLAB-NOTEBOOK.md`, cells 1–5 and 7.
+Full table and provenance: `docs/dataset-provenance.md`.
 
-Report **AP@50 for `Cracked`** on its own alongside the five-class mean. `Saglam` has
-27 boxes and will drag the mean down; `Dirty` has zero test instances so its AP is
-undefined rather than 0.0.
+**One thing still to do here:** `docs/training/metrics.png` — the screenshot of Cell 4's
+output. `results.csv` and `training_curves.png` are in, the screenshot is not. It is
+corroboration for numbers that are already committed as data, so it is a nice-to-have.
+
+### Known limitation, stated on screen
+
+The source dataset is **ground-level photography**, so the evidence frame is a panel
+photographed on a floor, shoes in shot — not an aerial capture of Bhadla. The detection
+is genuine and on an image the model never saw; the *framing* is not site imagery. The
+evidence strip says exactly that beneath the thumbnails rather than letting the layout
+imply a drone took it.
+
+Closing this properly would need a UAV-perspective crack dataset. `Raptor Maps
+InfraredSolarModules` (already used for thermal) is IR-only, so it does not solve it.
 
 ## 2. Evidence media never captured
 
@@ -87,7 +96,10 @@ None of these appear in the product's own argument.
 
 ## Standing items for the operator (not code)
 
-- **Rotate the Roboflow API key** — it was in git history before the scrub.
-- **Run the Colab notebook** (cells 1–5 and 7) and commit the artefacts.
+- **Rotate the Roboflow API key.** The current one was pasted into a chat transcript on
+  1 Aug. Training is done and the key is no longer needed for anything, so rotating it
+  costs nothing.
+- **Screenshot Cell 4** into `docs/training/metrics.png`.
 - **Set `GROQ_API_KEY` on Vercel** — server-side, never `NEXT_PUBLIC_`.
+- **Deploy to Vercel.** Nothing blocks this now.
 - **Record the 90 seconds** (`docs/recording.md`) and measure the frame rate.

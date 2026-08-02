@@ -1,0 +1,20 @@
+{
+  "label": "Cracked",
+  "confidence": 0.9084,
+  "bbox": [
+    0.4495,
+    0.421,
+    0.3864,
+    0.5598
+  ],
+  "model": "yolov8n-solar-defect",
+  "mAP50": 0.9813,
+  "apPerClass": {
+    "BakimGereken": 0.94,
+    "Cracked": 0.995,
+    "Good": 0.995,
+    "Saglam": 0.995
+  },
+  "sourceImage": "IMG_0429_jpg.rf.c611273e2120a94dc0dc6bc9220b4196.jpg",
+  "split": "test (held out)"
+}

@@ -271,14 +271,17 @@ on `[18,74)`.
 ## What is not built
 
 The full, current list lives in **[`docs/backlog.md`](docs/backlog.md)** — what is
-missing, why, and what it would take. The two that matter most:
+missing, why, and what it would take. What is worth knowing up front:
 
-- **The detector is not trained.** `models/defect_yolov8n.pt` does not exist,
-  `data/evidence/b17_rgb.jpg` does not exist, and the README carries no measured
-  mAP@50. Everything else in this project can be checked; this is the one claim that
-  is currently unmade. It runs on Colab — see [`plan/COLAB-NOTEBOOK.md`](plan/COLAB-NOTEBOOK.md).
+- **The detector is trained and its metrics are real.** AP@50 **0.995** for `Cracked`
+  on the held-out test split; the evidence frame is a genuine detection at **0.9084**
+  on an image the model never saw. `docs/dataset-provenance.md` carries the per-class
+  table. Its one limitation is stated on screen: the source dataset is ground-level
+  photography, so the RGB frame is a detector validation image, not site imagery.
 - **Inverter acoustic and flyover clips.** Never captured. The evidence strip renders
   present slots and omits absent ones, so nothing on screen implies otherwise.
+- **Prognosis and recommendation have no live path** — only triage does. For arrays
+  other than B-17 those two sections are absent rather than borrowed.
 
 Deliberately out of scope: auth and accounts, responsive layout, a second site,
 historical browsing, map zoom.

@@ -140,8 +140,12 @@ function main(): void {
     console.log(`  ${'detection'.padEnd(26)} ${BOLD}${detection.label} ` +
       `@ ${detection.confidence}${OFF}  ${DIM}on ${detection.sourceImage} ` +
       `(${detection.split})${OFF}`);
-    console.log(`  ${'mAP@50, five-class mean'.padEnd(26)} ${BOLD}${detection.mAP50}${OFF}` +
-      `  ${DIM}depressed by classes the demo never uses${OFF}`);
+    // "five-class" was written before the run and was wrong: the mean covers only
+    // the classes with instances in the eval split, so it is a FOUR-class mean here.
+    // The count comes from the data rather than from the sentence.
+    const evaluated = Object.keys(detection.apPerClass).length;
+    console.log(`  ${`mAP@50, ${evaluated}-class mean`.padEnd(26)} ${BOLD}${detection.mAP50}${OFF}` +
+      `  ${DIM}classes with instances in ${detection.split}${OFF}`);
     for (const [cls, ap] of Object.entries(detection.apPerClass)) {
       const star = cls === 'Cracked' ? `  ${DIM}<- the only one on screen${OFF}` : '';
       console.log(`  ${`  AP@50 ${cls}`.padEnd(26)} ${ap}${star}`);

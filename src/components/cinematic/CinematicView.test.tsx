@@ -13,6 +13,7 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ConsoleRoot } from '@/components/console/ConsoleRoot';
+import { detection } from '@/lib/data';
 import { useDemoClock } from '@/store/demoClock';
 import { useSession } from '@/store/session';
 import { BEAT } from '@/store/selectors';
@@ -134,10 +135,22 @@ describe('target reticle claims only what was measured', () => {
     }
   });
 
-  it('says what is true when no detection exists yet', () => {
-    // Until the Colab run lands there is nothing to claim, so it says so rather
-    // than borrowing a number.
-    expect(cine(BEAT.rgbScan + 1)).toContain('surface scan in progress');
+  it('shows the model’s real confidence now that the detector has run', () => {
+    // Before Colab landed this asserted the fallback caption — there was nothing to
+    // claim, so the reticle said so rather than borrowing a number. The detector ran
+    // on 1 Aug 2026 and returned 0.9084 on a held-out test image, so the honest
+    // caption is now the measurement itself.
+    const text = cine(BEAT.rgbScan + 1);
+    expect(text).toContain('(0.91)');
+    expect(text).not.toContain('surface scan in progress');
+  });
+
+  it('quotes the committed detection rather than a literal', () => {
+    // The number on screen must be the one in data/evidence/b17_detection.json. If
+    // the detector is ever retrained, this fails rather than letting a stale figure
+    // survive in a component.
+    expect(detection).not.toBeNull();
+    expect(cine(BEAT.rgbScan + 1)).toContain(`(${detection!.confidence.toFixed(2)})`);
   });
 
   it('names the MODULE, not just the array — the reticle frames one panel', () => {

@@ -18,8 +18,30 @@ downloaded `data.yaml` / `README.dataset.txt`, not from the dataset's web page.
 | **Boxes** | **1,067** |
 | **Classes (5, verbatim)** | `BakimGereken`, `Cracked`, `Dirty`, `Good`, `Saglam` |
 | **Local copy** | `dataset/rgb-solar-panel-fault-v2/` (git-ignored; Colab re-downloads it) |
-| **mAP@50, five-class mean** | *pending — Colab, Cell 4. Do not round up.* |
-| **AP@50 `Cracked`** | *pending — **this** is the number this project may quote* |
+| **mAP@50, four-class mean** | **0.9813** — test split, held out. `Dirty` excluded: no test instances |
+| **AP@50 `Cracked`** | **0.995** — **this** is the number this project may quote |
+| **Evidence-frame confidence** | **0.9084** on `IMG_0429_jpg.rf.c611273e2120a94dc0dc6bc9220b4196.jpg` |
+| **Trained** | 1 Aug 2026 · YOLOv8n · 50 epochs · imgsz 640 · batch 16 · Colab T4 · 13 min |
+
+Per class, test split, as printed:
+
+| Class | AP@50 | Note |
+|---|---|---|
+| `BakimGereken` | 0.940 | "maintenance required" |
+| `Cracked` | **0.995** | the only class that reaches the UI |
+| `Dirty` | *undefined* | **zero test instances** — not 0.0, never evaluated |
+| `Good` | 0.995 | |
+| `Saglam` | 0.995 | "intact"; 27 boxes dataset-wide, so treat with care |
+
+**Say "four-class mean" and not "five-class".** `Dirty` is absent from the mean because it
+has nothing in the test split, and calling 0.9813 a five-class figure implies an evaluation
+that did not happen. The pre-run expectation written here — that `Saglam` would score near
+zero and drag the mean down — **did not hold**: it scored 0.995 on 12 test instances. The
+prediction was wrong and the measurement stands.
+
+**These are test-split numbers.** An earlier run of Cell 4 without `split='test'` scored the
+validation set and returned a four-point-lower 0.8948 mean; that figure is not this one and
+must not be quoted interchangeably.
 
 ### Where the metrics live once the run lands
 
@@ -52,7 +74,7 @@ Re-counted from the downloaded labels on 2026-07-28; the totals below are what
 ### Things to state honestly, not hide
 
 1. **Class names stay as shipped.** `CLAUDE.md` §11 proposes `["crack","soiling","delamination","hotspot"]`. This dataset ships five different labels, two of them Turkish. **Train and report the real ones.** Renaming them would describe a model that doesn't exist. Only `Cracked` reaches the UI.
-2. **Report per-class mAP@50, not just the overall figure.** `Saglam` has 27 boxes and will score near zero, dragging the mean down. The number that matters for this project is **AP@50 for `Cracked`**, and it deserves to be visible on its own rather than buried in a five-class mean that's depressed by a class we don't use.
+2. **Report per-class mAP@50, not just the overall figure.** The number that matters for this project is **AP@50 for `Cracked`**, and it deserves to be visible on its own rather than buried in a mean over classes the console never shows. *(Written before the run in the expectation that `Saglam` would drag the mean down. It did not — see the table above. The rule still holds; the reason given for it turned out not to apply.)*
 3. **`Good` and `Saglam` are near-duplicate concepts** ("good" / "intact"). They were *not* merged — merging would be a data modification requiring disclosure, and the honest path is to train on the labels as published and note the redundancy here.
 4. **`Dirty` has no test instances**, so any "test mAP" for it is undefined rather than zero. Don't report a 0.0 that implies the model failed at something it was never evaluated on.
 

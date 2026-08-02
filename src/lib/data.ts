@@ -56,7 +56,11 @@ export const getPanel = (id: string): PanelArray | undefined => panelById.get(id
  */
 export type EvidenceKey = 'thermal' | 'rgb' | 'rgbAnnotated' | 'audio' | 'flyover';
 
-const artefacts = artefactsJson as {
+// `as unknown as`, like every other import above and for the same reason: the JSON
+// widens `bbox` to number[] where the schema wants a 4-tuple, and validate:data has
+// already parsed this exact file against the Zod schema in prebuild. Narrowing it a
+// second time here would re-prove what the gate refuses to ship without.
+const artefacts = artefactsJson as unknown as {
   files: Record<EvidenceKey, string | null>;
   detection: Detection | null;
   agent: AgentCache | null;
