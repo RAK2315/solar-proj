@@ -108,22 +108,20 @@ The chart is identical for all 120 arrays, which is correct — it is the site's
 weather, and only the RISK badge, deadline and projected loss are per-array. But
 nothing on the chart says so, so it reads as a bug. One caption fixes it.
 
-## 5c. UI REDESIGN — in flight
+## 5c. UI REDESIGN — the highest-priority item after the bugs above 🔴
 
-The console is too dense to read: 10–13 px type throughout, ~25 facts stacked at equal
-weight in the right rail, no size hierarchy, and it is shown on a projector. A design
-brief has been written and handed to a UI-generation tool.
+**Full brief: [`docs/ui-brief.md`](ui-brief.md).** Read it before touching any
+component — it has the region-by-region diagnosis, the identity constraints, and the
+one rule a redesign must not break.
 
-**Preserve:** the ironbow ramp as the semantic colour language, IBM Plex Mono/Sans
-Condensed/Sans in their three roles, units on every number, IDs on every component,
-3 px max radius, dark only.
+Short version: the console is too dense to read. Type runs 10–13 px throughout with no
+hierarchy, the right rail stacks ~25 facts at equal weight, and it is shown on a
+projector. The owner has raised this more than once, weeks apart, about different parts
+of the same screen — it is the product's biggest remaining weakness and it outranks
+every feature on this list.
 
-**Replace freely:** layout, spacing, type scale, density, grouping, progressive
-disclosure, chart styling.
-
-The data layer, physics, selectors and stores do not change — this is a presentation
-swap. Do not let a redesign introduce a surface that claims something the data cannot
-support; the evidence-scoping rule (CLAUDE.md §0 rule 5) applies to new components too.
+The data layer does not change. This is a presentation swap inside `src/components/`
+plus `globals.css`; every selector keeps its signature.
 
 ## 6. Known cosmetic and structural gaps
 

@@ -48,9 +48,11 @@ Read this file completely before writing any code.
 > - **"Cell defects" heading appears twice** in the detail rail.
 > - **The forecast band is unlabelled as site-wide weather**, so it reads as a bug
 >   when it looks identical for every array.
-> - **A UI redesign is in flight.** The console is too dense — 10–13 px type
->   throughout, no hierarchy. Treat §12/§13 as the *identity* to preserve (ironbow
->   ramp, IBM Plex, units on every number) and the *layout* as replaceable.
+> - **A UI redesign is the top priority after those.** The console is too dense to
+>   read — 10–13 px type throughout, no hierarchy, ~25 facts at equal weight in the
+>   right rail, on a projector. **Read `docs/ui-brief.md`.** Treat §12 as the
+>   *identity* to preserve (ironbow ramp, IBM Plex in three roles, units on every
+>   number, IDs on every component) and §13's layout as fully replaceable.
 
 > ### ⚠️ Corrections applied 2026-07-28 — read `docs/contract-freeze.md` first
 >
