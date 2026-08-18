@@ -31,11 +31,21 @@ function at(siteSeconds: number, panelId: string | null = null): string {
   return textNow();
 }
 
+/**
+ * The captured frames and the cell grid live in the dossier now, which in live
+ * mode the operator opens — so a test about what the evidence SAYS has to open it
+ * first, exactly as an operator would. Tests about what the rail OFFERS do not.
+ */
+function withDossier(siteSeconds: number, panelId: string): string {
+  useSession.setState({ siteSeconds, selectedPanelId: panelId, dossierOpen: true });
+  return textNow();
+}
+
 beforeEach(() => {
   useSession.setState({
     mode: 'live', module: 'site', siteSeconds: 0, running: true,
     selectedPanelId: null, missions: [], workOrders: [],
-    overrides: [], injected: [], feedFilter: 'all',
+    overrides: [], injected: [], feedFilter: 'all', dossierOpen: false,
   });
   useDemoClock.setState({ t: 0, playing: false, approved: false, debug: false });
 });
@@ -166,30 +176,37 @@ describe('the anomaly matrix reads the live inspection, not the demo clock', () 
 
     // Ten cells in: the first hot cell of the row-2 band has been read, the
     // second has not. A grid that appeared whole would show both.
-    const text = at(elapsedAtFill(10), 'B-17');
+    const text = withDossier(elapsedAtFill(10), 'B-17');
     expect(text).toContain('R2 · C3');
     expect(text).not.toContain('R2 · C4');
   });
 
   it('shows the whole measured band once the scan completes', () => {
     useSession.getState().dispatch('B-17');
-    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    const text = withDossier(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
     for (const col of [3, 4, 5, 6]) expect(text).toContain(`R2 · C${col}`);
   });
 
   it('holds the grid after the drone has flown home', () => {
     useSession.getState().dispatch('B-17');
-    expect(at(MISSION_TOTAL + 600, 'B-17')).toContain('R2 · C3');
+    expect(withDossier(MISSION_TOTAL + 600, 'B-17')).toContain('R2 · C3');
   });
 
   it('stays empty for an array no drone has inspected', () => {
-    expect(at(FAULT_AT + 600, 'B-17')).not.toContain('R2 · C3');
+    expect(withDossier(FAULT_AT + 600, 'B-17')).not.toContain('R2 · C3');
   });
 
   it('renders the ΔT list exactly once', () => {
     useSession.getState().dispatch('B-17');
-    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    const text = withDossier(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
     expect(text.match(/R2 · C3/g)).toHaveLength(1);
+  });
+
+  it('is not on screen until the operator opens it', () => {
+    useSession.getState().dispatch('B-17');
+    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    expect(text).toContain('Open inspection dossier');
+    expect(text).not.toContain('R2 · C3');
   });
 
   /**
@@ -199,14 +216,14 @@ describe('the anomaly matrix reads the live inspection, not the demo clock', () 
    */
   it('brings back the captured frames, not just the numbers derived from them', () => {
     useSession.getState().dispatch('B-17');
-    const text = at(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
+    const text = withDossier(MISSION.outbound + MISSION.inspecting + 1, 'B-17');
     expect(text).toContain('THERMAL');
     expect(text).toContain('RGB');
   });
 
   it('shows the RGB pass before the thermal pass, as the drone flies them', () => {
     useSession.getState().dispatch('B-17');
-    const text = at(elapsedAt(M.rgb) + 1, 'B-17');
+    const text = withDossier(elapsedAt(M.rgb) + 1, 'B-17');
     expect(text).toContain('RGB');
     expect(text).not.toContain('R2 · C3');
   });
@@ -227,8 +244,10 @@ describe('the console refuses to claim what has not happened', () => {
     useSession.getState().dispatch('B-17');
     const done = MISSION.outbound + MISSION.inspecting + 1;
     const text = at(done, 'B-17');
-    expect(text).toContain('Anomaly matrix');
+    // The evidence moved into the dossier; the rail offers it and arms the gate.
+    expect(text).toContain('Open inspection dossier');
     expect(text).toContain('APPROVE — CREATE WORK ORDER');
+    expect(withDossier(done, 'B-17')).toContain('Anomaly matrix');
   });
 });
 
@@ -243,7 +262,7 @@ describe('evidence belongs to the array it was captured from', () => {
 
   it('shows the cell grid for the array it was measured on', () => {
     useSession.getState().dispatch('B-17');
-    const text = at(DONE, 'B-17');
+    const text = withDossier(DONE, 'B-17');
     expect(text).toContain('Anomaly matrix');
     expect(text).toContain('Cell defects');
     expect(text).not.toContain('No cell-level capture on file');

@@ -30,7 +30,15 @@ import { useTriage } from '@/store/triage';
 /** How far site time may move before the card's figures need a caveat. */
 const STALE_AFTER_SITE_HOURS = 0.5;
 
-export function LiveTriage() {
+/**
+ * `compact` — the rail wants the verdict, the dossier wants the reasoning.
+ *
+ * The full card is a 5-line justified paragraph, a second paragraph, a provenance
+ * line and a staleness warning. That is the right amount of detail to READ and the
+ * wrong amount to GLANCE at, so the rail takes the first paragraph and the dossier
+ * takes all of it.
+ */
+export function LiveTriage({ compact = false }: { compact?: boolean }) {
   const mode = useMode();
   const panelId = useSelectedPanelId();
   const siteSeconds = useSiteSeconds();
@@ -119,9 +127,11 @@ export function LiveTriage() {
         {typographic(t.reasoning)}
       </p>
 
-      <p className="t-prose" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-        {typographic(t.verificationRationale)}
-      </p>
+      {!compact && (
+        <p className="t-prose" style={{ color: 'var(--text-secondary)', margin: 0 }}>
+          {typographic(t.verificationRationale)}
+        </p>
+      )}
 
       <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
         suspect {t.suspectComponent} · severity {t.severity} · confidence{' '}
@@ -129,10 +139,12 @@ export function LiveTriage() {
         {t.requiresPhysicalVerification ? 'REQUIRED' : 'not required'}
       </span>
 
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-        Every number above was checked against this array&rsquo;s telemetry before it
-        was shown.
-      </span>
+      {!compact && (
+        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+          Every number above was checked against this array&rsquo;s telemetry before it
+          was shown.
+        </span>
+      )}
     </article>
   );
 }

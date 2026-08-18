@@ -142,12 +142,26 @@ export interface SessionState {
 
   feedFilter: FeedFilter;
 
+  /**
+   * Is the dossier open over the map?
+   *
+   * It lives in the store rather than in DetailPanel's own `useState` because
+   * ConsoleRoot has to stay a pure function of the store: the cinematic renders a
+   * SECOND instance of it as the PiP, and two instances holding their own copy of
+   * this would disagree about what the operator is looking at.
+   *
+   * Deliberately NOT persisted. A refresh should restore the site and the work
+   * orders, not reopen a panel the operator had closed.
+   */
+  dossierOpen: boolean;
+
   setMode: (m: Mode) => void;
   setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
   setTimeScale: (s: number) => void;
   toggleRunning: () => void;
   cycleFeedFilter: () => void;
+  setDossier: (open: boolean) => void;
 
   dispatch: (panelId: string) => void;
   createWorkOrder: (panelId: string, note: string) => void;
@@ -200,6 +214,7 @@ const initial = {
   overrides: [] as Override[],
   injected: [] as ScenarioEvent[],
   feedFilter: 'all' as FeedFilter,
+  dossierOpen: false,
 };
 
 const FILTER_CYCLE: FeedFilter[] = ['all', 'warning', 'critical'];
@@ -211,8 +226,11 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   // the map. Otherwise pressing M mid-demo would play the beats behind a screen
   // that cannot show them.
   setMode: (mode) => set(mode === 'demo' ? { mode, module: 'site' } : { mode }),
-  setModule: (module) => set({ module }),
-  selectPanel: (selectedPanelId) => set({ selectedPanelId }),
+  setModule: (module) => set({ module, dossierOpen: false }),
+  // Selecting a different array behind an open dossier would leave the operator
+  // reading one array's evidence under another's heading. Close it.
+  selectPanel: (selectedPanelId) => set({ selectedPanelId, dossierOpen: false }),
+  setDossier: (dossierOpen) => set({ dossierOpen }),
   setTimeScale: (timeScale) => set({ timeScale }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
 

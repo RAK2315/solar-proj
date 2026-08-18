@@ -567,6 +567,26 @@ export function useInspected(panelId: string): boolean {
   );
 }
 
+/**
+ * Is the dossier on screen?
+ *
+ * Two reasons to be open, same component. In LIVE mode the operator opens it —
+ * it is their evidence to read when they choose. In DEMO mode it is a pure
+ * function of `t`, because the recording is a console being DRIVEN: the dossier
+ * opens when the frames come back and closes when the recommendation lands, which
+ * hands the map back for the approval beat where B-17 turns amber.
+ *
+ * Deriving it in demo mode rather than storing it is what keeps the
+ * seek-backwards guarantee: scrub to t=12 and it is shut, every time.
+ */
+export function useDossierOpen(): boolean {
+  const mode = useSession((s) => s.mode);
+  const t = useDemoClock((s) => s.t);
+  const open = useSession((s) => s.dossierOpen);
+  if (mode === 'demo') return t >= BEAT.rgbScan && t < BEAT.recommendation;
+  return open;
+}
+
 /** Whether the operator has picked an array to look at. */
 export const useHasSelection = (): boolean => {
   const mode = useSession((s) => s.mode);

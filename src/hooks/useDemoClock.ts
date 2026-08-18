@@ -63,6 +63,7 @@ export function useDemoClockDriver(): void {
  *   C V     force console / cinematic (press again to hand the view back to t)
  *   D       show / hide the debug readout
  *   M       switch between LIVE and DEMO
+ *   Esc     close the dossier
  *
  * In live mode only Space (pause site time), D and M apply — seeking a live site
  * would be a lie about what a console can do.
@@ -75,6 +76,13 @@ export function useRehearsalKeys(): void {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useDemoClock.getState();
       const session = useSession.getState();
+
+      // Escape closes the dossier before anything else looks at the key, so it
+      // works in both modes and never falls through to a rehearsal control.
+      if (e.key === 'Escape') {
+        if (session.dossierOpen) session.setDossier(false);
+        return;
+      }
 
       // `M` swaps between the live console and the scripted demo. Everything below
       // it only makes sense in demo mode, where `t` is the timeline.

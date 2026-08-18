@@ -16,6 +16,7 @@
 
 import { useMode, useModule } from '@/store/selectors';
 import { DetailPanel } from './DetailPanel';
+import { Dossier } from './Dossier';
 import { FarmMap } from './FarmMap';
 import { HeaderBar } from './HeaderBar';
 import { IconRail } from './IconRail';
@@ -49,6 +50,10 @@ export function ConsoleRoot() {
       <LeftRail />
       <ModuleArea />
       <RepairQueueBar />
+      {/* Last child, positioned against .console-root rather than the viewport —
+          the PiP renders a second ConsoleRoot inside a scale(0.31) wrapper and a
+          fixed overlay would escape it to cover the whole screen. */}
+      <Dossier />
     </div>
   );
 }

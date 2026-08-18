@@ -76,7 +76,15 @@ function StageCard({
   );
 }
 
-export function AgentReasoning() {
+/**
+ * `stages` — the rail carries TRIAGE only and the dossier carries all three.
+ *
+ * §2 has the triage card streaming into the console at t=10, so it cannot simply
+ * move out of the rail. But three streaming paragraphs stacked in a 448px column
+ * is a third of the density complaint on its own, so prognosis and recommendation
+ * are read where there is room to read them.
+ */
+export function AgentReasoning({ stages = 'all' }: { stages?: 'triage' | 'all' }) {
   const cache = useAgentCache();
   if (!cache) return null;
   const { triage, prognosis, recommendation, meta } = cache;
@@ -96,6 +104,7 @@ export function AgentReasoning() {
         }
       />
 
+      {stages === 'triage' ? null : <>
       <StageCard
         stage="Prognosis"
         model={meta.model}
@@ -122,6 +131,7 @@ export function AgentReasoning() {
           </ol>
         }
       />
+      </>}
     </div>
   );
 }

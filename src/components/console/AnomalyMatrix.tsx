@@ -9,13 +9,19 @@
  * at it and understands instantly that the system localised the fault to specific
  * cells.
  *
- * Cells fill ONE AT A TIME in scan order across t=48..56, driven by the clock. Do
- * not fade the whole grid in — the sequential fill is what sells that a sensor is
- * reading it.
+ * IT USED TO RENDER AT 22px PER CELL inside the 448px rail — smaller than the text
+ * beside it, for the one element this product should be remembered by. It lives in
+ * the dossier now and `cellSize` is a prop, so the room it gets is the caller's
+ * decision rather than a constant buried here.
+ *
+ * Cells fill ONE AT A TIME in scan order across the thermal beat. Do not fade the
+ * whole grid in — the sequential fill is what sells that a sensor is reading it.
  *
  * The per-cell defect list sits directly beneath, so the grid and the text are
- * visibly the same data. That list is also the accessible channel: the ironbow ramp
- * is not colourblind-safe through the magenta→red range, so ΔT is always printed.
+ * visibly the same data, and it is the ONLY copy of that list: a second one used
+ * to live in Findings.tsx under a duplicate heading. The list is also the
+ * accessible channel — the ironbow ramp is not colourblind-safe through the
+ * magenta→red range, so ΔT is always printed.
  *
  * The ramp itself lives in src/lib/ironbow.ts, shared with the GLSL LUT in
  * ThermalPass and checked against globals.css by ironbow.test.ts. Both must
@@ -27,23 +33,27 @@ import { deltaT } from '@/lib/format';
 import { ironbowForDeltaT } from '@/lib/ironbow';
 import { useCellGrid, useMatrixFillCount } from '@/store/selectors';
 
-export function AnomalyMatrix() {
+export function AnomalyMatrix({ cellSize = 64 }: { cellSize?: number }) {
   const grid = useCellGrid();
   const filled = useMatrixFillCount();
 
   const isDefect = (r: number, c: number) =>
     grid.defects.some((d) => d.row === r + 1 && d.col === c + 1);
 
+  const gutter = Math.max(18, Math.round(cellSize * 0.42));
+
   return (
-    <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: 'var(--sp-2)' }}>
+    <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: `${gutter}px 1fr`, gap: 'var(--sp-2)',
+      }}>
         <span />
         <div style={{
-          display: 'grid', gridTemplateColumns: `repeat(${grid.cols}, 1fr)`, gap: 3,
+          display: 'grid', gridTemplateColumns: `repeat(${grid.cols}, 1fr)`, gap: 4,
         }}>
           {Array.from({ length: grid.cols }, (_, c) => (
-            <span key={c} className="t-micro"
-              style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{c + 1}</span>
+            <span key={c} className="t-label"
+              style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>{c + 1}</span>
           ))}
         </div>
 
@@ -54,16 +64,17 @@ export function AnomalyMatrix() {
             row={row}
             cols={grid.cols}
             filled={filled}
+            cellSize={cellSize}
             isDefect={isDefect}
           />
         ))}
       </div>
 
       {/* The list makes the grid legible, and is the accessible channel. */}
-      <div style={{ display: 'grid', gap: 3 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Cell defects</span>
-          <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+      <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span className="t-h2" style={{ color: 'var(--text-primary)' }}>Cell defects</span>
+          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
             {grid.clusters} cluster · baseline {grid.baselineTempC.toFixed(1)} °C
           </span>
         </div>
@@ -74,10 +85,16 @@ export function AnomalyMatrix() {
             const index = (d.row - 1) * grid.cols + (d.col - 1);
             if (index >= filled) return null;
             return (
-              <div key={`${d.row}-${d.col}`} className="t-data"
-                style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  R{d.row} · C{d.col} <span style={{ color: 'var(--text-muted)' }}>{d.type}</span>
+              <div key={`${d.row}-${d.col}`}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  borderBottom: '1px solid var(--line-hairline)', padding: '4px 0',
+                }}>
+                <span className="t-data" style={{ color: 'var(--text-primary)' }}>
+                  R{d.row} · C{d.col}
+                  <span className="t-label" style={{ color: 'var(--text-secondary)', marginLeft: 10 }}>
+                    {d.type}
+                  </span>
                 </span>
                 <span className="t-data-em" style={{ color: ironbowForDeltaT(d.deltaTC) }}>
                   {deltaT(d.deltaTC)}
@@ -85,7 +102,7 @@ export function AnomalyMatrix() {
               </div>
             );
           })}
-        <span className="t-micro" style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
           ΔT is a cell mean under a declared {grid.thermalSpanC} °C span — the source is
           normalised 8-bit, not radiometric.
         </span>
@@ -95,17 +112,17 @@ export function AnomalyMatrix() {
 }
 
 function RowLabelAndCells({
-  r, row, cols, filled, isDefect,
+  r, row, cols, filled, cellSize, isDefect,
 }: {
-  r: number; row: number[]; cols: number; filled: number;
+  r: number; row: number[]; cols: number; filled: number; cellSize: number;
   isDefect: (r: number, c: number) => boolean;
 }) {
   return (
     <>
-      <span className="t-micro" style={{ color: 'var(--text-muted)', alignSelf: 'center' }}>
+      <span className="t-label" style={{ color: 'var(--text-secondary)', alignSelf: 'center' }}>
         R{r + 1}
       </span>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 3 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4 }}>
         {row.map((dt, c) => {
           const index = r * cols + c;
           const on = index < filled;
@@ -115,10 +132,10 @@ function RowLabelAndCells({
               key={c}
               title={on ? `R${r + 1} C${c + 1} ${deltaT(dt)}` : undefined}
               style={{
-                height: 22,
+                height: cellSize,
                 background: on ? ironbowForDeltaT(dt) : 'var(--surface-inset)',
                 border: on && defect
-                  ? '1px solid var(--iron-100)'
+                  ? '2px solid var(--iron-100)'
                   : '1px solid var(--line-hairline)',
                 transition: 'background 120ms linear',
               }}

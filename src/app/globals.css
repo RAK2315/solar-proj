@@ -157,12 +157,27 @@ body {
 }
 
 /* ── Type scale ──────────────────────────────────────────────────────────────
+   REBUILT. The old scale ran 10px→13px for everything but one 34px KPI, so a
+   0.0 % reading and a −41.7 % CRITICAL reading were the same size and weight,
+   section headers were the same size as the body beneath them, and 10px carried
+   real content — provenance, model IDs, the ΔT scaling note — on a projector.
+   Structure was invisible because nothing was bigger than anything else.
+
+   The rule this scale is built to: THE NUMBER THAT MATTERS IS ~4× THE LABEL
+   BESIDE IT. `--t-hero` 52px against `.t-label` 12px is 4.3×. It was 1.1×.
+
+   Three roles, unchanged and non-negotiable: Mono for every number and
+   identifier, Sans Condensed uppercase for headers and buttons, Sans for agent
+   prose ONLY.
+
    NOTE: the `font:` shorthand RESETS font-variant-numeric to normal, so the
    tabular-nums set on :root is wiped out on exactly the elements that hold
    numbers. Every mono class restates it. Do not "tidy" these away.
    ───────────────────────────────────────────────────────────────────────────── */
 
+.t-hero,
 .t-kpi,
+.t-value,
 .t-data,
 .t-data-em,
 .t-micro,
@@ -170,39 +185,62 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.t-kpi {
-  font: 700 34px/1 var(--font-mono);
+/* The single most important number on the screen. One per region, never two —
+   two heroes is the same as none. */
+.t-hero {
+  font: 700 52px/1 var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.t-kpi {
+  font: 700 44px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 .t-kpi-unit {
-  font: 600 12px/1 var(--font-cond);
+  font: 600 13px/1 var(--font-cond);
   text-transform: uppercase;
   letter-spacing: 0.12em;
+}
+/* Second tier: readings that matter but are not the headline — cell temperature,
+   irradiance, output. Big enough to scan without competing with the hero. */
+.t-value {
+  font: 600 26px/1.05 var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .t-h1 {
-  font: 600 13px/1.2 var(--font-cond);
+  font: 600 15px/1.2 var(--font-cond);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
 }
 .t-h2 {
-  font: 600 11px/1.2 var(--font-cond);
+  font: 600 12px/1.2 var(--font-cond);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+}
+/* The label half of a label/value pair. Deliberately quiet — it exists to be
+   read once and then ignored in favour of the number. */
+.t-label {
+  font: 500 12px/1.3 var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .t-data {
-  font: 400 12px/1.45 var(--font-mono);
+  font: 400 14px/1.5 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 .t-data-em {
-  font: 600 12px/1.45 var(--font-mono);
+  font: 600 15px/1.45 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 .t-prose {
   /* The ONLY place non-condensed sans appears. */
-  font: 400 13px/1.55 var(--font-sans);
+  font: 400 15px/1.62 var(--font-sans);
 }
+/* Timestamps, model IDs, provenance. 10px meant nobody read it, which made the
+   provenance decorative — the opposite of the point of printing it. */
 .t-micro {
-  font: 500 10px/1.3 var(--font-mono);
+  font: 500 11px/1.4 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 .t-log {
@@ -223,6 +261,12 @@ body {
   width: var(--shell-w);
   height: var(--shell-h);
   background: var(--surface-void);
+  /* The dossier is positioned against THIS, not the viewport. The cinematic PiP
+     renders a second ConsoleRoot inside a scale(0.31) wrapper — a fixed-position
+     overlay would escape that transform and cover the whole screen from inside a
+     thumbnail. Absolute inside a transformed ancestor stays in the thumbnail. */
+  position: relative;
+  overflow: hidden;
 }
 
 .area-header { grid-area: header; }
@@ -236,17 +280,85 @@ body {
    because events do not stop happening because you changed screens. */
 .area-module { grid-column: 3 / 5; grid-row: 2; min-width: 0; }
 
+/* ── The dossier ─────────────────────────────────────────────────────────────
+   Everything that made the right rail a wall — the anomaly matrix, the captured
+   frames, the full three-stage agent reasoning, the forecast band, the timeline
+   — renders here instead, over the map, at a size that suits it. The rail keeps
+   the glance; this holds the argument.
+
+   It is not a modal for its own sake. The matrix is a 5×7 physical map of a
+   panel's cells and it was rendering at 22px per cell inside a 448px column,
+   smaller than the text around it. Here it gets 64px cells.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--surface-void) 88%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.dossier {
+  width: 1360px;
+  max-height: 912px;
+  background: var(--surface-panel);
+  border: 1px solid var(--line-active);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+/* Two columns: the measurement on the left, the reasoning on the right. They are
+   different KINDS of claim and putting them in one scroll made them read as one. */
+.dossier-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dossier-col {
+  padding: var(--sp-5) var(--sp-6);
+  overflow-y: auto;
+  min-height: 0;
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+/* A labelled group. The rule above it is what makes structure visible at a
+   glance — the old rail separated sections with 12px of space and nothing else. */
+.group > h2,
+.group > header {
+  margin: 0 0 var(--sp-3);
+}
+.group + .group {
+  border-top: 1px solid var(--line-active);
+  padding-top: var(--sp-5);
+}
+
 /* Badges and chips — the reference console labels every state in words as well as
    colour, which is both the accessibility fix and what makes it read as an
    instrument rather than a dashboard. */
 .badge {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border: 1px solid currentColor;
-  font: 600 10px/1.2 var(--font-cond);
+  font: 600 12px/1.2 var(--font-cond);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   white-space: nowrap;
+}
+
+/* Severity at projector distance. A 2px left border and a 10px badge were the
+   only difference between an info boot message and a critical shortfall. */
+.badge-lg {
+  padding: 5px 12px;
+  font: 700 14px/1.2 var(--font-cond);
+  letter-spacing: 0.14em;
 }
 .badge-solid {
   border-color: transparent;
