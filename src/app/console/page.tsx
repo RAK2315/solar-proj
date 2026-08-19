@@ -1,0 +1,62 @@
+'use client';
+
+/**
+ * The console. One route, two views (plan/04 §8).
+ *
+ * It moved from `/` to `/console` when the landing page arrived. Nothing inside it
+ * knows about routing — the two views are still chosen by the clock and the flight
+ * cue, exactly as before.
+ *
+ * Both views stay MOUNTED and are shown by visibility, never by conditional
+ * render. Two reasons, and the second is the load-bearing one:
+ *   1. Switching views must not cost a mount — the cuts at t=18 and t=74 are hard.
+ *   2. At Phase 7 the cinematic contains a second live <ConsoleRoot /> as the PiP.
+ *      If the console unmounted whenever the cinematic was up, the PiP would be
+ *      showing a component tree that had just been destroyed and rebuilt.
+ */
+
+import { MotionConfig } from 'framer-motion';
+
+import { CinematicView } from '@/components/cinematic/CinematicView';
+import { ConsoleRoot } from '@/components/console/ConsoleRoot';
+import { DebugReadout } from '@/components/DebugReadout';
+import { useActiveView } from '@/store/flightCue';
+
+export default function Page() {
+  // Mode-aware: `t` decides during the scripted run, a dispatched mission decides
+  // in live mode, and the C/V rehearsal keys override both.
+  const view = useActiveView();
+
+  return (
+    // reducedMotion="user" makes framer-motion honour the OS setting. The CSS
+    // media query in globals.css cannot reach JS-driven animation, and the feed's
+    // slide-in is JS-driven. The MATRIX FILL deliberately still runs under reduced
+    // motion — it is information, not decoration (plan/04 §5).
+    <MotionConfig reducedMotion="user">
+    <main
+      style={{
+        width: 'var(--shell-w)',
+        height: 'var(--shell-h)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        aria-hidden={view !== 'console'}
+        style={{ position: 'absolute', inset: 0, visibility: view === 'console' ? 'visible' : 'hidden' }}
+      >
+        <ConsoleRoot />
+      </div>
+
+      <div
+        aria-hidden={view !== 'cinematic'}
+        style={{ position: 'absolute', inset: 0, visibility: view === 'cinematic' ? 'visible' : 'hidden' }}
+      >
+        <CinematicView />
+      </div>
+
+      <DebugReadout />
+    </main>
+    </MotionConfig>
+  );
+}
