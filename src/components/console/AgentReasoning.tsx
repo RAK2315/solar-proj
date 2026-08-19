@@ -18,6 +18,7 @@
  */
 
 import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 import { typographic } from '@/lib/format';
 import { BEAT, useAgentCache, useStreamedText } from '@/store/selectors';
@@ -37,14 +38,24 @@ function StageCard({
 
   return (
     <article style={{
-      borderLeft: '2px solid var(--sev-active)',
-      background: 'var(--surface-raised)',
-      padding: 'var(--sp-2) var(--sp-3)',
+      border: '1px solid var(--sev-active)',
+      background: 'color-mix(in srgb, var(--sev-active) 6%, var(--surface-panel))',
+      padding: 'var(--sp-3)',
       display: 'grid', gap: 'var(--sp-2)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
-        <span className="t-h2" style={{ color: 'var(--sev-active)' }}>{stage}</span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{model}</span>
+      {/* A full teal outline rather than a left edge. The keyed-edge treatment is
+          the console's device for SEVERITY; the agent is not a severity, and giving
+          its prose the same shape as an alarm made a paragraph look like a fault.
+          An outlined box says "a different kind of claim". */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        gap: 'var(--sp-2)',
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Sparkles size={13} strokeWidth={2} aria-hidden style={{ color: 'var(--sev-active)' }} />
+          <span className="t-h2" style={{ color: 'var(--sev-active)' }}>{stage}</span>
+        </span>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{model}</span>
       </div>
 
       <p className="t-prose" style={{ color: 'var(--text-primary)', margin: 0 }}>
@@ -63,13 +74,10 @@ function StageCard({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="btn-reset t-micro"
-          style={{
-            color: 'var(--sev-active)',
-            justifySelf: 'start',
-          }}
+          className="btn-reset t-h2"
+          style={{ color: 'var(--sev-active)', justifySelf: 'start' }}
         >
-          {expanded ? 'show less ‹' : 'show more ›'}
+          {expanded ? 'Show less ‹' : 'Show more ›'}
         </button>
       )}
     </article>
@@ -97,7 +105,7 @@ export function AgentReasoning({ stages = 'all' }: { stages?: 'triage' | 'all' }
         text={`${triage.reasoning} ${triage.verificationRationale}`}
         startT={BEAT.triage}
         meta={
-          <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
             suspect {triage.suspectComponent} · severity {triage.severity} ·
             {' '}physical verification {triage.requiresPhysicalVerification ? 'REQUIRED' : 'not required'}
           </span>
@@ -111,7 +119,7 @@ export function AgentReasoning({ stages = 'all' }: { stages?: 'triage' | 'all' }
         text={prognosis.reasoning}
         startT={BEAT.prognosis}
         meta={
-          <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
             {prognosis.degradationMechanism} · risk {prognosis.riskLevel} ·
             {' '}act before {prognosis.actBefore}
           </span>

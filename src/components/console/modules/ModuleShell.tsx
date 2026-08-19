@@ -1,12 +1,16 @@
 'use client';
 
 /**
- * The chrome every module screen sits in: a title, a one-line statement of what
- * the screen is looking at, and a scrolling body.
+ * The chrome every module screen sits in: a title set at hero size, a one-line
+ * statement of what the screen is looking at, an action slot, and a scrolling body.
  *
- * Shared so the five screens cannot drift into five different-looking pages. Same
- * hairline sections and uppercase condensed headers as the detail rail — a module
- * is a different view of the same console, not a different application.
+ * Shared so the six screens cannot drift into six different-looking pages. The
+ * title is 52px because these screens have no map to anchor them — on the site
+ * screen the map tells you where you are at a glance, and a module screen needs
+ * something to do that job or it reads as a table that appeared from nowhere.
+ *
+ * Same hairline sections and condensed caps headers as the detail rail: a module is
+ * a different view of the same console, not a different application.
  */
 
 import type { ReactNode } from 'react';
@@ -19,26 +23,36 @@ export function ModuleShell({ title, subtitle, action, children }: {
 }) {
   return (
     <section
-      className="area-module panel"
+      className="area-module"
       aria-label={title}
-      style={{ display: 'grid', gridTemplateRows: 'auto 1fr', minHeight: 0 }}
+      style={{
+        display: 'grid', gridTemplateRows: 'auto 1fr', minHeight: 0,
+        background: 'var(--surface-void)',
+      }}
     >
-      <header style={{
-        display: 'flex', alignItems: 'baseline', gap: 'var(--sp-3)',
+      <header className="panel hair-b" style={{
+        display: 'flex', alignItems: 'center', gap: 'var(--sp-5)',
         padding: 'var(--sp-4) var(--sp-5)',
-        borderBottom: '1px solid var(--line-hairline)',
       }}>
-        <h1 className="t-h1" style={{ color: 'var(--text-primary)' }}>
-          <span style={{ color: 'var(--sev-active)', marginRight: 6 }}>●</span>
+        <h1 className="t-hero" style={{
+          color: 'var(--sev-active)', margin: 0, letterSpacing: '0.02em',
+          textTransform: 'uppercase', whiteSpace: 'nowrap',
+        }}>
           {title}
         </h1>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{subtitle}</span>
-        <div style={{ marginLeft: 'auto' }}>{action}</div>
+        <span className="t-micro" style={{
+          color: 'var(--text-secondary)', letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          borderLeft: '1px solid var(--line-active)', paddingLeft: 'var(--sp-5)',
+          alignSelf: 'stretch', display: 'flex', alignItems: 'center',
+        }}>
+          {subtitle}
+        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--sp-2)' }}>{action}</div>
       </header>
 
-      <div style={{
-        overflowY: 'auto', padding: 'var(--sp-5)',
-        display: 'grid', gap: 'var(--sp-5)', alignContent: 'start',
+      <div className="scroll-y" style={{
+        padding: 'var(--sp-5)', display: 'grid', gap: 'var(--sp-5)', alignContent: 'start',
       }}>
         {children}
       </div>
@@ -51,15 +65,14 @@ export function Block({ title, note, children }: {
   title: string; note?: string; children: ReactNode;
 }) {
   return (
-    <section style={{ display: 'grid', gap: 'var(--sp-3)' }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        borderBottom: '1px solid var(--line-hairline)', paddingBottom: 'var(--sp-2)',
-      }}>
-        <h2 className="t-h2" style={{ color: 'var(--text-secondary)' }}>{title}</h2>
-        {note && <span className="t-micro" style={{ color: 'var(--text-muted)' }}>{note}</span>}
+    <section className="slab">
+      <header>
+        <h2 className="t-h1" style={{ color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
+        {note && <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{note}</span>}
+      </header>
+      <div className="slab-body" style={{ display: 'grid', gap: 'var(--sp-4)' }}>
+        {children}
       </div>
-      {children}
     </section>
   );
 }
@@ -73,17 +86,25 @@ export function Block({ title, note, children }: {
  */
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <p className="t-data" style={{
-      color: 'var(--text-muted)',
-      border: '1px dashed var(--line-hairline)',
+    <p className="t-prose" style={{
+      color: 'var(--text-secondary)',
+      background: 'var(--surface-inset)',
+      borderLeft: '3px solid var(--line-active)',
       padding: 'var(--sp-4)',
+      margin: 0,
     }}>
       {children}
     </p>
   );
 }
 
-/** Dense monospace table. Every module that lists things uses this one. */
+/**
+ * Dense monospace table. Every module that lists things uses this one.
+ *
+ * No row stripes, no vertical rules, 1px horizontal dividers only, condensed caps
+ * in the header — the reference console's table rules, and the reason a 12-column
+ * repair queue is readable at all.
+ */
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -93,15 +114,18 @@ export function Table({ head, children }: { head: string[]; children: ReactNode 
             {head.map((h, i) => (
               <th
                 key={h}
-                className="t-micro"
+                className="t-label"
                 style={{
                   textAlign: i === 0 ? 'left' : 'right',
-                  color: 'var(--text-muted)', fontWeight: 500,
+                  color: 'var(--text-secondary)',
                   padding: '0 var(--sp-3) var(--sp-2) 0',
-                  borderBottom: '1px solid var(--line-hairline)',
+                  borderBottom: '1px solid var(--line-active)',
                   whiteSpace: 'nowrap',
                 }}
               >
+                {/* Uppercased in the STRING, not only by text-transform: a header
+                    an operator reads as "LOSS MWH/D" should also be that in the
+                    accessibility tree and in the acceptance tests. */}
                 {h.toUpperCase()}
               </th>
             ))}
@@ -129,5 +153,27 @@ export function Cell({ children, first = false, colour, emphasis = false }: {
     >
       {children}
     </td>
+  );
+}
+
+/** A button in a module header or a block. Solid slab, condensed caps, no radius. */
+export function Action({ children, onClick, primary = false, ariaLabel }: {
+  children: ReactNode; onClick: () => void; primary?: boolean; ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn-reset t-h2"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
+        padding: 'var(--sp-3) var(--sp-4)',
+        background: primary ? 'var(--sev-active)' : 'var(--surface-high)',
+        color: primary ? 'var(--text-inverse)' : 'var(--text-primary)',
+      }}
+    >
+      {children}
+    </button>
   );
 }

@@ -3,7 +3,8 @@
 Kept current. If something on this list ships, it comes off the list; if something
 here is wrong, it is a bug in the document.
 
-Last reviewed: **2026-08-02**. §5b is clear — start at **§5c, the UI redesign**.
+Last reviewed: **2026-08-18**. §5b and §5c are both clear — the redesign shipped.
+Start at **§4**, the prognosis/recommendation live path, which is now the largest gap.
 
 ---
 
@@ -128,24 +129,42 @@ lookup rather than a sensor.
 beneath them has any content. The five new tests in `live.test.tsx` assert the
 measured ΔT values and the frames instead.
 
-## 5c. UI REDESIGN — the highest-priority item after the bugs above 🔴
+## 5c. UI REDESIGN — ✅ DONE, 18 Aug 2026
 
-**Full brief: [`docs/ui-brief.md`](ui-brief.md).** Read it before touching any
-component — it has the region-by-region diagnosis, the identity constraints, and the
-one rule a redesign must not break.
+**Brief: [`docs/ui-brief.md`](ui-brief.md)** — the diagnosis it records is the one
+that was fixed. Ported from Stitch output in `docs/temp/`, screen by screen.
 
-Short version: the console is too dense to read. Type runs 10–13 px throughout with no
-hierarchy, the right rail stacks ~25 facts at equal weight, and it is shown on a
-projector. The owner has raised this more than once, weeks apart, about different parts
-of the same screen — it is the product's biggest remaining weakness and it outranks
-every feature on this list.
+What changed, against the brief's four complaints:
 
-The data layer does not change. This is a presentation swap inside `src/components/`
-plus `globals.css`; every selector keeps its signature.
+| Complaint | Fix |
+|---|---|
+| No hierarchy — 10–13 px throughout | A five-tier scale: `t-hero` 52 / `t-kpi` 42 / `t-metric` 32 / `t-value` 24 / `t-data` 13. The figure that matters is ~4.7× the caption beside it. |
+| The header buried the four figures an operator reads first | They moved out of the 64 px chrome bar into their own 118 px band — four tiled cells sharing edges, at 52 px, with a gauge or a trend under each. |
+| The right rail was a wall of ~25 equal facts | It is one argument top to bottom, each step a different SHAPE: pinned header, keyed diagnostic sentence, two 42 px figures, a 2×2 of readings, the peer table, the agent's outlined teal box, one control, the outlook, the gate. |
+| The feed's rows were indistinguishable | Severity now changes the whole slab — tinted ground, 4 px keyed edge, the severity spelled out. An array named in a row is a button that selects it. |
+
+Also in the port: the map gained a survey grid, per-array ID labels, working zoom
+and zone annotations that were previously drawn off-canvas at `x = -64` and clipped
+away entirely; the dossier became a full-bleed workspace with the matrix as a
+labelled lattice printing ΔT in the cells; all four module screens were rebuilt;
+`--text-muted` (2.8:1) was promoted to `--text-secondary` on the 62 places it was
+carrying content rather than chrome; and `--sev-*-ink` was added so a 42 px critical
+figure is legible without leaving the ironbow ramp.
+
+**A fifth instance of the evidence-scoping bug was found and fixed on the way.**
+`StatusChips` printed `forecast.actBefore` — a clock hour computed from B-17's own
+thermal dose — under any array whose status was critical, so injecting a fault
+produced a console telling an operator to act before an hour nobody had computed for
+that array. It now quotes that array's own booked window in hours instead, and two
+tests in `live.test.tsx` assert the value rather than the heading.
+
+The data layer did not change: `src/lib/`, `src/store/`, `scripts/` and `/data` are
+untouched and every selector kept its signature.
 
 ## 6. Known cosmetic and structural gaps
 
-- **Map has no zoom or pan.** 120 arrays at a fixed scale.
+- **Map has zoom but no pan.** The zoom shrinks the viewBox around the centre, so
+  at 2.5× the outer zones are off screen and there is no way to reach them.
 - **No responsive layout.** Fixed 1920×1080. Deliberate — this runs on a projector.
 - **`VIEW ALL EVENTS` caps at the full derived feed**, which is short by construction;
   there is no historical event store behind it.

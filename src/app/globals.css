@@ -19,10 +19,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces — cool, near-black, slightly blue so the ironbow ramp sits on top */
-  --surface-void: #070a0f;      /* page background */
-  --surface-panel: #0e1219;     /* cards, rails */
-  --surface-raised: #151a24;    /* hover, nested */
+  /* Surfaces — a tiered slab system, not a card deck. Six steps, cool near-black,
+     slightly blue so the ironbow ramp sits on top of them. Depth is a background
+     shift plus a hairline; there are no shadows anywhere in this application. */
+  --surface-void: #070a0f;      /* page background, and the map */
+  --surface-panel: #0e1219;     /* chrome: header, rails, footer */
+  --surface-raised: #151a24;    /* nested blocks inside a panel */
+  --surface-high: #1c2432;      /* a callout that must lift off --surface-raised */
   --surface-inset: #05070b;     /* map background, unfilled matrix cells */
 
   /* Structure */
@@ -54,6 +57,15 @@
   --sev-critical: var(--iron-60);
   --sev-peak: var(--iron-95);
 
+  /* THE SAME SEVERITIES AS TEXT. --sev-critical is #d94a3d, which is a fine slab
+     fill and about 3.4:1 as 42px type on --surface-panel — under AA, and visibly
+     muddy from the back of a room. These are the same two hues lifted along the
+     ironbow's own direction of travel (toward --iron-100) so a headline figure can
+     be read at distance without introducing a colour outside the ramp.
+     Fills stay --sev-*; ink on a dark slab is --sev-*-ink. */
+  --sev-critical-ink: #ff9c8b;
+  --sev-warning-ink: #ffb75e;
+
   /* Panel status on the map. Healthy is desaturated blue, not green: a control
      room scans for anomalies, so healthy should recede to nearly-background. */
   --panel-healthy: #24406b;
@@ -81,7 +93,8 @@
   --rail-icons: 64px;
   --rail-left: 304px;
   --rail-right: 448px;
-  --header-h: 72px;
+  --header-h: 64px;
+  --kpi-h: 118px;               /* the site KPI strip, under the header chrome */
   --footer-h: 40px;
 
   /* Type families, bound in layout.tsx via next/font */
@@ -177,6 +190,7 @@ body {
 
 .t-hero,
 .t-kpi,
+.t-metric,
 .t-value,
 .t-data,
 .t-data-em,
@@ -192,50 +206,61 @@ body {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+/* The headline figure of a rail or a card. */
 .t-kpi {
-  font: 700 44px/1 var(--font-mono);
+  font: 700 42px/1 var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+/* A row figure that has to carry a table — the repair queue's score column, a
+   module screen's tile. */
+.t-metric {
+  font: 700 32px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 .t-kpi-unit {
-  font: 600 13px/1 var(--font-cond);
+  font: 600 12px/1 var(--font-cond);
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
 /* Second tier: readings that matter but are not the headline — cell temperature,
    irradiance, output. Big enough to scan without competing with the hero. */
 .t-value {
-  font: 600 26px/1.05 var(--font-mono);
+  font: 700 24px/1 var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
+/* Section headline. Condensed caps at 0.15em is the horizontal rule that separates
+   one block of data from the next — it does more structural work than any border. */
 .t-h1 {
-  font: 600 15px/1.2 var(--font-cond);
+  font: 600 14px/1.4 var(--font-cond);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.15em;
 }
 .t-h2 {
-  font: 600 12px/1.2 var(--font-cond);
+  font: 600 11px/1.4 var(--font-cond);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.15em;
 }
 /* The label half of a label/value pair. Deliberately quiet — it exists to be
    read once and then ignored in favour of the number. */
 .t-label {
-  font: 500 12px/1.3 var(--font-cond);
+  font: 600 11px/1.3 var(--font-cond);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 .t-data {
-  font: 400 14px/1.5 var(--font-mono);
+  font: 400 13px/1.5 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 .t-data-em {
-  font: 600 15px/1.45 var(--font-mono);
+  font: 700 13px/1.5 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 .t-prose {
   /* The ONLY place non-condensed sans appears. */
-  font: 400 15px/1.62 var(--font-sans);
+  font: 400 14px/1.6 var(--font-sans);
 }
 /* Timestamps, model IDs, provenance. 10px meant nobody read it, which made the
    provenance decorative — the opposite of the point of printing it. */
@@ -253,9 +278,14 @@ body {
 .console-root {
   display: grid;
   grid-template-columns: var(--rail-icons) var(--rail-left) 1fr var(--rail-right);
-  grid-template-rows: var(--header-h) 1fr var(--footer-h);
+  grid-template-rows: var(--header-h) var(--kpi-h) 1fr var(--footer-h);
+  /* Four bands, not three. The site KPIs were four figures crammed into a 72px
+     chrome bar beside the logo, the weather and a bell; they are the first thing an
+     operator reads and they were the smallest thing on the row. They get their own
+     band now, at 52px, and the chrome bar goes back to being chrome. */
   grid-template-areas:
     "header header header header"
+    "icons  kpi    kpi    kpi"
     "icons  left   map    right"
     "footer footer footer footer";
   width: var(--shell-w);
@@ -270,15 +300,17 @@ body {
 }
 
 .area-header { grid-area: header; }
+.area-kpi { grid-area: kpi; min-width: 0; }
 .area-icons { grid-area: icons; }
-.area-left { grid-area: left; }
-.area-map { grid-area: map; }
-.area-right { grid-area: right; }
+.area-left { grid-area: left; min-height: 0; }
+.area-map { grid-area: map; min-height: 0; }
+.area-right { grid-area: right; min-height: 0; }
 .area-footer { grid-area: footer; }
 
 /* A module screen takes the map AND the right rail — the left rail keeps running
    because events do not stop happening because you changed screens. */
-.area-module { grid-column: 3 / 5; grid-row: 2; min-width: 0; }
+.area-module { grid-column: 3 / 5; grid-row: 3; min-width: 0; min-height: 0; }
+
 
 /* ── The dossier ─────────────────────────────────────────────────────────────
    Everything that made the right rail a wall — the anomaly matrix, the captured
@@ -295,19 +327,26 @@ body {
   position: absolute;
   inset: 0;
   z-index: 30;
-  background: color-mix(in srgb, var(--surface-void) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-void) 92%, transparent);
   display: grid;
-  place-items: center;
+  /* Pinned under the header band rather than centred. Centring left an inch of
+     dimmed console above and below, which read as a dialog floating over a page;
+     the reference console treats the dossier as a full-bleed WORKSPACE that takes
+     the screen, with the chrome bar still legible above it. */
+  align-content: stretch;
+  /* The header band stays UNCOVERED — dimmed by the scrim, but readable. An
+     operator reading a dossier has not left the console, and the mode badge and
+     the site clock are the two things that must never be hidden. */
+  padding: calc(var(--header-h) + var(--sp-4)) var(--sp-5) var(--sp-5);
 }
 
 .dossier {
-  width: 1360px;
-  max-height: 912px;
+  width: 100%;
+  min-height: 0;
   background: var(--surface-panel);
   border: 1px solid var(--line-active);
   display: grid;
   grid-template-rows: auto 1fr;
-  min-height: 0;
 }
 
 /* Two columns: the measurement on the left, the reasoning on the right. They are
@@ -323,11 +362,13 @@ body {
 .dossier-col {
   padding: var(--sp-5) var(--sp-6);
   overflow-y: auto;
+  scrollbar-width: none;
   min-height: 0;
   display: grid;
   gap: var(--sp-5);
   align-content: start;
 }
+.dossier-col::-webkit-scrollbar { display: none; }
 
 /* A labelled group. The rule above it is what makes structure visible at a
    glance — the old rail separated sections with 12px of space and nothing else. */
@@ -340,29 +381,101 @@ body {
   padding-top: var(--sp-5);
 }
 
-/* Badges and chips — the reference console labels every state in words as well as
-   colour, which is both the accessibility fix and what makes it read as an
-   instrument rather than a dashboard. */
-.badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border: 1px solid currentColor;
-  font: 600 12px/1.2 var(--font-cond);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  white-space: nowrap;
+/* Hairlines rather than borders: this is an engineering drawing, not a card deck. */
+.hair-b { border-bottom: 1px solid var(--line-hairline); }
+.hair-t { border-top: 1px solid var(--line-hairline); }
+.hair-r { border-right: 1px solid var(--line-hairline); }
+.hair-l { border-left: 1px solid var(--line-hairline); }
+
+.panel { background: var(--surface-panel); }
+
+/* ── Slabs, chips, meters ───────────────────────────────────────────────────
+   The reference console is built out of four repeated parts, and every screen is
+   an arrangement of them: a titled slab, a KPI cell, a status chip, a segmented
+   meter. They live here rather than in a component so the six screens cannot
+   drift into six different-looking pages.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* A titled block of content. The header rule is what makes structure visible from
+   the back of a room — the old rail separated sections with 12px of space. */
+/* NOT `grid-template-rows: auto 1fr`. A slab sits in an auto-height parent, so the
+   1fr body row had no free space to resolve against and collapsed to zero — the
+   300px chart inside it then overflowed its own box and the next three blocks
+   painted straight over the top of it on the Analytics screen. A slab is a header
+   and a body stacked; it sizes to its content and nothing else. */
+.slab {
+  background: var(--surface-panel);
+  border: 1px solid var(--line-hairline);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.slab > .slab-body { flex: 1 1 auto; }
+.slab > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-hairline);
+  background: var(--surface-raised);
+}
+.slab > .slab-body {
+  padding: var(--sp-4);
+  min-height: 0;
 }
 
-/* Severity at projector distance. A 2px left border and a 10px badge were the
-   only difference between an info boot message and a critical shortfall. */
-.badge-lg {
-  padding: 5px 12px;
-  font: 700 14px/1.2 var(--font-cond);
-  letter-spacing: 0.14em;
+/* One KPI in the site strip: caption, figure, trend. Separated by a rule rather
+   than by a gap, which is the "tiled slab" read — panels share an edge. */
+.kpi-cell {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-right: 1px solid var(--line-hairline);
+  min-width: 0;
 }
-.badge-solid {
-  border-color: transparent;
+.kpi-cell:last-child { border-right: 0; }
+
+/* A 2px rule under a figure, coloured by its own severity. Cheap, and it is what
+   binds a caption to the number above it without a box. */
+.underline-rule {
+  height: 2px;
+  background: var(--line-hairline);
+  position: relative;
+  overflow: hidden;
+}
+.underline-rule > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: currentColor;
+}
+
+/* Severity as a filled rectangle with a word in it. Never colour alone. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  font: 700 10px/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   color: var(--text-inverse);
+}
+.chip-quiet {
+  background: var(--surface-high);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* A callout keyed to a severity by a 4px left edge — the reference console's one
+   emphasis device, used for the diagnostic block and every agent stage card. */
+.keyed {
+  background: var(--surface-raised);
+  border-left: 4px solid currentColor;
+  padding: var(--sp-3) var(--sp-4);
+  display: grid;
+  gap: var(--sp-2);
 }
 
 /* Segmented meter — reads as an instrument; a smooth bar reads as a progress bar. */
@@ -380,25 +493,26 @@ body {
   background: var(--sev-active);
 }
 
-/* Hairlines rather than borders: this is an engineering drawing, not a card deck. */
-.hair-b { border-bottom: 1px solid var(--line-hairline); }
-.hair-t { border-top: 1px solid var(--line-hairline); }
-.hair-r { border-right: 1px solid var(--line-hairline); }
-.hair-l { border-left: 1px solid var(--line-hairline); }
-
-.panel { background: var(--surface-panel); }
-.inset { background: var(--surface-inset); }
-
-/* Phase 2 scaffolding only — every one of these is replaced by a real component
-   in Phase 4. If you still see a dashed box after Phase 4, something is missing. */
-.slot {
-  border: 1px dashed var(--line-active);
-  color: var(--text-muted);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  padding: var(--sp-3);
+/* The faint 40px survey grid behind the map. Presentational; it is what makes the
+   topology read as a plan drawing rather than a chart background. */
+.survey-grid {
+  background-image:
+    linear-gradient(to right, var(--line-hairline) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line-hairline) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.35;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
 }
+
+/* Scrollbars are chrome an operator never uses and a projector always shows. */
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-width: none;
+  min-height: 0;
+}
+.scroll-y::-webkit-scrollbar { display: none; }
 
 /* ── Motion ──────────────────────────────────────────────────────────────── */
 

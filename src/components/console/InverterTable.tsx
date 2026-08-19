@@ -9,10 +9,17 @@
  * fault to about −1% and the table would show nothing. What an operator actually
  * looks at when a string alarms is the same string position on neighbouring
  * inverters — which is what this is, and the row labels say so.
+ *
+ * DENSITY RULES, from the reference console: no row stripes, no vertical borders,
+ * 1px horizontal dividers only, condensed caps for the header, tabular mono for the
+ * cells. The faulted row is the one exception — it gets a tinted ground and its own
+ * top and bottom edge, because it is the point of the table.
  */
 
 import { kW, pct } from '@/lib/format';
 import { useInverterReadings, useSelectedPanelId } from '@/store/selectors';
+
+const HEAD = ['Inverter', 'String', 'Actual', 'Expected', 'Dev'] as const;
 
 export function InverterTable() {
   const readings = useInverterReadings();
@@ -28,15 +35,16 @@ export function InverterTable() {
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
-          {['Inverter', 'String', 'Actual', 'Expected', 'Deviation'].map((h, i) => (
+          {HEAD.map((h, i) => (
             <th
               key={h}
-              className="t-h2"
+              className="t-label"
               style={{
-                color: 'var(--text-muted)',
+                color: 'var(--text-secondary)',
                 textAlign: i < 2 ? 'left' : 'right',
-                padding: '0 0 var(--sp-2)',
-                fontWeight: 600,
+                padding: '0 0 5px',
+                borderBottom: '1px solid var(--line-active)',
+                whiteSpace: 'nowrap',
               }}
             >
               {h}
@@ -47,32 +55,42 @@ export function InverterTable() {
       <tbody>
         {Object.entries(readings).map(([id, r]) => {
           const faulted = id === faultedInverter && r.deviationPct < -1;
-          const colour = faulted ? 'var(--sev-critical)' : 'var(--text-primary)';
+          const colour = faulted ? 'var(--sev-critical-ink)' : 'var(--text-primary)';
+          const cell = {
+            padding: '6px 0',
+            color: faulted ? colour : 'var(--text-secondary)',
+            borderBottom: faulted
+              ? '1px solid var(--sev-critical)'
+              : '1px solid var(--line-hairline)',
+            borderTop: faulted ? '1px solid var(--sev-critical)' : undefined,
+            whiteSpace: 'nowrap' as const,
+          };
           return (
             <tr
               key={id}
               style={{
-                borderTop: '1px solid var(--line-hairline)',
-                background: faulted ? 'var(--surface-raised)' : 'transparent',
+                background: faulted
+                  ? 'color-mix(in srgb, var(--sev-critical) 12%, transparent)'
+                  : 'transparent',
               }}
             >
               <td className={faulted ? 't-data-em' : 't-data'}
-                style={{ padding: 'var(--sp-2) var(--sp-2) var(--sp-2) 0', color: colour }}>
+                style={{ ...cell, color: colour, paddingLeft: faulted ? 6 : 0 }}>
                 {id}
               </td>
-              <td className="t-data" style={{ color: 'var(--text-secondary)' }}>
-                {stringLabel(id)}
-              </td>
+              <td className="t-data" style={cell}>{stringLabel(id)}</td>
               <td className={faulted ? 't-data-em' : 't-data'}
-                style={{ textAlign: 'right', color: colour, padding: '0 var(--sp-2)' }}>
+                style={{ ...cell, textAlign: 'right', color: colour }}>
                 {kW(r.actualKW)}
               </td>
-              <td className="t-data"
-                style={{ textAlign: 'right', color: 'var(--text-secondary)', padding: '0 var(--sp-2)' }}>
+              <td className="t-data" style={{ ...cell, textAlign: 'right' }}>
                 {kW(r.expectedKW)}
               </td>
               <td className="t-data-em"
-                style={{ textAlign: 'right', color: colour, paddingRight: 0 }}>
+                style={{
+                  ...cell, textAlign: 'right', color: colour,
+                  paddingRight: faulted ? 6 : 0,
+                }}>
                 {pct(r.deviationPct)}
               </td>
             </tr>

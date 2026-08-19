@@ -20,6 +20,7 @@
  */
 
 import { useEffect } from 'react';
+import { Sparkles } from 'lucide-react';
 
 import { hours, typographic } from '@/lib/format';
 import { forecastOffset } from '@/lib/live';
@@ -73,14 +74,14 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
   if (entry.status === 'unavailable') {
     return (
       <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-        <span className="badge" style={{ color: 'var(--sev-warning)' }}>
-          Agent unavailable
+        <span className="chip" style={{ background: 'var(--sev-warning)' }}>
+          AGENT UNAVAILABLE
         </span>
         <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
           No reasoning for {panelId}. The telemetry above is unaffected — it comes from
           the site model, not the agent.
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           {entry.reason}
         </span>
       </div>
@@ -95,16 +96,22 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
 
   return (
     <article style={{
-      borderLeft: '2px solid var(--sev-active)',
-      background: 'var(--surface-raised)',
-      padding: 'var(--sp-2) var(--sp-3)',
+      border: '1px solid var(--sev-active)',
+      background: 'color-mix(in srgb, var(--sev-active) 6%, var(--surface-panel))',
+      padding: 'var(--sp-3)',
       display: 'grid', gap: 'var(--sp-2)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
-        <span className="t-h2" style={{ color: 'var(--sev-active)' }}>
-          Triage · {panelId}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        gap: 'var(--sp-2)',
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Sparkles size={13} strokeWidth={2} aria-hidden style={{ color: 'var(--sev-active)' }} />
+          <span className="t-h2" style={{ color: 'var(--sev-active)' }}>
+            Triage · {panelId}
+          </span>
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           {/* Triage runs once per array and the site keeps moving afterwards, so
               the readings above WILL drift away from the ones this paragraph was
               written about. That is correct behaviour and it reads as two systems
@@ -117,7 +124,7 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
       </div>
 
       {stale && (
-        <span className="t-micro" style={{ color: 'var(--sev-warning)' }}>
+        <span className="t-micro" style={{ color: 'var(--sev-warning-ink)' }}>
           Site time has advanced {hours(elapsedHours)} since this ran. The numbers in
           State are current; the ones quoted here are from {clockAt(forecastOffset(entry.requestedAt ?? 0))}.
         </span>
@@ -133,14 +140,14 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
         </p>
       )}
 
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+      <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
         suspect {t.suspectComponent} · severity {t.severity} · confidence{' '}
         {t.confidence.toFixed(2)} · physical verification{' '}
         {t.requiresPhysicalVerification ? 'REQUIRED' : 'not required'}
       </span>
 
       {!compact && (
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           Every number above was checked against this array&rsquo;s telemetry before it
           was shown.
         </span>

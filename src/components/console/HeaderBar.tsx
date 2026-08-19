@@ -1,53 +1,29 @@
 'use client';
 
 /**
- * HeaderBar — farm health, output, anomaly counts, weather, 72h outlook.
+ * HeaderBar — the chrome band. Identity on the left, where you are and what the
+ * weather is doing on the right.
  *
- * Health tweens 94 → 80 across t=6..9, interpolated between telemetry frames so it
- * counts down mechanically rather than stepping once a second. Every numeral is
- * tabular, which is what stops the digits jittering while it moves.
+ * IT USED TO CARRY THE KPIs TOO. Farm health, output, anomalies, the weather, the
+ * 72h outlook, a bell and a mode badge were all in one 72px row, which made the
+ * four figures an operator actually reads the smallest thing on it. They moved to
+ * `SiteKpiStrip`, one band down, at 52px. This row is chrome again.
  *
- * The anomaly counts are derived from panel STATUS, which is derived from
- * deviation, which is derived from the physics. Nothing here is a typed pair.
+ * The mode control is the only global control the console has, so it takes the
+ * position a product would give an account menu. It is a real button — `M` and a
+ * click do the same thing — because a round avatar that does nothing is a lie
+ * about what the product is.
  */
 
-import { Bell, Cloud } from 'lucide-react';
+import { Grid2x2, Power, Radio } from 'lucide-react';
 
-import { degC, ms, num, pctPlain, wm2 } from '@/lib/format';
-import {
-  pickHealth, pickOutput, useAnomalyCounts, useFarmHealth, useFarmOutputMW,
-  useForecast, useMode, useSparkline, useWeather,
-} from '@/store/selectors';
+import { num } from '@/lib/format';
+import { useFarm, useForecast, useMode } from '@/store/selectors';
 import { useSession } from '@/store/session';
-import { Sparkline } from './Sparkline';
-
-function Kpi({
-  label, value, unit, spark, colour = 'var(--text-primary)', after,
-}: {
-  label: string; value: string; unit?: string; spark?: number[];
-  colour?: string; after?: React.ReactNode;
-}) {
-  return (
-    <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-      <span className="t-h2" style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-3)' }}>
-        <span className="t-kpi" style={{ color: colour }}>
-          {value}
-          {unit && (
-            <span className="t-kpi-unit" style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>
-              {unit}
-            </span>
-          )}
-        </span>
-        {after}
-        {spark && <span style={{ alignSelf: 'center' }}><Sparkline values={spark} colour={colour} /></span>}
-      </div>
-    </div>
-  );
-}
+import { TimeControl } from './TimeControl';
 
 /** Daily maxima for the next three days, read off the forecast curve. */
-function useDailyHighs(): number[] {
+export function useDailyHighs(): number[] {
   const forecast = useForecast();
   const highs: number[] = [];
   for (let day = 0; day < 3; day += 1) {
@@ -59,138 +35,114 @@ function useDailyHighs(): number[] {
   return highs;
 }
 
-const DAY_LABEL = ['Today', 'Tomorrow', 'Day 3'];
+const DAY_LABEL = ['Today', '+24h', '+48h'];
 
 export function HeaderBar() {
   const mode = useMode();
   const running = useSession((s) => s.running);
-  const health = useFarmHealth();
-  const output = useFarmOutputMW();
-  const { total, critical } = useAnomalyCounts();
-  const weather = useWeather();
+  const setMode = useSession((s) => s.setMode);
   const highs = useDailyHighs();
-  const healthSpark = useSparkline(pickHealth);
-  const outputSpark = useSparkline(pickOutput);
+  const farm = useFarm();
 
-  const healthColour = health < 85 ? 'var(--sev-critical)' : 'var(--text-primary)';
+  const live = mode === 'live';
 
   return (
     <header
       className="area-header panel hair-b"
       style={{
-        display: 'flex', alignItems: 'center', gap: 'var(--sp-6)',
-        padding: '0 var(--sp-5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 var(--sp-4)', gap: 'var(--sp-5)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', minWidth: 168 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
         <span style={{
-          width: 26, height: 26, borderRadius: '50%',
-          border: '1px solid var(--sev-active)', display: 'grid', placeItems: 'center',
+          width: 32, height: 32, display: 'grid', placeItems: 'center',
+          background: 'var(--sev-active)', color: 'var(--text-inverse)',
         }}>
-          <span style={{
-            width: 9, height: 9, borderRadius: '50%', background: 'var(--sev-active)',
-          }} />
+          <Grid2x2 size={18} strokeWidth={2.25} aria-hidden />
         </span>
-        <span style={{ display: 'grid' }}>
-          <span className="t-h1" style={{ fontSize: 17, letterSpacing: '0.16em' }}>SURYA</span>
-          <span className="t-micro" style={{ color: 'var(--sev-active)', letterSpacing: '0.22em' }}>
-            AGENT
-          </span>
+        <span className="t-h1" style={{ color: 'var(--sev-active)', letterSpacing: '0.2em' }}>
+          SURYA AGENT
         </span>
       </div>
 
-      <Kpi
-        label="Farm health"
-        value={num(health, 0)}
-        unit="/100"
-        spark={healthSpark}
-        colour={healthColour}
-      />
-
-      <Kpi label="Output" value={num(output, 0)} unit="MW" spark={outputSpark} />
-
-      <Kpi
-        label="Anomalies"
-        value={String(total)}
-        after={critical > 0 ? (
-          <span
-            className="badge badge-solid"
-            style={{ background: 'var(--sev-critical)' }}
-          >
-            Critical {critical}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+        <div style={{ display: 'grid', justifyItems: 'end', gap: 1 }}>
+          <span className="t-micro" style={{ color: 'var(--text-primary)', letterSpacing: '0.08em' }}>
+            {farm.name.toUpperCase()}, {farm.region.toUpperCase()}
           </span>
-        ) : (
-          <span className="badge" style={{ color: 'var(--text-muted)' }}>Critical 0</span>
-        )}
-      />
+          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+            {farm.lat.toFixed(3)} N, {farm.lon.toFixed(3)} E
+          </span>
+        </div>
 
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
-        color: 'var(--text-secondary)', paddingLeft: 'var(--sp-4)',
-        borderLeft: '1px solid var(--line-hairline)',
-      }}>
-        <Cloud size={15} strokeWidth={1.5} aria-hidden style={{ color: 'var(--text-muted)' }} />
-        <span className="t-data">
-          {weather.timestamp} · {degC(weather.ambientC, 0)} / {pctPlain(weather.cloudPct)} cloud
-          {' / '}{ms(weather.windMs)}
-        </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-          {wm2(weather.irradiance)}
-        </span>
-      </div>
+        <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
 
-      <div style={{ display: 'grid', gap: 4 }}>
-        <span className="t-h2" style={{ color: 'var(--text-muted)' }}>72h solar outlook</span>
-        <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+        {/* Three daily maxima off the forecast curve. The forecast is offsets from
+            now, not calendar days, so the columns are labelled as offsets — a
+            weekday here would be a name nobody generated. */}
+        <div style={{ display: 'flex' }}>
           {highs.map((h, i) => (
             <span
               key={i}
-              className="t-data"
               style={{
-                padding: '3px var(--sp-3)',
-                background: i === 0 ? 'var(--surface-raised)' : 'transparent',
-                border: `1px solid ${i === 0 ? 'var(--line-active)' : 'transparent'}`,
-                color: i === 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
+                display: 'grid', justifyItems: 'center', gap: 1,
+                padding: '0 var(--sp-3)',
+                borderRight: i < highs.length - 1 ? '1px solid var(--line-hairline)' : undefined,
               }}
             >
-              <span style={{ color: 'var(--sev-warning)', marginRight: 5 }}>·</span>
-              {DAY_LABEL[i].toUpperCase()}{' '}
-              <span style={{ color: 'var(--text-muted)' }}>{num(h, 0)}°</span>
+              <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+                {DAY_LABEL[i].toUpperCase()}
+              </span>
+              <span
+                className="t-micro"
+                style={{ color: i === 0 ? 'var(--sev-active)' : 'var(--text-primary)' }}
+              >
+                {num(h, 0)}°
+              </span>
             </span>
           ))}
         </div>
-      </div>
 
-      <div style={{
-        marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-4)',
-      }}>
-        {/* Which world you are looking at. A live console and a recording of one
-            must never be confusable — see the note in store/session.ts. */}
+        <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
+
+        {/* Site time is a CONTROL, not a readout. Without it the console walks into
+            the night at 60x and there is no way back — see TimeControl. */}
+        <TimeControl />
+
+        <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
+
         <span
-          className="badge"
-          style={mode === 'live'
-            ? {
-              color: running ? 'var(--sev-active)' : 'var(--sev-warning)',
-              borderColor: 'currentColor',
-            }
-            : { color: 'var(--text-inverse)', background: 'var(--sev-warning)', borderColor: 'transparent' }}
-          title="Press M to switch"
+          className="chip"
+          style={live
+            ? { background: running ? 'var(--sev-active)' : 'var(--sev-warning)' }
+            : { background: 'var(--sev-warning)' }}
         >
-          {mode === 'live' ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
+          {live ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
         </span>
-        <span style={{ position: 'relative', color: 'var(--text-muted)' }}>
-          <Bell size={17} strokeWidth={1.5} aria-hidden />
-          {critical > 0 && (
-            <span style={{
-              position: 'absolute', top: -1, right: -1, width: 6, height: 6,
-              borderRadius: '50%', background: 'var(--sev-active)',
-            }} />
-          )}
-        </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'right', lineHeight: 1.35 }}>
-          SOLAR TO EARTH<br />OPERATIONS
-        </span>
+
+        {/* Which world you are looking at, and the control that changes it. A live
+            console and a recording of one must never be confusable — see the note
+            in store/session.ts. */}
+        <button
+          type="button"
+          className="btn-reset"
+          onClick={() => setMode(live ? 'demo' : 'live')}
+          aria-label={live
+            ? 'Switch to the scripted demo replay (M)'
+            : 'Switch to live site operation (M)'}
+          title="Press M to switch"
+          style={{
+            width: 32, height: 32, display: 'grid', placeItems: 'center',
+            borderRadius: '50%',
+            background: live ? 'var(--sev-active)' : 'transparent',
+            border: live ? 'none' : '1px solid var(--sev-warning)',
+            color: live ? 'var(--text-inverse)' : 'var(--sev-warning)',
+          }}
+        >
+          {live ? <Radio size={17} strokeWidth={2} aria-hidden />
+            : <Power size={17} strokeWidth={2} aria-hidden />}
+        </button>
       </div>
     </header>
   );

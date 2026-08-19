@@ -9,27 +9,36 @@
  * every screen here is derived from the operator's session and the physics model,
  * the same two sources the map reads.
  *
+ * The active tab is a 2px teal edge plus a tinted cell, not just a coloured icon —
+ * at 64px wide with 8px labels, an icon changing hue is not a strong enough signal
+ * to say where you are from across a room.
+ *
  * Demo mode pins the rail to SITE and says so, because the scripted incident plays
  * over the map and a beat cannot fire on a screen that has no map.
  */
 
 import {
-  Activity, BarChart3, ClipboardList, FlaskConical, Map as MapIcon, Wrench,
+  Crosshair, Grid2x2, LineChart, Radar, SquareStack, Wrench,
 } from 'lucide-react';
 
 import { useMode, useModule, useSetModule } from '@/store/selectors';
 import type { ModuleId } from '@/store/session';
 
-const MODULES: Array<{ id: ModuleId; label: string; Icon: typeof Activity }> = [
-  { id: 'site', label: 'Site', Icon: MapIcon },
-  { id: 'drones', label: 'Drones', Icon: Activity },
-  { id: 'missions', label: 'Missions', Icon: ClipboardList },
-  { id: 'repairs', label: 'Repairs', Icon: Wrench },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
+/**
+ * `label` is the operator-facing name and the accessible name; `tab` is what fits
+ * in 64px. They differ for two entries and that is deliberate — a screen reader
+ * should hear "Analytics", not "Data".
+ */
+const MODULES: Array<{ id: ModuleId; label: string; tab: string; Icon: typeof Grid2x2 }> = [
+  { id: 'site', label: 'Site', tab: 'Site', Icon: Grid2x2 },
+  { id: 'drones', label: 'Drones', tab: 'Drones', Icon: SquareStack },
+  { id: 'missions', label: 'Missions', tab: 'Missions', Icon: Crosshair },
+  { id: 'repairs', label: 'Repairs', tab: 'Repairs', Icon: Wrench },
+  { id: 'analytics', label: 'Analytics', tab: 'Data', Icon: LineChart },
   // Not an operations screen — a rehearsal one. It injects scenario events so the
   // console can be exercised on cases the committed site does not happen to be in
   // right now, and everything it produces is marked as injected.
-  { id: 'scenario', label: 'Scenario', Icon: FlaskConical },
+  { id: 'scenario', label: 'Scenario', tab: 'Sims', Icon: Radar },
 ];
 
 export function IconRail() {
@@ -42,12 +51,9 @@ export function IconRail() {
     <nav
       className="area-icons panel hair-r"
       aria-label="Modules"
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 'var(--sp-5)', paddingTop: 'var(--sp-4)',
-      }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
     >
-      {MODULES.map(({ id, label, Icon }) => {
+      {MODULES.map(({ id, label, tab, Icon }) => {
         const active = locked ? id === 'site' : id === current;
         const disabled = locked && id !== 'site';
         return (
@@ -62,22 +68,18 @@ export function IconRail() {
             disabled={disabled}
             onClick={() => setModule(id)}
             style={{
-              display: 'grid', justifyItems: 'center', gap: 3, width: '100%',
-              position: 'relative', paddingBlock: 2,
+              display: 'grid', justifyItems: 'center', gap: 4,
+              padding: 'var(--sp-3) 0',
+              borderLeft: `2px solid ${active ? 'var(--sev-active)' : 'transparent'}`,
+              background: active ? 'var(--surface-raised)' : 'transparent',
               cursor: disabled ? 'not-allowed' : 'pointer',
-              opacity: disabled ? 0.35 : 1,
-              color: active ? 'var(--sev-active)' : 'var(--text-muted)',
+              opacity: disabled ? 0.3 : 1,
+              color: active ? 'var(--sev-active)' : 'var(--text-secondary)',
             }}
           >
-            {active && (
-              <span style={{
-                position: 'absolute', left: 0, top: -4, bottom: -4, width: 2,
-                background: 'var(--sev-active)',
-              }} />
-            )}
-            <Icon size={18} strokeWidth={1.5} aria-hidden />
-            <span className="t-micro" style={{ fontSize: 8, letterSpacing: '0.1em' }}>
-              {label.toUpperCase()}
+            <Icon size={20} strokeWidth={1.75} aria-hidden />
+            <span className="t-micro" style={{ fontSize: 8, letterSpacing: '0.02em' }}>
+              {tab.toUpperCase()}
             </span>
           </button>
         );
@@ -86,13 +88,19 @@ export function IconRail() {
       {locked && (
         <span
           className="t-micro"
-          style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}
+          style={{
+            fontSize: 8, color: 'var(--text-secondary)', textAlign: 'center',
+            lineHeight: 1.4, paddingTop: 'var(--sp-3)',
+          }}
         >
           DEMO<br />PINNED
         </span>
       )}
 
-      <div style={{ marginTop: 'auto', paddingBottom: 'var(--sp-4)', color: 'var(--text-muted)' }}>
+      <div style={{
+        marginTop: 'auto', paddingBottom: 'var(--sp-4)',
+        display: 'grid', justifyItems: 'center', color: 'var(--text-secondary)',
+      }}>
         {/* Compass. The map is north-up; saying so is a survey convention. */}
         <div style={{
           width: 26, height: 26, borderRadius: '50%',

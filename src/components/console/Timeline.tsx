@@ -15,7 +15,7 @@ import { useVisibleEvents } from '@/store/selectors';
 import type { Severity } from '@/lib/types';
 
 const SEVERITY_COLOUR: Record<Severity, string> = {
-  info: 'var(--text-muted)',
+  info: 'var(--text-secondary)',
   active: 'var(--sev-active)',
   warning: 'var(--sev-warning)',
   critical: 'var(--sev-critical)',
@@ -39,7 +39,7 @@ export function Timeline() {
         const last = i === rows.length - 1;
         return (
           <li key={e.id} style={{ display: 'grid', gridTemplateColumns: '46px 14px 1fr', gap: 'var(--sp-2)' }}>
-            <span className="t-micro" style={{ color: 'var(--text-muted)', paddingTop: 3 }}>
+            <span className="t-micro" style={{ color: 'var(--text-secondary)', paddingTop: 3 }}>
               {e.timestamp}
             </span>
             <span style={{ display: 'grid', justifyItems: 'center' }}>

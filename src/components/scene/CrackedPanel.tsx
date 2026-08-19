@@ -21,19 +21,21 @@ import { useMemo, useRef } from 'react';
 import type { Mesh, MeshStandardMaterial } from 'three';
 import { CanvasTexture, RepeatWrapping } from 'three';
 
-import { cellGrid } from '@/lib/data';
+import { cellGrid, hasCapturedEvidence } from '@/lib/data';
+import { hasCrackMechanism } from '@/lib/live';
 import {
-  B17, PANEL_H, PANEL_SPACING_X, PANEL_TILT, PANEL_W, PANELS_PER_ARRAY,
-  POST_HEIGHT, thermalAmount,
+  DAMAGED_INDEX, PANEL_H, PANEL_SPACING_X, PANEL_TILT, PANEL_W, PANELS_PER_ARRAY,
+  POST_HEIGHT, arrayCentre, thermalAmount,
 } from '@/lib/scene';
 import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
-import { flightCueNow } from '@/store/flightCue';
+import { flightCueNow, useFlightCue } from '@/store/flightCue';
+import { useSession } from '@/store/session';
 
 /**
  * Panel surface texture: cell grid lines, the measured hot band, and a crack.
  * Deterministic — same pixels every run.
  */
-function makePanelTexture(withCrack: boolean): CanvasTexture | null {
+function makePanelTexture(withCrack: boolean, measured: boolean): CanvasTexture | null {
   if (typeof document === 'undefined') return null;
   const W = 256;
   const H = 160;
@@ -62,14 +64,21 @@ function makePanelTexture(withCrack: boolean): CanvasTexture | null {
   }
 
   if (withCrack) {
-    // Darken the measured hot cells — a bypassed substring reads darker in visible
-    // light and hotter in thermal. Coordinates come from the measurement.
-    for (const d of cellGrid.defects) {
-      ctx.fillStyle = 'rgba(6,12,26,0.45)';
-      ctx.fillRect((d.col - 1) * cw, (d.row - 1) * ch, cw, ch);
+    // THE MEASURED CELLS ARE B-17'S AND NOBODY ELSE'S. A bypassed substring does
+    // read darker in visible light, but WHICH cells is a measurement — it comes
+    // from the thermal capture, and we hold one capture. Drawing this band on C-07
+    // because C-07 is also cracked would be painting B-17's evidence onto another
+    // array, which is the most repeated bug in this project.
+    if (measured) {
+      for (const d of cellGrid.defects) {
+        ctx.fillStyle = 'rgba(6,12,26,0.45)';
+        ctx.fillRect((d.col - 1) * cw, (d.row - 1) * ch, cw, ch);
+      }
     }
 
-    // A deterministic branching crack through the hot band.
+    // The crack itself is an illustration of a MECHANISM the site record declares
+    // for this array, not a measurement of where the fracture runs. Deterministic,
+    // so the same array looks the same every run.
     ctx.strokeStyle = 'rgba(4,8,16,0.92)';
     ctx.lineWidth = 2.4;
     ctx.lineCap = 'round';
@@ -96,9 +105,11 @@ function makePanelTexture(withCrack: boolean): CanvasTexture | null {
   return tex;
 }
 
-function Panel({ x, z, cracked }: { x: number; z: number; cracked: boolean }) {
+function Panel({ x, z, cracked, measured }: {
+  x: number; z: number; cracked: boolean; measured: boolean;
+}) {
   const ref = useRef<Mesh>(null);
-  const texture = useMemo(() => makePanelTexture(cracked), [cracked]);
+  const texture = useMemo(() => makePanelTexture(cracked, measured), [cracked, measured]);
 
   useFrame(() => {
     const mesh = ref.current;
@@ -108,11 +119,15 @@ function Panel({ x, z, cracked }: { x: number; z: number; cracked: boolean }) {
     const cue = flightCueNow();
     const mat = mesh.material as MeshStandardMaterial;
 
-    // The hot band glows during the thermal pass so the ironbow LUT has real heat
-    // to map rather than inventing a blob — and ONLY on the array that actually
-    // carries the crack. Flying the same camera move over a soiled array must not
-    // make it glow, or the picture would be evidence of a defect that isn't there.
-    const heat = cracked && cue.cracked ? thermalAmount(cue.t) : 0;
+    // The panel warms during the thermal pass so the ironbow LUT has real heat to
+    // map rather than inventing a blob — and ONLY on a module the site record says
+    // is cracked. Flying the same camera move over a SOILED array must not make it
+    // glow, or the picture is evidence of a defect that array does not have.
+    //
+    // This is whole-material emissive, not a placed band: reverse-bias heating on a
+    // bypassed substring is physics that applies to any cracked array, whereas the
+    // BAND'S POSITION is a measurement and stays in the texture, gated separately.
+    const heat = cracked ? thermalAmount(cue.t) : 0;
     mat.emissiveIntensity = heat * 1.6;
     // Always in the world. The crack is a property of B-17, not of the camera —
     // it does not appear because we flew there and it does not vanish because we
@@ -136,6 +151,23 @@ function Panel({ x, z, cracked }: { x: number; z: number; cracked: boolean }) {
 }
 
 export function CrackedPanel() {
+  // WHICH ARRAY THIS IS. It used to be hard-anchored to B-17, so an operator who
+  // dispatched to C-07 — an array the scenario declares as "advanced crack
+  // propagation, six strings bypassed" — flew to a pristine blue panel with a
+  // reticle over it reading −56.6 %. The defect was still in the world, several
+  // hundred metres away in zone B, out of frame.
+  //
+  // The unique-material array now follows the flight, so the module the camera is
+  // framing is the module the site record describes.
+  const cue = useFlightCue();
+  const injected = useSession((s) => s.injected);
+  const targetId = cue.targetId;
+
+  const base = useMemo(() => arrayCentre(targetId), [targetId]);
+  const cracked = hasCrackMechanism(targetId, injected);
+  // Only B-17. See makePanelTexture.
+  const measured = hasCapturedEvidence(targetId);
+
   const offsets = useMemo(
     () => Array.from({ length: PANELS_PER_ARRAY }, (_, i) =>
       (i - (PANELS_PER_ARRAY - 1) / 2) * PANEL_SPACING_X),
@@ -145,10 +177,16 @@ export function CrackedPanel() {
   return (
     <group>
       {offsets.map((dx, i) => (
-        <Panel key={i} x={B17.x + dx} z={B17.z} cracked={i === 1} />
+        <Panel
+          key={i}
+          x={base.x + dx}
+          z={base.z}
+          cracked={cracked && i === DAMAGED_INDEX}
+          measured={measured}
+        />
       ))}
       {offsets.map((dx, i) => (
-        <mesh key={`post-${i}`} position={[B17.x + dx, POST_HEIGHT / 2, B17.z]}>
+        <mesh key={`post-${i}`} position={[base.x + dx, POST_HEIGHT / 2, base.z]}>
           <cylinderGeometry args={[0.05, 0.05, POST_HEIGHT, 6]} />
           <meshStandardMaterial color={SCENE.post} metalness={SCENE_MATERIAL.postMetalness}
             roughness={SCENE_MATERIAL.postRoughness} />
@@ -157,5 +195,3 @@ export function CrackedPanel() {
     </group>
   );
 }
-
-export const PANEL_FOOTPRINT = { w: PANEL_W, h: PANEL_H };

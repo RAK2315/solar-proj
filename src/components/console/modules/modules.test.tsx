@@ -155,7 +155,7 @@ describe('REPAIRS shows the ranking, not just the order', () => {
 describe('ANALYTICS is computed, never stored', () => {
   it('agrees with the header about the site', () => {
     const text = textOn('analytics');
-    expect(text).toContain('Site output');
+    expect(text).toContain('Power generation profile');
     expect(text).toContain('whole-site evaluations');
   });
 

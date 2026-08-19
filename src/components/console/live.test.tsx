@@ -10,7 +10,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { cellGrid } from '@/lib/data';
+import { cellGrid, forecast } from '@/lib/data';
 import { liveFrameAt } from '@/lib/live';
 import { M } from '@/lib/scene';
 import { useDemoClock } from '@/store/demoClock';
@@ -330,6 +330,37 @@ describe('evidence belongs to the array it was captured from', () => {
     const text = at(DONE, 'B-17');
     expect(text).toContain('B2-07');
     expect(text).toContain('ACT BEFORE');
+  });
+
+  /**
+   * The fifth location of the same bug, caught while the diagnostic block was
+   * rebuilt. `forecast.actBefore` is a CLOCK HOUR derived from the cracked cell's
+   * thermal dose — a calculation that exists for B-17 and for nothing else. The
+   * verdict block printed it under any array whose status was critical, so
+   * injecting a fault produced a console telling an operator to act before an hour
+   * nobody had computed for that array.
+   *
+   * Asserting the VALUE rather than the heading, deliberately: every one of these
+   * regressions survived a suite that only ever checked a section was present.
+   */
+  it('does not quote B-17’s computed hour under an injected fault', () => {
+    useSession.getState().injectFault('C-12', 'crack-advanced');
+    // Far enough past the injection for the ramp to have carried it to critical,
+    // and still in daylight — after sunset every array reads unobservable and the
+    // block under test never runs.
+    const text = at(60 * 60, 'C-12');
+
+    expect(text).toContain('C-12');
+    // The verdict is there and it is critical — the array is genuinely faulted.
+    expect(text).toContain('Diagnostic: risk high');
+    // The hour computed from B-17's thermal dose is not.
+    expect(text).not.toContain(forecast.actBefore);
+  });
+
+  it('quotes that array’s own booked window instead, in hours', () => {
+    useSession.getState().injectFault('C-12', 'crack-advanced');
+    const text = at(60 * 60, 'C-12');
+    expect(text).toContain('No cell-level capture on file for C-12');
   });
 });
 

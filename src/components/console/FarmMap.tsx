@@ -15,15 +15,24 @@
  * presentation and live here. 120 rects is nowhere near an SVG perf concern.
  */
 
+import { useState } from 'react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
+
 import {
   useActiveMissions, useFarm, useMode, usePanelStatus, useRouteProgress,
-  useSelectedPanelId, useZoneSummary,
+  useSelectedPanelId, useSiteFrame, useZoneSummary,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import type { PanelArray, PanelStatus, Zone } from '@/lib/types';
 
-const VIEW_W = 1000;
-const VIEW_H = 700;
+/* The viewBox carries a left gutter and a little headroom, because the zone
+   annotations live OUTSIDE the blocks. Zone origins come from farm.json and start
+   at x=58, so a card drawn to the left of a block used to land at x=-64 and was
+   silently clipped away — the zone health readouts were not on screen at all. */
+const VIEW_X = -136;
+const VIEW_Y = -30;
+const VIEW_W = 1096;
+const VIEW_H = 754;
 const CELL_W = 100;
 const CELL_H = 28;
 const GAP_X = 12;
@@ -72,6 +81,20 @@ function PanelCell({
       {anomalous && (
         <rect x={x} y={y} width={CELL_W} height={CELL_H} fill={`url(#hatch-${status})`} />
       )}
+      {/* Every array carries its ID. 120 labels is a lot of ink and it is the
+          difference between a heatmap and a drawing you can navigate: an operator
+          who has been told "B-17" can find B-17 without counting rows. */}
+      <text
+        x={x + CELL_W - 5} y={y + CELL_H - 6}
+        textAnchor="end"
+        fill={anomalous ? 'var(--text-inverse)' : 'var(--text-secondary)'}
+        style={{
+          font: `${anomalous ? 700 : 500} 10px var(--font-mono)`,
+          letterSpacing: '0.04em', pointerEvents: 'none',
+        }}
+      >
+        {panel.id}
+      </text>
       {selected && (
         <rect
           x={x - 3} y={y - 3} width={CELL_W + 6} height={CELL_H + 6}
@@ -86,33 +109,47 @@ function PanelCell({
 /**
  * Zone health is recomputed from the CURRENT frame rather than read from
  * farm.json, because farm.json is static geometry and knows nothing about a fault
- * that develops at t=6. The card shows the worst status in the zone and the
+ * that develops at t=6. The annotation shows the worst status in the zone and the
  * percentage of arrays that are nominal.
+ *
+ * The zone NAME is set large, rotated and nearly the colour of the background —
+ * the way a block is labelled on a site drawing. It is the biggest text on the map
+ * and the quietest, which is the only combination that lets a label that size not
+ * compete with the thing it labels.
  */
-function ZoneCard({ zone }: { zone: Zone }) {
+function ZoneAnnotation({ zone }: { zone: Zone }) {
   const { label, pct } = useZoneSummary(zone.id);
 
   const colour = label === 'CRITICAL' ? 'var(--panel-critical)'
     : label === 'SCHEDULED' ? 'var(--panel-scheduled)'
       : label === 'DEGRADED' ? 'var(--panel-warning)' : 'var(--sev-active)';
 
-  const w = 96;
-  const x = zone.originX - w - 26;
-  const y = zone.originY + 10;
+  const h = zone.rows * CELL_H + (zone.rows - 1) * GAP_Y;
+  const midY = zone.originY + h / 2;
 
   return (
     <g>
-      <rect x={x} y={y} width={w} height={40} fill="var(--surface-panel)"
-        stroke="var(--line-hairline)" />
-      <text x={x + 10} y={y + 19} fill="var(--text-primary)"
-        style={{ font: '600 15px var(--font-cond)', letterSpacing: '0.1em' }}>
-        {zone.id}
+      <text
+        x={-84} y={midY}
+        textAnchor="middle"
+        fill="var(--line-active)"
+        style={{ font: '600 34px var(--font-cond)', letterSpacing: '0.18em' }}
+        transform={`rotate(-90 ${-84} ${midY})`}
+      >
+        {zone.label.toUpperCase()}
       </text>
-      <circle cx={x + 12} cy={y + 30} r={3} fill={colour} />
-      <text x={x + 21} y={y + 33} fill={colour}
-        style={{ font: '500 8px var(--font-mono)', letterSpacing: '0.08em' }}>
-        {label} {pct}%
-      </text>
+
+      <g transform={`translate(-136 ${zone.originY - 4})`}>
+        <rect x={0} y={0} width={44} height={2} fill={colour} />
+        <text x={0} y={20} fill={colour}
+          style={{ font: '700 11px var(--font-mono)', letterSpacing: '0.06em' }}>
+          {label}
+        </text>
+        <text x={0} y={36} fill="var(--text-secondary)"
+          style={{ font: '500 11px var(--font-mono)' }}>
+          {pct}% NOMINAL
+        </text>
+      </g>
     </g>
   );
 }
@@ -133,7 +170,7 @@ function ZoneBlock({
         <text
           key={r}
           x={zone.originX - 18} y={zone.originY + r * (CELL_H + GAP_Y) + CELL_H / 2 + 3}
-          textAnchor="end" fill="var(--text-muted)"
+          textAnchor="end" fill="var(--text-secondary)"
           style={{ font: '500 8px var(--font-mono)' }}
         >
           {String(r + 1).padStart(2, '0')}
@@ -168,6 +205,17 @@ export function FarmMap() {
   const ty = cellY(zoneB, target);
 
   const missions = useActiveMissions();
+  const frame = useSiteFrame();
+
+  // A view preference over a derived drawing, the same class of state as the feed's
+  // SHOW ALL: it does not mirror the clock, so seeking cannot leave it wrong. The
+  // viewBox shrinks around the centre, which is what makes it a zoom rather than a
+  // scale — the strokes stay 1px and the drawing stays a drawing.
+  const [zoom, setZoom] = useState(1);
+  const zw = VIEW_W / zoom;
+  const zh = VIEW_H / zoom;
+  const zx = VIEW_X + (VIEW_W - zw) / 2;
+  const zy = VIEW_Y + (VIEW_H - zh) / 2;
 
   /** Route geometry to any array — live missions and the scripted one share it. */
   const routeTo = (targetId: string, padIndex: number) => {
@@ -200,32 +248,73 @@ export function FarmMap() {
   };
 
   return (
-    <div className="area-map inset" style={{ position: 'relative', padding: 'var(--sp-4)' }}>
+    <div className="area-map" style={{
+      position: 'relative', background: 'var(--surface-void)', overflow: 'hidden',
+    }}>
+      {/* A 40px survey grid behind the drawing. It costs nothing and it is what
+          makes 120 hatched rectangles read as a plan rather than a heatmap. */}
+      <span className="survey-grid" aria-hidden />
+
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 'var(--sp-3)', gap: 'var(--sp-4)',
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        padding: 'var(--sp-3)', gap: 'var(--sp-4)', pointerEvents: 'none',
       }}>
-        <span className="t-h1" style={{ color: 'var(--text-primary)' }}>
-          {farm.name.toUpperCase()}
-          <span className="t-micro" style={{ color: 'var(--text-muted)', marginLeft: 'var(--sp-3)' }}>
+        <span style={{
+          background: 'var(--surface-panel)', border: '1px solid var(--line-active)',
+          padding: 'var(--sp-2) var(--sp-3)', display: 'grid', gap: 2,
+        }}>
+          <span className="t-h1" style={{ color: 'var(--text-primary)', letterSpacing: '0.2em' }}>
+            {farm.name.toUpperCase()}
+          </span>
+          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
             {farm.region.toUpperCase()} · {farm.lat.toFixed(3)}° N, {farm.lon.toFixed(3)}° E ·{' '}
-            {farm.tilt}° / {farm.azimuth}°
+            {farm.tilt}° / {farm.azimuth}° · {mode === 'live' ? frame.clock : 'REPLAY'}
           </span>
         </span>
-        <span
-          className="t-micro"
-          style={{
-            color: 'var(--text-secondary)', border: '1px solid var(--line-active)',
-            padding: '4px var(--sp-3)', whiteSpace: 'nowrap',
-          }}
-        >
-          {mode === 'live' ? 'CLICK AN ARRAY TO INSPECT' : 'MAP MODE: SCHEMATIC ▾'}
+
+        <span style={{ display: 'flex', gap: 'var(--sp-2)', pointerEvents: 'auto' }}>
+          <span
+            className="t-micro"
+            style={{
+              color: 'var(--text-secondary)', background: 'var(--surface-panel)',
+              border: '1px solid var(--line-active)', padding: '7px var(--sp-3)',
+              whiteSpace: 'nowrap', alignSelf: 'center',
+            }}
+          >
+            {mode === 'live' ? 'CLICK AN ARRAY TO INSPECT' : 'SCHEMATIC · NORTH UP'}
+          </span>
+          {([['in', ZoomIn], ['out', ZoomOut]] as const).map(([dir, Icon]) => {
+            const next = dir === 'in' ? Math.min(2.5, zoom * 1.25) : Math.max(1, zoom / 1.25);
+            return (
+              <button
+                key={dir}
+                type="button"
+                className="btn-reset"
+                onClick={() => setZoom(next)}
+                disabled={next === zoom}
+                aria-label={dir === 'in' ? 'Zoom in on the site map' : 'Zoom out of the site map'}
+                style={{
+                  width: 32, height: 32, display: 'grid', placeItems: 'center',
+                  background: 'var(--surface-panel)',
+                  border: '1px solid var(--line-active)',
+                  color: next === zoom ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  cursor: next === zoom ? 'default' : 'pointer',
+                }}
+              >
+                <Icon size={17} strokeWidth={1.75} aria-hidden />
+              </button>
+            );
+          })}
         </span>
       </div>
 
       <svg
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        style={{ width: '100%', height: 'calc(100% - 46px)' }}
+        viewBox={`${zx} ${zy} ${zw} ${zh}`}
+        style={{
+          width: '100%', height: '100%', position: 'relative', zIndex: 1,
+          padding: 'var(--sp-4)', boxSizing: 'border-box',
+        }}
         role="img"
         aria-label={`Site map, ${FAULTED} is ${status}`}
       >
@@ -246,14 +335,14 @@ export function FarmMap() {
         {farm.zones.map((z) => (
           <ZoneBlock key={z.id} zone={z} selectedId={selected} onSelect={select} />
         ))}
-        {farm.zones.map((z) => <ZoneCard key={`card-${z.id}`} zone={z} />)}
+        {farm.zones.map((z) => <ZoneAnnotation key={`zone-${z.id}`} zone={z} />)}
 
         {/* Drone pads */}
         {farm.dronePads.map((p) => (
           <g key={p.id}>
             <rect x={p.x - 7} y={p.y - 7} width={14} height={14} fill="none"
               stroke="var(--line-active)" strokeWidth={1} />
-            <text x={p.x + 14} y={p.y + 4} className="t-micro" fill="var(--text-muted)"
+            <text x={p.x + 14} y={p.y + 4} className="t-micro" fill="var(--text-secondary)"
               style={{ fontSize: 10 }}>{p.id}</text>
           </g>
         ))}
@@ -339,14 +428,14 @@ export function FarmMap() {
               opacity: k === 'healthy' ? 0.55 : 0.9,
               border: `1px solid ${STATUS_FILL[k]}`,
             }} />
-            <span className="t-h2" style={{ color: 'var(--text-muted)' }}>{label}</span>
+            <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>{label}</span>
           </span>
         ))}
         <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
           <span style={{
             width: 15, borderTop: '1px dashed var(--sev-active)', display: 'inline-block',
           }} />
-          <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Drone route</span>
+          <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>Drone route</span>
         </span>
       </div>
     </div>

@@ -22,6 +22,7 @@ import { HeaderBar } from './HeaderBar';
 import { IconRail } from './IconRail';
 import { LeftRail } from './LeftRail';
 import { RepairQueueBar } from './RepairQueueBar';
+import { SiteKpiStrip } from './SiteKpiStrip';
 import { AnalyticsModule } from './modules/AnalyticsModule';
 import { DronesModule } from './modules/DronesModule';
 import { MissionsModule } from './modules/MissionsModule';
@@ -46,6 +47,7 @@ export function ConsoleRoot() {
   return (
     <div className="console-root">
       <HeaderBar />
+      <SiteKpiStrip />
       <IconRail />
       <LeftRail />
       <ModuleArea />

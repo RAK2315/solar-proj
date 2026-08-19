@@ -49,7 +49,7 @@ export function DispatchPanel() {
             statements, flatly contradictory, four lines apart. What the mission
             proves is that the drone went and looked; whether committed imagery
             came back is a separate fact and is now stated separately. */}
-        <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           {captured
             ? 'Cell-level findings below are from that inspection.'
             : `No committed imagery for ${panelId} in this build — see below.`}
@@ -77,15 +77,15 @@ export function DispatchPanel() {
       <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span className="t-data-em">{mission.droneId}</span>
-          <span className="badge" style={{ color: 'var(--sev-active)' }}>{phaseLabel}</span>
+          <span className="chip" style={{ background: 'var(--sev-active)' }}>{phaseLabel}</span>
         </div>
-        <span style={{ height: 4, background: 'var(--surface-inset)', display: 'block' }}>
+        <span style={{ height: 6, background: 'var(--surface-high)', display: 'block' }}>
           <span style={{
             display: 'block', height: '100%', width: `${pct}%`,
             background: 'var(--sev-active)', transition: 'width 200ms linear',
           }} />
         </span>
-        <div className="t-micro" style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+        <div className="t-micro" style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
           <span>{mission.id} → {mission.panelId}</span>
           <span>
             {mission.phase === 'returning'
@@ -114,18 +114,16 @@ export function DispatchPanel() {
           boxSizing: 'border-box',
           width: '100%',
           textAlign: 'center',
-          padding: 'var(--sp-3) var(--sp-4)',
-          background: canDispatch ? 'var(--sev-active)' : 'var(--surface-raised)',
-          color: canDispatch ? 'var(--text-inverse)' : 'var(--text-muted)',
-          border: canDispatch ? 'none' : '1px solid var(--line-active)',
-          fontSize: 13,
+          padding: 'var(--sp-4)',
+          background: canDispatch ? 'var(--sev-active)' : 'var(--surface-high)',
+          color: canDispatch ? 'var(--text-inverse)' : 'var(--text-secondary)',
           letterSpacing: '0.12em',
         }}
       >
         {canDispatch ? `DISPATCH DRONE → ${panelId}` : 'BOTH DRONES COMMITTED'}
       </button>
 
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+      <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
         {dronesBusy > 0 && `${dronesBusy} of 2 airborne · `}
         round trip {hours(MISSION_TOTAL / 3600)} site time · battery {pctPlain(88)}
       </span>

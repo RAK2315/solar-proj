@@ -92,6 +92,29 @@ export function eventFor(
 }
 
 /** Every fault in force this session, committed and injected. */
+/**
+ * Does the SITE RECORD say this array is cracked?
+ *
+ * Distinct from `hasCapturedEvidence`, and the distinction is the whole point.
+ * This asks what the scenario declares about an array's failure MECHANISM — three
+ * of the committed faults are cracks, and the operator can inject more. That is a
+ * property of the site, known for every array it applies to.
+ *
+ * `hasCapturedEvidence` asks something much narrower: do we hold a real thermal
+ * capture of this array. Only B-17. Cell positions, the detection confidence and
+ * the cell grid all come from that capture and must never appear anywhere else.
+ *
+ * The 3D scene may draw a crack on any array the record calls cracked. It may not
+ * draw B-17's MEASURED hot cells on any of them.
+ */
+export function hasCrackMechanism(
+  panelId: string,
+  injected: readonly ScenarioEvent[] = [],
+): boolean {
+  const e = eventFor(panelId, injected);
+  return Boolean(e?.mechanism?.toLowerCase().includes('crack'));
+}
+
 export const allEvents = (extra: readonly ScenarioEvent[] = []): ScenarioEvent[] =>
   [...scenario.events, ...extra.filter(
     (e) => !scenario.events.some((c) => c.panelId === e.panelId),

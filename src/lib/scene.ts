@@ -145,6 +145,20 @@ export const DAMAGED_MODULE: Vec3 = {
  * which keeps the demo's geometry byte-identical while letting the same spline
  * fly to any of the 120.
  */
+/**
+ * The CENTRE of any array — where its row of modules is anchored.
+ *
+ * `inspectionTarget` returns the damaged module inside the array; this returns the
+ * array itself, which is what a component drawing all four modules needs.
+ */
+export function arrayCentre(panelId: string): Vec3 {
+  for (const zone of farm.zones) {
+    const p = zone.panels.find((x) => x.id === panelId);
+    if (p) return arrayPosition(zone.id, p.row, p.col, zone.cols);
+  }
+  return B17;
+}
+
 export function inspectionTarget(panelId: string): Vec3 {
   for (const zone of farm.zones) {
     const p = zone.panels.find((x) => x.id === panelId);

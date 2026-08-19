@@ -41,7 +41,7 @@ export function Recommendation() {
           </li>
         ))}
       </ul>
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+      <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
         {typographic(recommendation.costOfDelayNote)}
       </span>
     </div>

@@ -67,7 +67,7 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
       {/* The chart is IDENTICAL for all 120 arrays and nothing said so, which read
           as a bug: an operator clicks through four arrays, sees the same curve, and
           concludes it is stuck. It is the site's weather. Say that on the chart. */}
-      <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+      <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
         Site ambient forecast — the same curve for every array.
         {showRisk
           ? ` Risk, deadline and projected loss below are computed for ${panelId}.`
@@ -87,14 +87,14 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
               dataKey="h"
               ticks={[0, 24, 48, 72]}
               tickFormatter={(h) => `+${h}h`}
-              tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
               axisLine={{ stroke: 'var(--line-hairline)' }}
               tickLine={false}
             />
             <YAxis
               domain={['dataMin - 1', 'dataMax + 1']}
               width={30}
-              tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v: number) => `${v.toFixed(0)}°`}
@@ -132,7 +132,7 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
           <>
             <span style={{ color: 'var(--text-secondary)' }}>
               Projected loss
-              <span className="t-micro" style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
+              <span className="t-micro" style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
                 {panelId}
               </span>
             </span>
@@ -143,7 +143,7 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
         ) : (
           <>
             <span style={{ color: 'var(--text-secondary)' }}>Projected loss</span>
-            <span className="t-data-em" style={{ color: 'var(--text-muted)' }}>
+            <span className="t-data-em" style={{ color: 'var(--text-secondary)' }}>
               none — {panelId} is not deviating
             </span>
           </>

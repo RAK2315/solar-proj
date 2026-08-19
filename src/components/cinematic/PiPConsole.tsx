@@ -37,7 +37,7 @@ export function PiPConsole() {
         <span className="t-h1" style={{ color: 'var(--sev-active)', letterSpacing: '0.14em' }}>
           ⊡ CMD FEED · OPERATOR
         </span>
-        <span className="t-h1" style={{ color: 'var(--text-muted)' }}>SLAVED</span>
+        <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>SLAVED</span>
       </div>
 
       <div style={{

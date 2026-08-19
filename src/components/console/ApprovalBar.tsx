@@ -12,6 +12,8 @@
  * application. If a second one ever appears, that is a design bug.
  */
 
+import { CheckCircle2, ShieldCheck } from 'lucide-react';
+
 import {
   BEAT, useAgentCache, useApproved, useDemoClockT, useInspected, useMode,
   useOverride, useSelectedPanelId,
@@ -61,13 +63,18 @@ export function ApprovalBar() {
   return (
     <div
       style={{
-        position: 'sticky', bottom: 0,
-        background: 'var(--surface-panel)',
-        borderTop: '1px solid var(--line-hairline)',
-        paddingTop: 'var(--sp-3)',
-        display: 'grid', gap: 'var(--sp-2)',
+        /* A grid row of the rail now, not a sticky overlay — the rail is
+           header / scroll / gate, so the gate is structurally pinned and cannot
+           overlap the content it sits under. */
+        background: 'var(--surface-void)',
+        borderTop: '1px solid var(--line-active)',
+        padding: 'var(--sp-3) var(--sp-4) var(--sp-4)',
+        display: 'grid', gap: 'var(--sp-3)',
       }}
     >
+      {/* THE loudest element in the application, and the only saturated fill in the
+          rail. Everything above it is a reading; this is the one thing that changes
+          the world, so it is the one thing that looks like a button. */}
       <button
         type="button"
         onClick={approve}
@@ -76,16 +83,19 @@ export function ApprovalBar() {
         style={{
           boxSizing: 'border-box',
           width: '100%',
-          textAlign: 'center',
-          padding: 'var(--sp-3) var(--sp-4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 'var(--sp-2)',
+          padding: 'var(--sp-4)',
           cursor: approved ? 'default' : 'pointer',
-          background: approved ? 'var(--panel-scheduled)' : 'var(--sev-critical)',
+          background: approved ? 'var(--panel-scheduled)' : 'var(--sev-critical-ink)',
           color: 'var(--text-inverse)',
-          fontSize: 13,
           letterSpacing: '0.12em',
           transition: 'background 200ms linear',
         }}
       >
+        {approved
+          ? <CheckCircle2 size={17} strokeWidth={2.25} aria-hidden />
+          : <ShieldCheck size={17} strokeWidth={2.25} aria-hidden />}
         {approved ? `✓ WORK ORDER #${ref} CREATED` : `APPROVE — CREATE WORK ORDER → ${mode === 'live' ? panelId : ''}`}
       </button>
 
@@ -100,8 +110,8 @@ export function ApprovalBar() {
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           style={{
             flex: 1.6, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
-            border: '1px solid var(--line-active)', background: 'var(--surface-raised)',
-            color: 'var(--text-secondary)', cursor: 'pointer',
+            background: 'var(--surface-high)',
+            color: 'var(--text-primary)', cursor: 'pointer',
           }}
         >
           INSPECT EVIDENCE
@@ -114,7 +124,7 @@ export function ApprovalBar() {
             onClick={() => clearOverride(panelId)}
             style={{
               flex: 1.4, textAlign: 'center', padding: 'var(--sp-3) var(--sp-2)',
-              border: '1px solid var(--sev-warning)', color: 'var(--sev-warning)',
+              border: '1px solid var(--sev-warning)', color: 'var(--sev-warning-ink)',
               cursor: 'pointer',
             }}
           >
@@ -125,7 +135,7 @@ export function ApprovalBar() {
             className="t-h2"
             style={{
               flex: 1.4, display: 'grid', placeItems: 'center',
-              border: '1px solid var(--line-active)', color: 'var(--text-muted)',
+              background: 'var(--surface-high)', color: 'var(--text-secondary)',
             }}
           >
             <span className="sr-only">Override — decline with a reason</span>
@@ -155,11 +165,11 @@ export function ApprovalBar() {
         gap: 'var(--sp-2)',
       }}>
         <span className="t-micro" style={{
-          color: approved ? 'var(--panel-scheduled)' : 'var(--text-muted)',
+          color: approved ? 'var(--panel-scheduled)' : 'var(--text-secondary)',
         }}>
           {approved ? '✓ QUEUED' : 'NOT QUEUED'}
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
+        <span className="t-micro" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
           {override
             ? `Declined by operator — ${override.reason}.`
             : approved

@@ -3,18 +3,22 @@
 /**
  * LeftRail — live events, drone status, signal quality.
  *
- * The feed is a pure filter over events.json, so seeking backwards removes rows
- * rather than leaving them stuck.
+ * The feed is a pure filter over the event source, so seeking backwards removes
+ * rows rather than leaving them stuck.
  *
  * Signal quality is derived from the drone's mission state rather than animated.
  * A bar that jitters on its own timer would be a second clock, which is the thing
  * this project bans outright.
+ *
+ * LAYOUT. The feed scrolls and the two instrument blocks are pinned to the bottom
+ * against a shared rule, the way a control-room strip is built: the thing that
+ * changes gets the room, the thing that must always be visible gets an anchor.
  */
 
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
-import { num, pctPlain } from '@/lib/format';
+import { pctPlain } from '@/lib/format';
 import {
   useActiveMissions, useAllFeedEvents, useDroneState, useFeedEvents, useFeedFilter,
   useMode,
@@ -22,70 +26,67 @@ import {
 import { useSession, type FeedFilter } from '@/store/session';
 import { EventCard } from './EventCard';
 
-/** Segmented meter. Ten discrete cells read as an instrument; a smooth bar does not. */
-function Meter({ value, colour = 'var(--sev-active)' }: { value: number; colour?: string }) {
-  const lit = Math.round((value / 100) * 10);
+/** How many events the feed shows before VIEW ALL is needed. */
+const FEED_PREVIEW = 6;
+
+const FILTER_LABEL: Record<FeedFilter, string> = {
+  all: 'ALL',
+  warning: 'WARN+',
+  critical: 'CRIT',
+};
+
+/** A titled instrument block in the pinned lower half. */
+function Instrument({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+      <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>{title}</span>
+      {children}
+    </div>
+  );
+}
+
+/** Five wide cells. Coarse on purpose — this is a fuel gauge, not a percentage. */
+function Cells({ value, colour }: { value: number; colour: string }) {
+  const lit = Math.round((value / 100) * 5);
   return (
     <span className="seg" aria-hidden>
-      {Array.from({ length: 10 }, (_, i) => (
-        <i key={i} data-on={i < lit ? 1 : 0} style={i < lit ? { background: colour } : undefined} />
+      {Array.from({ length: 5 }, (_, i) => (
+        <i
+          key={i}
+          style={{
+            width: 13, height: 15,
+            background: i < lit ? colour : 'var(--line-hairline)',
+          }}
+        />
       ))}
     </span>
   );
 }
 
-function Section({ title, action, children }: {
-  title: string; action?: React.ReactNode; children: React.ReactNode;
-}) {
-  return (
-    <section style={{ display: 'grid', gap: 'var(--sp-3)', minHeight: 0 }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        borderBottom: '1px solid var(--line-hairline)', paddingBottom: 'var(--sp-2)',
-      }}>
-        <h2 className="t-h1" style={{ color: 'var(--text-primary)' }}>
-          <span style={{ color: 'var(--sev-active)', marginRight: 6 }}>●</span>
-          {title}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/** How many events the feed shows before VIEW ALL is needed. */
-const FEED_PREVIEW = 6;
-
-const FILTER_LABEL: Record<FeedFilter, string> = {
-  all: '⇄ ALL',
-  warning: '⇄ WARNING+',
-  critical: '⇄ CRITICAL',
-};
-
-function DroneRow({ id, status, battery, pad }: {
-  id: string; status: string; battery: number; pad: string;
+function DroneRow({ id, status, battery }: {
+  id: string; status: string; battery: number;
 }) {
   const active = status !== 'STANDBY';
   return (
-    <div style={{ display: 'grid', gap: 3 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-        <span className="t-data-em" style={{ minWidth: 62 }}>{id}</span>
-        <span
-          className="badge"
-          style={{ color: active ? 'var(--sev-active)' : 'var(--text-muted)', borderColor: 'var(--line-active)' }}
-        >
-          {status}
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 'var(--sp-2)',
+    }}>
+      <span className="t-data" style={{ color: 'var(--text-primary)' }}>
+        {id}{' '}
+        <span className="t-micro" style={{ color: active ? 'var(--sev-active)' : 'var(--text-secondary)' }}>
+          {active ? status : 'DOCK'}
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-          <Meter value={battery} colour={battery < 20 ? 'var(--sev-critical)' : 'var(--sev-active)'} />
-          <span className="t-data" style={{ color: 'var(--text-secondary)', minWidth: 38, textAlign: 'right' }}>
-            {pctPlain(battery)}
-          </span>
+      </span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+        <Cells
+          value={battery}
+          colour={battery < 30 ? 'var(--sev-critical)'
+            : active ? 'var(--sev-warning)' : 'var(--sev-active)'}
+        />
+        <span className="t-micro" style={{ color: 'var(--text-secondary)', minWidth: 34, textAlign: 'right' }}>
+          {pctPlain(battery)}
         </span>
-      </div>
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-        {active ? 'IN FLIGHT' : 'IDLE'} · {pad}
       </span>
     </div>
   );
@@ -123,83 +124,110 @@ export function LeftRail() {
 
   return (
     <aside
-      className="area-left panel hair-r"
+      className="area-left hair-r"
       style={{
-        display: 'grid', gridTemplateRows: '1fr auto auto',
-        gap: 'var(--sp-4)', padding: 'var(--sp-4) var(--sp-3)', minHeight: 0,
+        background: 'var(--surface-inset)',
+        display: 'grid', gridTemplateRows: 'auto 1fr auto', minHeight: 0,
       }}
     >
-      <Section
-        title="Live events"
-        action={(
+      <header className="panel hair-b" style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 'var(--sp-2)', padding: 'var(--sp-3)',
+      }}>
+        <h2 className="t-h1" style={{ color: 'var(--text-primary)', margin: 0 }}>Live events</h2>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
           <button
             type="button"
             className="btn-reset t-micro"
             onClick={cycleFilter}
             aria-label={`Event severity filter: ${filter}. Click to change.`}
-            style={{ color: filter === 'all' ? 'var(--text-muted)' : 'var(--sev-warning)' }}
+            style={{
+              color: filter === 'all' ? 'var(--text-secondary)' : 'var(--sev-warning)',
+              border: '1px solid var(--line-active)', padding: '2px 6px',
+            }}
           >
-            {FILTER_LABEL[filter]}
+            ⇄ {FILTER_LABEL[filter]}
+          </button>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: 'var(--sev-active)',
+            }} aria-hidden />
+            <span className="t-micro" style={{ color: 'var(--sev-active)' }}>SYNCED</span>
+          </span>
+        </span>
+      </header>
+
+      <div className="scroll-y" style={{ display: 'grid', alignContent: 'start' }}>
+        <AnimatePresence initial={false}>
+          {shown.map((e) => <EventCard key={e.id} event={e} />)}
+        </AnimatePresence>
+
+        {visible.length === 0 && (
+          <p className="t-data" style={{ color: 'var(--text-secondary)', padding: 'var(--sp-4)', margin: 0 }}>
+            {filter === 'all'
+              ? 'Monitoring. No events this cycle.'
+              : `No ${filter}-or-above events. ${total} hidden by the filter.`}
+          </p>
+        )}
+
+        {visible.length > FEED_PREVIEW && (
+          <button
+            type="button"
+            className="btn-reset t-micro"
+            onClick={() => setShowAll((v) => !v)}
+            style={{
+              color: 'var(--sev-active)', padding: 'var(--sp-3)', textAlign: 'left',
+              borderBottom: '1px solid var(--line-hairline)',
+            }}
+          >
+            {showAll ? '↑ SHOW FEWER' : `VIEW ALL ${visible.length} EVENTS →`}
           </button>
         )}
-      >
-        <div style={{
-          display: 'grid', gap: 'var(--sp-2)', overflowY: 'auto',
-          minHeight: 0, alignContent: 'start',
-        }}>
-          <AnimatePresence initial={false}>
-            {shown.map((e) => <EventCard key={e.id} event={e} />)}
-          </AnimatePresence>
-          {visible.length === 0 && (
-            <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-              {filter === 'all'
-                ? 'Monitoring. No events this cycle.'
-                : `No ${filter}-or-above events. ${total} hidden by the filter.`}
+      </div>
+
+      <div className="panel hair-t" style={{
+        padding: 'var(--sp-4) var(--sp-3)', display: 'grid', gap: 'var(--sp-4)',
+      }}>
+        <Instrument title="Drone status">
+          <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+            <DroneRow id="DRONE 01" status={drone.status} battery={drone.batteryPct} />
+            <DroneRow id="DRONE 02" status="STANDBY" battery={100} />
+          </div>
+        </Instrument>
+
+        <Instrument title="Comms signal">
+          <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+            {([['UP', uplink], ['DOWN', downlink]] as const).map(([label, v]) => (
+              <div key={label} style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+              }}>
+                <span className="t-micro" style={{ color: 'var(--text-secondary)', minWidth: 34 }}>
+                  {label}
+                </span>
+                {/* A rising staircase rather than equal cells: a link meter is read
+                    as "how many bars", and equal bars make 3/5 and 4/5 look alike. */}
+                <span aria-hidden style={{
+                  display: 'flex', alignItems: 'flex-end', gap: 2, height: 18, flex: 1,
+                }}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} style={{
+                      width: 13, height: `${(i + 1) * 20}%`,
+                      background: i < Math.round((v / 100) * 5)
+                        ? 'var(--sev-active)' : 'var(--line-hairline)',
+                    }} />
+                  ))}
+                </span>
+                <span className="t-micro" style={{ color: 'var(--sev-active)' }}>
+                  {pctPlain(v)}
+                </span>
+              </div>
+            ))}
+            <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+              LINK {active ? 'C2 · 2.4 GHz' : 'IDLE'} · SYSTEM STATUS NOMINAL
             </span>
-          )}
-          {visible.length > FEED_PREVIEW && (
-            <button
-              type="button"
-              className="btn-reset t-micro"
-              onClick={() => setShowAll((v) => !v)}
-              style={{ color: 'var(--text-muted)', paddingTop: 'var(--sp-2)', textAlign: 'left' }}
-            >
-              {showAll
-                ? '↑ SHOW FEWER'
-                : `VIEW ALL ${visible.length} EVENTS →`}
-            </button>
-          )}
-        </div>
-      </Section>
-
-      <Section title="Drone status">
-        <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
-          <DroneRow id="DRONE 01" status={drone.status} battery={drone.batteryPct} pad={drone.padId} />
-          <DroneRow id="DRONE 02" status="STANDBY" battery={100} pad="PAD-02" />
-        </div>
-      </Section>
-
-      <Section title="Signal quality">
-        <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-          {([['Uplink', uplink], ['Downlink', downlink]] as const).map(([label, v]) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-              <span className="t-data" style={{ color: 'var(--text-secondary)', minWidth: 66 }}>
-                {label}
-              </span>
-              <Meter value={v} />
-              <span className="t-data" style={{ color: 'var(--text-secondary)', marginLeft: 'auto' }}>
-                {pctPlain(v)}
-              </span>
-            </div>
-          ))}
-          <span className="t-micro" style={{ color: 'var(--sev-active)' }}>
-            SYSTEM STATUS NOMINAL
-          </span>
-          <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-            LINK {active ? 'C2 · 2.4 GHz' : 'IDLE'} · LAT {num(active ? 41 : 12, 0)} ms
-          </span>
-        </div>
-      </Section>
+          </div>
+        </Instrument>
+      </div>
     </aside>
   );
 }

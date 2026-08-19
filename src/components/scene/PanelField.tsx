@@ -8,8 +8,11 @@
  * draw calls. The hard cap is 600 (CLAUDE.md §14) and the layout comes out of
  * farm.json, so the field on screen is the same site the map draws.
  *
- * B-17 is excluded here and rendered separately by CrackedPanel, because it needs a
- * unique material carrying the crack decal.
+ * THE INSPECTED ARRAY is excluded here and rendered separately by CrackedPanel,
+ * because it needs a unique material carrying the crack decal. Which array that is
+ * follows the flight — it used to be B-17 forever, so dispatching anywhere else
+ * drew the unique meshes on top of the instanced ones and left the array the camera
+ * was actually looking at pristine.
  */
 
 import { SCENE, SCENE_MATERIAL } from '@/lib/scenePalette';
@@ -17,13 +20,15 @@ import { Instance, Instances } from '@react-three/drei';
 import { useMemo } from 'react';
 
 import {
-  FAULTED_ARRAY_ID, PANEL_H, PANEL_TILT, PANEL_W, POST_HEIGHT, panelInstances,
+  PANEL_H, PANEL_TILT, PANEL_W, POST_HEIGHT, panelInstances,
 } from '@/lib/scene';
+import { useFlightCue } from '@/store/flightCue';
 
 export function PanelField() {
+  const targetId = useFlightCue().targetId;
   const panels = useMemo(
-    () => panelInstances().filter((p) => !p.id.startsWith(`${FAULTED_ARRAY_ID}-`)),
-    [],
+    () => panelInstances().filter((p) => !p.id.startsWith(`${targetId}-`)),
+    [targetId],
   );
 
   return (

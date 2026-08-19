@@ -159,6 +159,18 @@ export interface SessionState {
   setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
   setTimeScale: (s: number) => void;
+  /**
+   * Move the site clock. NOT a second source of time — the rAF driver still owns
+   * advancing it; this is a seek, the live-mode counterpart of `demoClock.seek`.
+   *
+   * It exists because site time runs at 60x and there was no way back: leave the
+   * tab open twenty minutes and the site is past midnight, every array reads 0.0 %
+   * because irradiance is zero, and the console looks broken when it is merely
+   * night. Missions and work orders are keyed to site seconds and every phase is
+   * DERIVED from it, so scrubbing rewinds them correctly rather than stranding them
+   * — the same guarantee the demo clock has always had.
+   */
+  setSiteSeconds: (seconds: number) => void;
   toggleRunning: () => void;
   cycleFeedFilter: () => void;
   setDossier: (open: boolean) => void;
@@ -232,6 +244,7 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   selectPanel: (selectedPanelId) => set({ selectedPanelId, dossierOpen: false }),
   setDossier: (dossierOpen) => set({ dossierOpen }),
   setTimeScale: (timeScale) => set({ timeScale }),
+  setSiteSeconds: (siteSeconds) => set({ siteSeconds: Math.max(0, siteSeconds) }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
 
   cycleFeedFilter: () => set((s) => ({

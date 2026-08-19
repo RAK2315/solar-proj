@@ -15,22 +15,37 @@
 import { confidence } from '@/lib/format';
 import { useDetection, useEvidence } from '@/store/selectors';
 
+/**
+ * A captured frame. The label sits ON the image as a chip rather than under it as a
+ * caption — a frame with its channel burned into the corner is how a UAV payload
+ * presents itself, and it means the label cannot drift away from the image when the
+ * column reflows.
+ */
 function Thumb({ src, label, caption }: { src: string; label: string; caption?: string }) {
   return (
-    <figure style={{ margin: 0, display: 'grid', gap: 3, minWidth: 0 }}>
+    <figure style={{ margin: 0, display: 'grid', gap: 'var(--sp-2)', minWidth: 0 }}>
       <div style={{
         border: '1px solid var(--line-active)', background: 'var(--surface-inset)',
-        aspectRatio: '4 / 3', overflow: 'hidden', display: 'grid', placeItems: 'center',
+        aspectRatio: '4 / 3', overflow: 'hidden', position: 'relative',
       }}>
         {/* Static committed artefacts, not remote images — next/image would add a
             loader for files that are already local and already sized. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={label}
           style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }} />
+        <figcaption
+          className="chip"
+          style={{
+            position: 'absolute', left: 0, bottom: 0,
+            background: 'var(--surface-void)', color: 'var(--sev-active)',
+          }}
+        >
+          {label}
+        </figcaption>
       </div>
-      <figcaption className="t-micro" style={{ color: 'var(--text-muted)' }}>
-        {label}{caption && <span style={{ color: 'var(--text-secondary)' }}> · {caption}</span>}
-      </figcaption>
+      {caption && (
+        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{caption}</span>
+      )}
     </figure>
   );
 }
@@ -40,13 +55,17 @@ export function EvidenceStrip() {
   const detection = useDetection();
 
   const thumbs = [
-    evidence.thermal && { src: evidence.thermal, label: 'THERMAL', caption: 'ironbow' },
+    evidence.thermal && {
+      src: evidence.thermal, label: 'THERMAL', caption: 'IR · ironbow LUT · UAV frame',
+    },
     (evidence.rgbAnnotated || evidence.rgb) && {
       src: (evidence.rgbAnnotated || evidence.rgb)!,
       label: 'RGB',
       // The confidence is whatever the model returned. Never rounded up, and
       // invariant I11 rejects the spec's placeholder 0.84 by name.
-      caption: detection ? `${detection.label} ${confidence(detection.confidence)}` : undefined,
+      caption: detection
+        ? `VIS · ${detection.label} ${confidence(detection.confidence)}`
+        : undefined,
     },
   ].filter(Boolean) as Array<{ src: string; label: string; caption?: string }>;
 
@@ -55,7 +74,10 @@ export function EvidenceStrip() {
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       {thumbs.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${thumbs.length}, 1fr)`, gap: 'var(--sp-3)' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: `repeat(${thumbs.length}, 1fr)`,
+          gap: 'var(--sp-4)',
+        }}>
           {thumbs.map((t) => <Thumb key={t.label} {...t} />)}
         </div>
       )}
@@ -67,7 +89,7 @@ export function EvidenceStrip() {
           one unforced error in an evidence panel built entirely around declared
           provenance, and it is the first thing anyone will notice. Say it first. */}
       {(evidence.rgb || evidence.rgbAnnotated) && detection && (
-        <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+        <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
           RGB frame is a <strong style={{ color: 'var(--text-secondary)' }}>detector
           validation image</strong> from the held-out test split — ground-level
           photography from the training dataset, not a capture of this site. The box
@@ -78,14 +100,14 @@ export function EvidenceStrip() {
 
       {evidence.audio && (
         <div style={{ display: 'grid', gap: 3 }}>
-          <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Inverter audio · INV-B</span>
+          <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>Inverter audio · INV-B</span>
           <audio controls src={evidence.audio} style={{ width: '100%', height: 30 }} />
         </div>
       )}
 
       {evidence.flyover && (
         <div style={{ display: 'grid', gap: 3 }}>
-          <span className="t-h2" style={{ color: 'var(--text-muted)' }}>Drone flyover</span>
+          <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>Drone flyover</span>
           <video
             src={evidence.flyover} muted loop autoPlay playsInline
             style={{ width: '100%', border: '1px solid var(--line-active)' }}

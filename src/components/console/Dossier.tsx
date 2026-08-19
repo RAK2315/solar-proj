@@ -11,8 +11,8 @@
  * So the rail was split by KIND rather than by topic. The rail keeps the glance:
  * what this array is doing, how bad, and what the operator is being asked to
  * authorise. Everything that is *evidence* — the captured frames, the cell grid,
- * the agent's full reasoning — comes here, over the map, where the matrix gets 64px
- * cells instead of 22px and the prose gets a column it can be read in.
+ * the agent's full reasoning — comes here, over the map, where the matrix gets room
+ * and the prose gets a column it can be read in.
  *
  * TWO REASONS TO BE OPEN, one component. Live mode: the operator opened it. Demo
  * mode: `useDossierOpen()` derives it from `t`, so the recording opens it when the
@@ -27,10 +27,13 @@
  * cells would be the fifth instance of the most repeated bug in this project.
  */
 
+import { X } from 'lucide-react';
+
 import { getPanel } from '@/lib/data';
 import { useSession } from '@/store/session';
 import {
-  BEAT, useAgentCache, useDossierOpen, useInspectionClock, useMode, useSelectedPanelId,
+  BEAT, useAgentCache, useDossierOpen, useInspectionClock, useMode, usePanelStatus,
+  useSelectedPanelId,
 } from '@/store/selectors';
 import { AgentReasoning } from './AgentReasoning';
 import { AnomalyMatrix } from './AnomalyMatrix';
@@ -45,10 +48,15 @@ function Section({ title, note, children }: {
     <section className="group" style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <header style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        gap: 'var(--sp-3)',
+        gap: 'var(--sp-3)', borderBottom: '1px solid var(--line-hairline)',
+        paddingBottom: 'var(--sp-2)',
       }}>
         <h2 className="t-h1" style={{ color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
-        {note && <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{note}</span>}
+        {note && (
+          <span className="t-micro" style={{ color: 'var(--sev-active)', textAlign: 'right' }}>
+            {note}
+          </span>
+        )}
       </header>
       {children}
     </section>
@@ -60,6 +68,7 @@ export function Dossier() {
   const mode = useMode();
   const panelId = useSelectedPanelId();
   const panel = getPanel(panelId);
+  const status = usePanelStatus(panelId);
   const setDossier = useSession((s) => s.setDossier);
   const agent = useAgentCache();
 
@@ -72,6 +81,11 @@ export function Dossier() {
   const thermal = scanClock >= BEAT.thermalScan;
 
   if (!open || !panel) return null;
+
+  const critical = status === 'critical';
+  const statusColour = critical ? 'var(--sev-critical)'
+    : status === 'scheduled' ? 'var(--panel-scheduled)'
+      : status === 'warning' ? 'var(--sev-warning)' : 'var(--sev-active)';
 
   return (
     <div
@@ -88,21 +102,27 @@ export function Dossier() {
       >
         <header style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: 'var(--sp-4) var(--sp-6)',
+          padding: 'var(--sp-3) var(--sp-5)',
           borderBottom: '1px solid var(--line-active)',
+          background: 'var(--surface-raised)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-4)' }}>
-            <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>
-              Inspection dossier
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-5)' }}>
             <span style={{
-              font: '700 28px var(--font-mono)', color: 'var(--text-primary)',
-              letterSpacing: '0.02em',
+              display: 'grid', gap: 2,
+              borderRight: '1px solid var(--line-active)', paddingRight: 'var(--sp-5)',
             }}>
-              {panelId}
+              <span className="t-h1" style={{ color: 'var(--text-primary)' }}>
+                Inspection dossier
+              </span>
+              <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+                ZONE {panel.zone} · {panel.inverterId}
+              </span>
             </span>
-            <span className="t-label" style={{ color: 'var(--text-secondary)' }}>
-              zone {panel.zone} · {panel.inverterId}
+
+            <span className="t-kpi" style={{ color: 'var(--sev-active)' }}>{panelId}</span>
+
+            <span className="chip" style={{ background: statusColour }}>
+              {status.toUpperCase()}
             </span>
           </div>
 
@@ -110,13 +130,14 @@ export function Dossier() {
             type="button"
             className="btn-reset t-h2"
             onClick={() => setDossier(false)}
+            aria-label="Close the inspection dossier"
             style={{
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--line-active)',
-              padding: '6px var(--sp-3)',
+              display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
+              color: 'var(--text-secondary)', padding: '6px var(--sp-3)',
             }}
           >
             Close · Esc
+            <X size={17} strokeWidth={2} aria-hidden />
           </button>
         </header>
 
@@ -130,7 +151,7 @@ export function Dossier() {
             )}
 
             {thermal && (
-              <Section title="Anomaly matrix" note="5 × 7 cells · classical CV, not a model">
+              <Section title="Anomaly matrix" note="5 × 7 array mapping">
                 <AnomalyMatrix />
               </Section>
             )}

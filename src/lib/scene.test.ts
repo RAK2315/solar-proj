@@ -14,11 +14,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { farm } from './data';
+import { hasCrackMechanism } from './live';
 import {
-  ARRAY_SPACING_Z, CRUISE_ALT, DAMAGED_MODULE, INSPECT_ALT, M, ORBIT_DEG_PER_SEC,
-  ORBIT_RADIUS, PANELS_PER_ARRAY, PAD, POV_IN, arrayPosition, cameraAt,
-  crackVisible, droneAt, droneVisible, inspectionTarget, isPOV, panelInstances,
-  projectToScreen, reticleRect, thermalAmount, visibleLabels,
+  ARRAY_SPACING_Z, CRUISE_ALT, DAMAGED_INDEX, DAMAGED_MODULE, INSPECT_ALT, M,
+  ORBIT_DEG_PER_SEC, ORBIT_RADIUS, PANELS_PER_ARRAY, PAD, POV_IN, arrayCentre,
+  arrayPosition, cameraAt, crackVisible, droneAt, droneVisible, inspectionTarget,
+  isPOV, moduleOffsetX, panelInstances, projectToScreen, reticleRect, thermalAmount,
+  visibleLabels,
 } from './scene';
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) =>
@@ -357,6 +359,71 @@ describe('array tags are up for the whole overflight', () => {
     for (const id of ['A-08', 'B-17', 'C-31']) {
       const labels = visibleLabels(M.rgb + 2, id);
       expect(labels.find((l) => l.faulted)?.id).toBe(id);
+    }
+  });
+});
+
+/**
+ * THE DEFECT MUST BE ON THE ARRAY THE CAMERA IS LOOKING AT.
+ *
+ * `CrackedPanel` was anchored to B-17's world position permanently. Three of the
+ * committed faults are cracks, so dispatching to C-07 — "advanced crack
+ * propagation, six strings bypassed", -56.6 % — flew the camera to a pristine blue
+ * panel and put a reticle on it reading the deviation. The crack was still in the
+ * world, in another zone, out of frame.
+ *
+ * These assert the two halves separately, because conflating them is how this
+ * project keeps reintroducing the same bug: WHICH ARRAY IS CRACKED is a property of
+ * the site record and is known for many arrays; WHICH CELLS ARE HOT is a
+ * measurement and is known for exactly one.
+ */
+describe('the crack is drawn on the array that has one', () => {
+  it('follows every array the committed scenario calls cracked', () => {
+    for (const id of ['B-17', 'A-31', 'C-07']) {
+      expect(hasCrackMechanism(id), `${id} is a crack in scenario.json`).toBe(true);
+    }
+  });
+
+  it('is absent from a soiled array, which is a different mechanism', () => {
+    for (const id of ['A-08', 'C-31', 'A-22']) {
+      expect(hasCrackMechanism(id), `${id} is soiling, not a crack`).toBe(false);
+    }
+  });
+
+  it('is absent from a healthy array', () => {
+    expect(hasCrackMechanism('C-29')).toBe(false);
+  });
+
+  it('follows a fault the operator injects', () => {
+    const injected = [{
+      id: 'inj-1', panelId: 'C-12', startHour: 11, rampMinutes: 3,
+      faultedStrings: 6, terminalMismatch: 0.34,
+      mechanism: 'advanced crack propagation, six strings bypassed',
+      injected: true,
+    }] as unknown as Parameters<typeof hasCrackMechanism>[1];
+    expect(hasCrackMechanism('C-12', injected)).toBe(true);
+    expect(hasCrackMechanism('C-12')).toBe(false);
+  });
+
+  it('puts each array in its OWN place, so the meshes land on the target', () => {
+    const seen = new Map<string, string>();
+    for (const id of ['B-17', 'A-31', 'C-07', 'A-08']) {
+      const c = arrayCentre(id);
+      const key = `${c.x.toFixed(2)},${c.z.toFixed(2)}`;
+      expect(seen.has(key), `${id} shares a position with ${seen.get(key)}`).toBe(false);
+      seen.set(key, id);
+    }
+  });
+
+  it('centres the array on the module the camera aims at', () => {
+    // inspectionTarget is the damaged module INSIDE the array; the centre is the
+    // array itself. They must differ by exactly one module offset, or the unique
+    // meshes and the reticle disagree about where the defect is.
+    for (const id of ['B-17', 'C-07']) {
+      const centre = arrayCentre(id);
+      const aim = inspectionTarget(id);
+      expect(aim.x - centre.x).toBeCloseTo(moduleOffsetX(DAMAGED_INDEX), 5);
+      expect(aim.z).toBeCloseTo(centre.z, 5);
     }
   });
 });

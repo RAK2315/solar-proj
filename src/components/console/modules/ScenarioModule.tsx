@@ -40,6 +40,17 @@ const terminalDeviationPct = (kind: InjectableId): number => {
   return ((s.terminalMismatch - 1) * 100 * s.faultedStrings) / STRINGS_PER_ARRAY;
 };
 
+/**
+ * One fault per zone, three different mechanisms, on arrays the committed scenario
+ * leaves healthy. Chosen once and written down rather than generated, so two people
+ * running SEED A SPREAD are looking at the same site.
+ */
+const SPREAD: Array<[string, InjectableId]> = [
+  ['A-14', 'crack-advanced'],
+  ['B-33', 'crack-established'],
+  ['C-21', 'string-outage'],
+];
+
 export function ScenarioModule() {
   const injected = useInjected();
   const frame = useSiteFrame();
@@ -58,19 +69,40 @@ export function ScenarioModule() {
   return (
     <ModuleShell
       title="Scenario"
-      subtitle={`site clock ${clockAt(forecastOffset(siteSeconds))} · ${injected.length} injected`}
-      action={injected.length > 0 && (
+      subtitle={`${injected.length} injected // a rehearsal screen, not an operations one // everything it produces is marked as injected // site clock ${clockAt(forecastOffset(siteSeconds))}`}
+      action={(
+        <>
+          {/* Math.random() is banned across src/ — the whole product rests on the
+              same input producing the same site every reload. So this is a FIXED
+              SPREAD, not a random one, and it is labelled as such: a stride across
+              the array list that lands one fault in each zone at a different
+              mechanism, which is what you actually want to look at. */}
+          <button
+            type="button"
+            className="btn-reset t-h2"
+            onClick={() => SPREAD.forEach(([id, kind]) => injectFault(id, kind))}
+            aria-label="Inject a fixed spread of three faults, one per zone"
+            style={{
+              background: 'var(--surface-high)', color: 'var(--text-primary)',
+              padding: 'var(--sp-3) var(--sp-4)',
+            }}
+          >
+            SEED A SPREAD — 3 FAULTS
+          </button>
+          {injected.length > 0 && (
         <button
           type="button"
           className="btn-reset t-h2"
           onClick={() => clearInjected()}
           style={{
-            border: '1px solid var(--sev-warning)', color: 'var(--sev-warning)',
-            padding: 'var(--sp-2) var(--sp-3)',
+            border: '1px solid var(--sev-warning)', color: 'var(--sev-warning-ink)',
+            padding: 'var(--sp-3) var(--sp-4)',
           }}
         >
           CLEAR ALL INJECTED
         </button>
+          )}
+        </>
       )}
     >
       <Block title="Inject a fault" note="writes a scenario event — never a reading">
@@ -79,14 +111,14 @@ export function ScenarioModule() {
           gap: 'var(--sp-3)', alignItems: 'end',
         }}>
           <label style={{ display: 'grid', gap: 'var(--sp-1)' }}>
-            <span className="t-micro" style={{ color: 'var(--text-muted)' }}>ARRAY</span>
+            <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>ARRAY</span>
             <select
               className="btn-reset t-data"
               value={panelId}
               onChange={(e) => setPanelId(e.target.value)}
               style={{
                 border: '1px solid var(--line-active)', background: 'var(--surface-inset)',
-                color: 'var(--text-primary)', padding: 'var(--sp-2) var(--sp-3)',
+                color: 'var(--text-primary)', padding: 'var(--sp-3)',
               }}
             >
               {allPanels.map((p) => (
@@ -98,14 +130,14 @@ export function ScenarioModule() {
           </label>
 
           <label style={{ display: 'grid', gap: 'var(--sp-1)' }}>
-            <span className="t-micro" style={{ color: 'var(--text-muted)' }}>MECHANISM</span>
+            <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>MECHANISM</span>
             <select
               className="btn-reset t-data"
               value={kind}
               onChange={(e) => setKind(e.target.value as InjectableId)}
               style={{
                 border: '1px solid var(--line-active)', background: 'var(--surface-inset)',
-                color: 'var(--text-primary)', padding: 'var(--sp-2) var(--sp-3)',
+                color: 'var(--text-primary)', padding: 'var(--sp-3)',
               }}
             >
               {(Object.keys(INJECTABLE) as InjectableId[]).map((id) => (
@@ -120,10 +152,9 @@ export function ScenarioModule() {
             disabled={alreadyFaulted}
             onClick={() => injectFault(panelId, kind)}
             style={{
-              padding: 'var(--sp-3) var(--sp-5)',
-              background: alreadyFaulted ? 'var(--surface-raised)' : 'var(--sev-critical)',
-              color: alreadyFaulted ? 'var(--text-muted)' : 'var(--text-inverse)',
-              border: alreadyFaulted ? '1px solid var(--line-active)' : 'none',
+              padding: 'var(--sp-4) var(--sp-5)',
+              background: alreadyFaulted ? 'var(--surface-high)' : 'var(--sev-critical-ink)',
+              color: alreadyFaulted ? 'var(--text-secondary)' : 'var(--text-inverse)',
               letterSpacing: '0.12em',
             }}
           >
@@ -144,7 +175,7 @@ export function ScenarioModule() {
         </p>
 
         {alreadyFaulted && (
-          <p className="t-micro" style={{ color: 'var(--text-muted)', margin: 0 }}>
+          <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
             {panelId} already carries a fault or soiling from the committed site record.
             One fault per array — the site&rsquo;s own history is not overwritable from a form.
           </p>

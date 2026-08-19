@@ -42,7 +42,7 @@ export function ReturnToConsole() {
     >
       <span aria-hidden style={{ color: 'var(--sev-active)' }}>←</span>
       RETURN TO CONSOLE
-      <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
+      <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
         FLIGHT CONTINUES
       </span>
     </button>
