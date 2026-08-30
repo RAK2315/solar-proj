@@ -45,12 +45,25 @@ describe('the rail navigates', () => {
     expect(useSession.getState().module).toBe('repairs');
   });
 
-  it('keeps the header and the event feed on every screen', () => {
+  it('keeps the header and the site figures on every screen', () => {
+    // THE EVENT RAIL DELIBERATELY NO LONGER QUALIFIES. It was on every screen on
+    // the grounds that events do not stop happening because you changed screens —
+    // true, and beside the point: on Repairs, Analytics, Drones and Missions it is
+    // a fifth of the width spent on something you are not looking at, and that was
+    // a third of the density complaint the owner raised twice.
+    //
+    // What must survive every screen is the identity, the site figures and the
+    // ranked queue, because those are what an operator navigates BY.
     for (const m of ['drones', 'missions', 'repairs', 'analytics'] as ModuleId[]) {
       const text = textOn(m);
-      expect(text).toContain('Live events');
       expect(text).toContain('Farm health');
+      expect(text).toContain('SURYA AGENT');
+      expect(text).not.toContain('Live events');
     }
+  });
+
+  it('keeps the event rail on the site screen, where an event names an array', () => {
+    expect(textOn('site')).toContain('Live events');
   });
 
   it('pins itself to the map in demo mode, and says why', () => {

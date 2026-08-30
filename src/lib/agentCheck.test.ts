@@ -170,3 +170,70 @@ describe('confidence is a probability', () => {
     expect(r.reason).toContain('probability');
   });
 });
+
+/**
+ * WHETHER A DRONE FLIES IS DECIDED BY THE SHAPE OF THE LOSS, not its size.
+ *
+ * The check used to demand `requiresPhysicalVerification: true` for any array
+ * materially below expectation. That is the rule you write when the site has one
+ * fault type, and it is wrong the moment it has two: it made "book the wash crew
+ * instead of flying" an answer the model was forbidden to give, which is the one
+ * answer that proves the agent is deciding rather than reacting.
+ */
+describe('the drone is justified by the signature, not by the deviation', () => {
+  /** Down evenly, at fleet temperature. Dirt. */
+  const soiled: TriageFacts = {
+    ...facts,
+    panelId: 'A-08',
+    inverterId: 'INV-A',
+    zone: 'A',
+    deviationPct: -11.3,
+    stringDeviationPct: undefined,
+    cellTempC: facts.fleetMedianCellTempC,
+  };
+
+  it('REFUSES a drone for the soiling signature, and says what to do instead', () => {
+    const r = checkTriage(
+      { ...goodTriage, suspectComponent: 'A-08', requiresPhysicalVerification: true },
+      soiled,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/down evenly/);
+    expect(r.reason).toMatch(/should be cleaned/);
+  });
+
+  it('accepts the model declining to fly at a dirty array', () => {
+    // The answer that used to be impossible to give.
+    const r = checkTriage(
+      { ...goodTriage, suspectComponent: 'A-08', requiresPhysicalVerification: false },
+      soiled,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('still REQUIRES a drone for a hot, localised loss', () => {
+    // B-17: one string far below the array, running 2.8 °C hot. Telemetry cannot
+    // say which module, and only imaging can.
+    const r = checkTriage({ ...goodTriage, requiresPhysicalVerification: false }, facts);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/not the even, fleet-temperature signature/);
+  });
+
+  it('requires one when the signatures disagree, rather than guessing', () => {
+    // Down evenly but running hot: fits neither dirt nor a bypassed substring.
+    const contradictory: TriageFacts = {
+      ...soiled, cellTempC: soiled.fleetMedianCellTempC + 4, deviationPct: -20,
+    };
+    const r = checkTriage(
+      { ...goodTriage, suspectComponent: 'A-08', requiresPhysicalVerification: false },
+      contradictory,
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it('still refuses one for an array inside tolerance', () => {
+    const fine: TriageFacts = { ...facts, deviationPct: -0.2, stringDeviationPct: undefined };
+    expect(checkTriage({ ...goodTriage, requiresPhysicalVerification: true }, fine).ok)
+      .toBe(false);
+  });
+});

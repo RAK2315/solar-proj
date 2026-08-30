@@ -183,6 +183,10 @@ export function DronesModule() {
   return (
     <ModuleShell
       title="Drones"
+      purpose={`
+        What the two aircraft are doing. Nothing is stored per drone: status, target
+        and battery are worked out from what has been dispatched.
+      `}
       subtitle={`${fleet.length} aircraft // ${airborne.length} airborne // state derived from the dispatch log // site clock ${frame.clock}`}
       action={(
         <Action onClick={() => setModule('site')} ariaLabel="Go to the site map to dispatch">
@@ -203,7 +207,7 @@ export function DronesModule() {
         ))}
       </div>
 
-      <Block title="Fleet activity log" note="this session, newest first">
+      <Block title="Fleet activity log" wide note="this session, newest first">
         {missions.length === 0 ? (
           <Empty>
             Nothing has flown. Select an array on the site map, run triage, and

@@ -9,7 +9,11 @@
  * frames four things while the caption names one is quietly telling the audience
  * the overlay is decoration. Now it tracks the module through the orbit.
  *
- * The confidence in the label is THE MODEL'S ACTUAL OUTPUT from b17_detection.json.
+ * The confidence in the label is THE MODEL'S ACTUAL OUTPUT from b17_detection.json,
+ * and the label SAYS SO — because it is drawn over a rendered frame the model has
+ * never been run on, and a replayed measurement floating over a live picture reads
+ * as a live measurement. `LiveReticle` is the one that draws what the model says
+ * about THIS frame; on the render, that is nothing.
  * Until the Colab run lands there is no detection, so the label says what is true
  * at that moment rather than borrowing the spec's placeholder 0.84 — which
  * invariant I11 would fail the build over anyway.
@@ -55,9 +59,19 @@ export function TargetReticle() {
   if (!locked || !rect.visible) return null;
 
   const reading = frame.panels[cue.targetId];
+  // A REPLAYED NUMBER MUST NOT LOOK LIKE A LIVE ONE. This read
+  // "B-17 · B2-07 — cracked suspected (0.91)" and drew it over the RENDERED
+  // panel the camera is looking at right now. Every part of that is true — it is
+  // the model's own output, and invariant I11 refuses the spec's placeholder —
+  // but it was computed months ago on a PHOTOGRAPH, and floating it over a live
+  // frame says the model just found a crack in this one. It did not; on the
+  // render it returns nothing, which is what LiveReticle shows.
+  //
+  // The bracket still frames the module, because that is a true statement about
+  // where the aircraft is pointing. The number now says where it came from.
   const label = cue.cracked
     ? (detection
-      ? `${cue.targetId} · B2-07 — ${detection.label.toLowerCase()} suspected (${confidence(detection.confidence)})`
+      ? `${cue.targetId} · B2-07 — ${detection.label.toLowerCase()} ${confidence(detection.confidence)} · from the committed capture, not this frame`
       : `${cue.targetId} · B2-07 — surface scan in progress`)
     : `${cue.targetId} — RGB + thermal pass · ${pct(reading?.deviationPct ?? 0)} vs expected`;
 

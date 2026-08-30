@@ -14,7 +14,8 @@
  * incident has beats that only exist there.
  */
 
-import { useMode, useModule } from '@/store/selectors';
+import { useHasSelection, useMode, useModule } from '@/store/selectors';
+import { useSession } from '@/store/session';
 import { DetailPanel } from './DetailPanel';
 import { Dossier } from './Dossier';
 import { FarmMap } from './FarmMap';
@@ -44,12 +45,33 @@ function ModuleArea() {
 }
 
 export function ConsoleRoot() {
+  const mode = useMode();
+  const screen = useModule();
+  const hasSelection = useHasSelection();
+  const showWorkings = useSession((s) => s.showWorkings);
+
+  // The event rail belongs to the map. Demo mode always shows it: the scripted
+  // incident has beats that fire in the feed, and beats.test.tsx pins them.
+  const onSite = mode === 'demo' || screen === 'site';
+
+  // The detail rail is a response to a question. In demo mode the script asks it
+  // for you, so it is open throughout.
+  const railOpen = mode === 'demo' || hasSelection;
+
+  const classes = [
+    'console-root',
+    onSite ? '' : 'no-left',
+    'rail-over',
+    railOpen ? '' : 'rail-closed',
+    showWorkings ? '' : 'hide-workings',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className="console-root">
+    <div className={classes}>
       <HeaderBar />
       <SiteKpiStrip />
       <IconRail />
-      <LeftRail />
+      {onSite && <LeftRail />}
       <ModuleArea />
       <RepairQueueBar />
       {/* Last child, positioned against .console-root rather than the viewport —

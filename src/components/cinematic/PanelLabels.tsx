@@ -9,13 +9,19 @@
  * highlighted and its neighbours labelled around it, the answer is legible on
  * screen instead of asserted in a caption.
  *
- * Two things changed after watching this in flight. They were only up for the last
- * few seconds before target lock, so they read as a flourish that arrived to make
- * a point rather than as markings that were always there — now they are on from
- * the moment the aircraft is over the field. And they were chips: boxed, bordered,
- * bigger than the panels they sat on. Now they are small type set on the array,
- * scaled and faded by distance so the near ones read and the far ones recede, with
- * only the target given any weight.
+ * Three things changed after watching this in flight. They were only up for the
+ * last few seconds before target lock, so they read as a flourish that arrived to
+ * make a point rather than as markings that were always there — now they are on
+ * from the moment the aircraft is over the field. And they were chips: boxed,
+ * bordered, bigger than the panels they sat on. Now they are small type set on the
+ * array, scaled and faded by distance so the near ones read and the far ones
+ * recede, with only the target given any weight.
+ *
+ * The third is where they are anchored. Projected from the array centre at panel
+ * height, each tag hung in mid-air beside its modules, attached to nothing. It is
+ * now projected from a point on the GROUND just in front of the row, the way a
+ * site paints its row numbers on the dirt — see LABEL_GROUND_OFFSET_Z, which also
+ * records why the offset cannot simply be made larger.
  *
  * Rendered as DOM rather than as 3D text: it uses the console's own IBM Plex, is
  * crisp at any distance, needs no font fetched at runtime, and is projected with

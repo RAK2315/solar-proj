@@ -126,6 +126,10 @@ export function MissionsModule() {
   return (
     <ModuleShell
       title="Missions"
+      purpose={`
+        Every inspection flown this session, and what came back — the record that
+        shows the agent acted rather than just reported.
+      `}
       subtitle={`${flown} flown // ${airborne} in progress // every dispatch this session, and what came back // site clock ${frame.clock}`}
       action={(
         <>
@@ -150,7 +154,7 @@ export function MissionsModule() {
       )}
     >
       <Block
-        title="Flight log"
+        title="Flight log" wide
         note={flown > 0
           ? `newest first · showing ${rows.length} of ${flown}`
           : undefined}

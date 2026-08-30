@@ -20,24 +20,32 @@
  * the approval beat. Deriving rather than storing is what keeps seeking backwards
  * honest.
  *
+ * IT IS NOW THE INCIDENT FILE, not the imagery viewer. That changed when the
+ * evidence chain arrived: the chain is derivable for any of the 120 arrays, and
+ * gating the whole surface on captured imagery would have hidden the product's
+ * central argument behind the one array that happens to have a photograph.
+ *
  * EVIDENCE SCOPING STILL APPLIES, and this component is exactly where it would be
- * broken next: we hold captured imagery for B-17 and for nothing else, so the
- * caller gates the trigger on `hasCapturedEvidence` and there is deliberately no
- * empty state here to fall back on. A dossier that opens on C-29 with placeholder
- * cells would be the fifth instance of the most repeated bug in this project.
+ * broken next: we hold captured imagery for B-17 and for nothing else. The gate
+ * therefore MOVED rather than lifted — it used to sit on the trigger and it now
+ * sits on the imagery column, which is the only part that was ever scoped. There
+ * is deliberately no empty state behind it. A dossier that opens on C-29 with
+ * placeholder cells would be the ninth instance of the most repeated bug here.
  */
 
 import { X } from 'lucide-react';
 
-import { getPanel } from '@/lib/data';
+import { getPanel, hasCapturedEvidence } from '@/lib/data';
 import { useSession } from '@/store/session';
 import {
   BEAT, useAgentCache, useDossierOpen, useInspectionClock, useMode, usePanelStatus,
-  useSelectedPanelId,
+  useSelectedIncident, useSelectedPanelId,
 } from '@/store/selectors';
 import { AgentReasoning } from './AgentReasoning';
 import { AnomalyMatrix } from './AnomalyMatrix';
+import { EvidenceChain } from './EvidenceChain';
 import { EvidenceStrip } from './EvidenceStrip';
+import { LiveDetection } from './LiveDetection';
 import { Findings } from './Findings';
 import { LiveTriage } from './LiveTriage';
 
@@ -71,6 +79,11 @@ export function Dossier() {
   const status = usePanelStatus(panelId);
   const setDossier = useSession((s) => s.setDossier);
   const agent = useAgentCache();
+  const incident = useSelectedIncident();
+
+  // Demo mode is B-17 throughout, so its captured frames are always in scope.
+  // Live mode holds imagery for B-17 and nothing else.
+  const captured = mode === 'demo' || hasCapturedEvidence(panelId);
 
   // The dossier being open is not the same claim as the scan having reached a
   // given pass. It opens when the first frames come back, so the matrix must
@@ -142,25 +155,56 @@ export function Dossier() {
         </header>
 
         <div className="dossier-body">
-          {/* MEASURED — what a sensor read off the panel. */}
+          {/* THE ARGUMENT, down the left. A reader who has never seen this product
+              needs to know what is being claimed and on what basis before they are
+              shown a thermal grid — otherwise the grid is a pretty rectangle. It
+              was a full-width band above the material, which on a laptop pushed
+              the captured frames below the fold: the operator had to scroll to
+              reach the photograph the drone was sent for. */}
           <div className="dossier-col" style={{ borderRight: '1px solid var(--line-active)' }}>
-            {scanned && (
+            <Section title="How this conclusion was reached">
+              <EvidenceChain incident={incident} />
+            </Section>
+          </div>
+
+          {/* THE MATERIAL, down the right: what a sensor read, then what a model
+              made of it. Two different kinds of claim, in that order. */}
+          <div className="dossier-col">
+            {scanned && captured && (
               <Section title="Captured evidence" note="drone capture">
                 <EvidenceStrip />
               </Section>
             )}
 
-            {thermal && (
-              <Section title="Anomaly matrix" note="5 × 7 array mapping">
+            {/* THE DETECTOR, RUN HERE. Not gated on captured evidence: it takes
+                the drone's CURRENT camera frame out of the 3D scene, so it works
+                for any array the aircraft is looking at. What it must never do is
+                draw a box it did not get from the model — see LiveDetection. */}
+            <Section title="Run the detector now" note="live, in this browser">
+              <LiveDetection />
+            </Section>
+
+            {thermal && captured && (
+              <Section title="Anomaly matrix" note="5 x 7 array mapping">
                 <AnomalyMatrix />
               </Section>
             )}
-          </div>
 
-          {/* REASONED — what a model made of it. A different kind of claim, and it
-              used to sit in the same scroll as the measurements, which made the two
-              read as one. */}
-          <div className="dossier-col">
+            {/* One sentence where the imagery would have been. Absent means absent
+                — no placeholder grid, no skeleton, no greyed-out frames. */}
+            {!captured && (
+              <Section title="Captured evidence">
+                <p className="t-prose" style={{
+                  color: 'var(--text-secondary)', margin: 0, fontSize: 13, lineHeight: 1.5,
+                }}>
+                  No imagery is held on file for {panelId}. The committed capture in this
+                  build is B-17&rsquo;s, and showing it here would be presenting one
+                  array&rsquo;s evidence as another&rsquo;s. Everything to the left rests on
+                  the site model, not on a photograph.
+                </p>
+              </Section>
+            )}
+
             {mode === 'live' ? (
               <Section title="Agent reasoning" note="cross-checked against this array">
                 <LiveTriage />
@@ -173,8 +217,14 @@ export function Dossier() {
               )
             )}
 
-            {agent && (
-              <Section title="Findings">
+            {/* SCOPED. `Findings` renders the COMMITTED cache, which is B-17's and
+                only B-17's, so gating it on `agent` alone printed "INV-B output is
+                -58.4%... string B-17-S3... 5 of 7 strings faulted" underneath
+                A-08. That is the tenth instance of this project's most repeated
+                bug and it was introduced by adding a section without asking whose
+                data it was. Every new surface has to answer that question. */}
+            {agent && captured && (
+              <Section title="Findings" note="from the committed B-17 run">
                 <Findings />
               </Section>
             )}

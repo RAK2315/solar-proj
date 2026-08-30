@@ -15,8 +15,9 @@
  * about what the product is.
  */
 
-import { Grid2x2, Power, Radio } from 'lucide-react';
+import { Grid2x2, Moon, Power, Radio, Sun, TextSearch } from 'lucide-react';
 
+import { useHydrated } from '@/hooks/useHydrated';
 import { num } from '@/lib/format';
 import { useFarm, useForecast, useMode } from '@/store/selectors';
 import { useSession } from '@/store/session';
@@ -43,6 +44,11 @@ export function HeaderBar() {
   const setMode = useSession((s) => s.setMode);
   const highs = useDailyHighs();
   const farm = useFarm();
+  const hydrated = useHydrated();
+  const showWorkings = useSession((s) => s.showWorkings);
+  const toggleWorkings = useSession((s) => s.toggleWorkings);
+  const theme = useSession((s) => s.theme);
+  const toggleTheme = useSession((s) => s.toggleTheme);
 
   const live = mode === 'live';
 
@@ -112,13 +118,62 @@ export function HeaderBar() {
 
         <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
 
+        {/* SHOW WORKINGS. Every grey provenance line on the console is behind this,
+            off by default. The claim stays on screen; the receipt is one click
+            away. It is a control rather than a preference because the moment it
+            matters is a specific one — somebody asking "how do you know that?" —
+            and it should be answerable in a second. */}
+        <button
+          type="button"
+          className="btn-reset"
+          onClick={toggleWorkings}
+          aria-pressed={showWorkings}
+          aria-label={showWorkings
+            ? 'Hide the sources and provenance lines'
+            : 'Show the sources and provenance lines'}
+          title="Show where every number came from"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px var(--sp-2)',
+            border: `1px solid ${showWorkings ? 'var(--sev-active)' : 'var(--line-active)'}`,
+            color: showWorkings ? 'var(--sev-active)' : 'var(--text-secondary)',
+          }}
+        >
+          <TextSearch size={13} strokeWidth={2} aria-hidden />
+          <span className="t-h2">WORKINGS</span>
+        </button>
+
+        <button
+          type="button"
+          className="btn-reset"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title="Light / dark"
+          style={{
+            width: 30, height: 30, display: 'grid', placeItems: 'center',
+            border: '1px solid var(--line-active)', color: 'var(--text-secondary)',
+          }}
+        >
+          {theme === 'dark'
+            ? <Sun size={15} strokeWidth={2} aria-hidden />
+            : <Moon size={15} strokeWidth={2} aria-hidden />}
+        </button>
+
+        {/* This chip is also the console's liveness check — see useHydrated. Until
+            the page has actually woken up it says so, in red, with the fix. A
+            hydration failure otherwise leaves a perfect-looking console that
+            ignores every click, and nothing else on screen would give it away. */}
         <span
           className="chip"
-          style={live
-            ? { background: running ? 'var(--sev-active)' : 'var(--sev-warning)' }
-            : { background: 'var(--sev-warning)' }}
+          style={!hydrated
+            ? { background: 'var(--sev-critical)' }
+            : live
+              ? { background: running ? 'var(--sev-active)' : 'var(--sev-warning)' }
+              : { background: 'var(--sev-warning)' }}
         >
-          {live ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
+          {!hydrated
+            ? '○ NOT READY — RELOAD'
+            : live ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
         </span>
 
         {/* Which world you are looking at, and the control that changes it. A live

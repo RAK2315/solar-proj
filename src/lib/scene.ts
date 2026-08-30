@@ -375,10 +375,21 @@ export function projectToScreen(world: Vec3, cam: CameraSample, aspect = ASPECT)
   const fl = Math.hypot(fx, fy, fz) || 1;
   const f = { x: fx / fl, y: fy / fl, z: fz / fl };
 
-  // right = forward × worldUp = (fz, 0, −fx), renormalised in the XZ plane. When
+  // right = forward × worldUp = (−fz, 0, fx), renormalised in the XZ plane. When
   // the camera looks straight down this degenerates, so it falls back to +X.
-  let rx = f.z;
-  let rz = -f.x;
+  //
+  // THE SIGNS ARE THE WHOLE FIX. This was (fz, 0, −fx) — the negation, which is
+  // the camera's LEFT. Both basis vectors came out flipped, so every projected
+  // point landed rotated 180 degrees about the centre of frame. `reticleRect`
+  // could not see it: the camera looks AT the target, so its four projected
+  // corners bound a box centred on the middle of frame, and a point reflection
+  // through the centre returns that box very nearly unchanged — the reticle was
+  // accidentally right. The panel ID tags could, and did — each one was drawn on
+  // the far side of the frame from the array it names, which is precisely the
+  // doubt those tags exist to answer. Checked against a real three.js
+  // PerspectiveCamera in scene.test.ts rather than re-derived by hand.
+  let rx = -f.z;
+  let rz = f.x;
   const rl = Math.hypot(rx, rz);
   if (rl < 1e-6) { rx = 1; rz = 0; } else { rx /= rl; rz /= rl; }
   const r = { x: rx, y: 0, z: rz };
@@ -467,6 +478,33 @@ export interface Label {
 export const LABEL_RANGE = 74;
 
 /**
+ * How far in front of an array its ID marker sits, in metres, on the ground.
+ *
+ * The tags used to be projected from the array centre at POST_HEIGHT + 0.9, which
+ * put them a metre above the modules and therefore hanging in mid-air beside them
+ * — text floating in the sky next to a panel, attached to nothing. A real site
+ * paints its row numbers on the dirt at the end of the row, and that is what this
+ * now is: y = 0, offset toward the low edge of the tilt.
+ *
+ * +Z is the low edge: the modules are rotated about X by PANEL_TILT, which takes
+ * the +Z corner DOWN, so the array faces +Z and its ground footprint reaches
+ * (PANEL_H / 2) * cos(tilt) = 0.73 m that way. Half the panel depth plus 0.3 m
+ * clears that with about a third of a metre of sand to spare, which is enough for
+ * the tag to read as painted on the ground rather than on the glass.
+ *
+ * Do not push it much further out. The camera orbits the module at 15 deg/s from
+ * 5.6 m above it, so the offset swings across the frame as it goes; at 1.1 m the
+ * tag reaches y = 0.91 at its lowest, and 2.5 m would drive it off the bottom
+ * during the pass — the tag disappearing exactly when it matters most. It is also
+ * far inside ARRAY_SPACING_Z, so a marker can never land on the row behind.
+ */
+export const LABEL_GROUND_OFFSET_Z = PANEL_H / 2 + 0.3;
+
+/** The ground point an array's ID marker is painted on. */
+export const labelAnchor = (base: Vec3): Vec3 =>
+  v(base.x, 0, base.z + LABEL_GROUND_OFFSET_Z);
+
+/**
  * Array ID tags for the arrays currently under the aircraft.
  *
  * These answer a specific doubt out loud: "did the drone actually go to B-17, or
@@ -478,6 +516,10 @@ export const LABEL_RANGE = 74;
  * moment, which is exactly when they stop being evidence and start looking like a
  * flourish. Now whatever you are flying over is named the whole way in, and the
  * target keeps its slot even when it is not the closest thing in frame.
+ *
+ * Each tag is projected from `labelAnchor` — a point on the GROUND in front of the
+ * array, not from the array at panel height, which left the text floating in the
+ * air beside the modules.
  */
 export function visibleLabels(
   t: number,
@@ -496,7 +538,7 @@ export function visibleLabels(
       const near = Math.hypot(base.x - cam.pos.x, base.z - cam.pos.z, cam.pos.y);
       if (near > LABEL_RANGE && !isTarget) continue;
 
-      const s = projectToScreen({ x: base.x, y: POST_HEIGHT + 0.9, z: base.z }, cam, aspect);
+      const s = projectToScreen(labelAnchor(base), cam, aspect);
       if (!s.visible || s.x < 0.03 || s.x > 0.97 || s.y < 0.05 || s.y > 0.95) continue;
 
       out.push({ id: p.id, x: s.x, y: s.y, faulted: isTarget, near });

@@ -1,0 +1,39 @@
+{
+  "note": "Surface material for the 3D modules. Photographs of panels from a public dataset, used the way a digital twin is textured from site imagery. NOT captured evidence, and never to be presented as such.",
+  "dataset": {
+    "name": "solarvision-gwljt/solar-panel-fault-detection v2",
+    "source": "Roboflow Universe",
+    "licence": "CC BY 4.0"
+  },
+  "generatedBy": "scripts/make_panel_textures.mts",
+  "textures": [
+    {
+      "role": "cracked",
+      "url": "/textures/module-cracked.jpg",
+      "sourceImage": "IMG_0436_jpg.rf.eadcfb8e4fe2136b30d8a1a43bb467d1.jpg",
+      "split": "test",
+      "datasetLabel": "Cracked",
+      "rotatedDeg": 90,
+      "widthPx": 1024,
+      "heightPx": 686,
+      "detectorOnTexture": {
+        "label": "Cracked",
+        "confidence": 0.9112
+      }
+    },
+    {
+      "role": "intact",
+      "url": "/textures/module-intact.jpg",
+      "sourceImage": "IMG_0449_jpg.rf.e205b77c8a2632fb242b8ccbfef10f56.jpg",
+      "split": "test",
+      "datasetLabel": "Good",
+      "rotatedDeg": 0,
+      "widthPx": 1024,
+      "heightPx": 640,
+      "detectorOnTexture": {
+        "label": "Good",
+        "confidence": 0.7881
+      }
+    }
+  ]
+}

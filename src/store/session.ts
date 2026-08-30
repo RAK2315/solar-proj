@@ -39,6 +39,7 @@ import { persist } from 'zustand/middleware';
 import { useDemoClock } from './demoClock';
 
 import { scenario, type ScenarioEvent } from '@/lib/live';
+import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
 
 export type Mode = 'live' | 'demo';
 
@@ -143,6 +144,40 @@ export interface SessionState {
   feedFilter: FeedFilter;
 
   /**
+   * Electricity tariff, rupees per kWh — the assumption every money figure on
+   * screen rests on.
+   *
+   * It is OPERATOR STATE rather than a constant precisely because we cannot
+   * source it. A number nobody can change reads as a claim; one the operator sets
+   * reads as what it is. See src/lib/money.ts.
+   */
+  tariffInrPerKWh: number;
+
+  /**
+   * Is the provenance layer on screen?
+   *
+   * OFF by default. The receipts are what make this product believable and they
+   * are not what an operator reads every minute; leaving them on permanently was
+   * the density complaint in `docs/ui-brief.md` that the redesign did not fix.
+   */
+  showWorkings: boolean;
+
+  /**
+   * Dark or light.
+   *
+   * CLAUDE.md §3 forbids a theme toggle outright — "no dark/light toggle" — on the
+   * grounds that this runs on a projector in a dark room. The owner asked for one
+   * on 30 Aug after using it on a laptop in daylight, which is a case the spec did
+   * not anticipate. That instruction supersedes the line; it is recorded here
+   * rather than quietly ignored.
+   *
+   * The ironbow ramp does NOT invert. It is the false-colour LUT the thermal
+   * camera itself uses, and it is why the console's colours and the camera's
+   * colours are the same colours. Only the surfaces and the text change.
+   */
+  theme: 'dark' | 'light';
+
+  /**
    * Is the dossier open over the map?
    *
    * It lives in the store rather than in DetailPanel's own `useState` because
@@ -173,6 +208,9 @@ export interface SessionState {
   setSiteSeconds: (seconds: number) => void;
   toggleRunning: () => void;
   cycleFeedFilter: () => void;
+  setTariff: (inrPerKWh: number) => void;
+  toggleWorkings: () => void;
+  toggleTheme: () => void;
   setDossier: (open: boolean) => void;
 
   dispatch: (panelId: string) => void;
@@ -226,6 +264,9 @@ const initial = {
   overrides: [] as Override[],
   injected: [] as ScenarioEvent[],
   feedFilter: 'all' as FeedFilter,
+  tariffInrPerKWh: DEFAULT_TARIFF_INR_PER_KWH,
+  showWorkings: false,
+  theme: 'dark' as 'dark' | 'light',
   dossierOpen: false,
 };
 
@@ -246,6 +287,16 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   setTimeScale: (timeScale) => set({ timeScale }),
   setSiteSeconds: (siteSeconds) => set({ siteSeconds: Math.max(0, siteSeconds) }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
+
+  // Clamped rather than validated: a tariff of zero or a negative one is not a
+  // disagreement worth honouring, and an unbounded one turns every figure on
+  // screen into nonsense without saying why.
+  setTariff: (tariffInrPerKWh) => set({
+    tariffInrPerKWh: Math.max(0.1, Math.min(50, tariffInrPerKWh)),
+  }),
+
+  toggleWorkings: () => set((s) => ({ showWorkings: !s.showWorkings })),
+  toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
 
   cycleFeedFilter: () => set((s) => ({
     feedFilter: FILTER_CYCLE[(FILTER_CYCLE.indexOf(s.feedFilter) + 1) % FILTER_CYCLE.length],
@@ -372,6 +423,11 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     overrides: s.overrides,
     injected: s.injected,
     feedFilter: s.feedFilter,
+    // The operator's own assumption. Retyping it after every reload would make
+    // it feel like a toy rather than a setting they own.
+    tariffInrPerKWh: s.tariffInrPerKWh,
+    showWorkings: s.showWorkings,
+    theme: s.theme,
   }),
 }));
 

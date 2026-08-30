@@ -94,7 +94,12 @@
   --rail-left: 304px;
   --rail-right: 448px;
   --header-h: 64px;
-  --kpi-h: 118px;               /* the site KPI strip, under the header chrome */
+  /* The site KPI strip. 118px did not fit its own content: the cells measured
+     137px, `.area-kpi` does not clip, and the anomaly zone bars painted 19px
+     down over the map. Same class of bug as the module bodies in Phase 19 — a
+     fixed row that stopped agreeing with its children. Sized to the content,
+     not clipped, because clipping hides a reading instead of showing it. */
+  --kpi-h: 140px;
   --footer-h: 40px;
 
   /* Type families, bound in layout.tsx via next/font */
@@ -307,6 +312,102 @@ body {
 .area-right { grid-area: right; min-height: 0; }
 .area-footer { grid-area: footer; }
 
+/* ── Two things the shell can drop ───────────────────────────────────────────
+
+   THE EVENT RAIL IS NOT ALWAYS RELEVANT. It was always on, on the grounds that
+   events do not stop happening because you changed screens — true, and beside the
+   point: on Repairs, Analytics, Drones and Missions it is a fifth of the width
+   spent on something you are not looking at. It stays on the Site screen, where
+   an event and the array it names are next to each other, and goes everywhere
+   else.
+
+   THE DETAIL RAIL IS A RESPONSE, NOT FURNITURE. It held a third of the console at
+   all times, including when nothing was selected and it had nothing to say. It is
+   a panel over the map now: the map gets the full width, and the rail arrives when
+   an operator asks a question of an array.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.console-root.no-left {
+  grid-template-columns: var(--rail-icons) 0 1fr var(--rail-right);
+}
+.console-root.no-left .area-left { display: none; }
+
+/* The rail out of the flow entirely: the map claims its column, and the panel is
+   drawn over the right edge. `position: absolute` against `.console-root`, not the
+   viewport, for the same reason the dossier is — the PiP renders a second console
+   inside a scale(0.31) wrapper and a fixed overlay would escape it. */
+.console-root.rail-over {
+  grid-template-columns: var(--rail-icons) var(--rail-left) 1fr 0;
+}
+.console-root.rail-over.no-left {
+  grid-template-columns: var(--rail-icons) 0 1fr 0;
+}
+/* WIDE AND IN THE MIDDLE, not tall and down the side.
+
+   This was a 448 px column glued to the right edge, and every version of that is
+   the same shape: twenty-five facts in a strip narrower than a phone, which you
+   scroll. Turning it into a floating box helped the framing and did nothing for
+   the problem, because the problem was the ASPECT RATIO. A landscape card three
+   times as wide lays the same content out in columns and it fits.
+
+   Centred over the map, its own border and shadow on all four sides, a close
+   control in its header, Escape bound to it. The map stays live underneath: this
+   is a panel about an array, not a mode you enter. */
+.console-root.rail-over .area-right {
+  /* SPAN THE WHOLE GRID FIRST. An absolutely positioned grid item is contained by
+     its own GRID AREA, not by the grid — and `rail-over` sets that column to 0.
+     So `left: 50%` and `width: 100%` both resolved against nothing and the panel
+     rendered two pixels wide, present in the DOM and invisible on screen.
+     Spanning every track makes the containing block the console itself. */
+  grid-area: 1 / 1 / -1 / -1;
+  position: absolute;
+  left: 50%;
+  top: calc(var(--header-h) + var(--kpi-h));
+  transform: translateX(-50%);
+  width: min(1180px, calc(100% - var(--rail-icons) - var(--sp-6)));
+  max-height: calc(100% - var(--header-h) - var(--kpi-h) - var(--footer-h) - var(--sp-6));
+  z-index: 20;
+  border: 1px solid var(--line-focus);
+  box-shadow: 0 28px 70px -18px rgb(0 0 0 / 72%);
+  margin-top: var(--sp-4);
+}
+
+/* The body wraps into columns for the same reason the module screens do, and by
+   the same mechanism — a wrapping flex line sizes to its tallest item and has no
+   row-sizing step to get wrong. `320px` puts three abreast in the wide card and
+   one in a narrow window. */
+.console-root.rail-over .area-right .rail-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-4);
+}
+.console-root.rail-over .area-right .rail-body > * { flex: 1 1 320px; min-width: 0; }
+/* The verdict and the gate are the two things that must never share a line. */
+.console-root.rail-over .area-right .rail-body > .rail-wide { flex: 1 1 100%; }
+/* Closed: gone from the DOM's reach entirely rather than slid off-screen, so
+   nothing inside it is focusable or readable by a screen reader while hidden.
+   `!important` because DetailPanel sets `display: grid` inline, and an inline
+   style beats a class however specific the selector — the same reason the
+   workings rule below needs it. */
+.console-root.rail-over.rail-closed .area-right { display: none !important; }
+
+/* ── Show workings ───────────────────────────────────────────────────────────
+
+   Every grey provenance line on this console — "expected output from physics.ts",
+   "as at 12:03 · openai/gpt-oss-120b", "every number above was checked against
+   this array" — exists to answer one question: how do you know that? It is the
+   most important thing here when a judge asks and pure noise the rest of the time,
+   and it was on screen permanently, in nine places per screen.
+
+   It is behind a switch now, OFF by default. The claim stays visible; the receipt
+   is one click away. Marking the elements rather than conditionally rendering them
+   keeps every component a pure function of the store and keeps the demo-script
+   tests, which assert text, working in either state.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.hide-workings .workings { display: none !important; }
+
 /* A module screen takes the map AND the right rail — the left rail keeps running
    because events do not stop happening because you changed screens. */
 .area-module { grid-column: 3 / 5; grid-row: 3; min-width: 0; min-height: 0; }
@@ -349,11 +450,19 @@ body {
   grid-template-rows: auto 1fr;
 }
 
-/* Two columns: the measurement on the left, the reasoning on the right. They are
-   different KINDS of claim and putting them in one scroll made them read as one. */
+/* Two columns, FROM THE TOP: the argument on the left, the material on the right.
+
+   It used to be a full-width band of reasoning with two columns underneath, and on
+   a 1512x900 laptop that left the bottom half of the screen empty while the
+   captured frames sat below the fold — the operator had to scroll to reach the
+   photograph the drone was sent for. Reasoning is tall and narrow; evidence is
+   short and wide. Side by side they fill the same box.
+
+   `1.15fr 1fr` rather than even halves: the chain is six paragraphs and the
+   evidence column is two images and a grid. */
 .dossier-body {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.15fr 1fr;
   gap: 0;
   min-height: 0;
   overflow: hidden;
@@ -411,6 +520,7 @@ body {
   min-height: 0;
 }
 .slab > .slab-body { flex: 1 1 auto; }
+
 .slab > header {
   display: flex;
   align-items: baseline;
@@ -512,7 +622,85 @@ body {
   scrollbar-width: none;
   min-height: 0;
 }
+
+/* The body of a module screen. See the note in ModuleShell.tsx: this was a grid
+   with auto rows, and the rows stopped agreeing with their own children — a slab
+   holding 400 px sat in a 135 px row and painted over the block below it.
+   A column has no row-sizing step to get wrong. */
+/* The body of a module screen.
+
+   IT WRAPS INTO COLUMNS. It was a single column, so five blocks — most of them a
+   table six rows deep — became a page you had to scroll three times to read, on a
+   screen with half its width empty. Small blocks now sit two-up and only the ones
+   that genuinely need the width take it.
+
+   FLEX-WRAP, NOT GRID, and that is not a style preference. As a grid with auto
+   rows this container sized its rows once and then stopped agreeing with its own
+   children: a slab holding 400 px of content sat in a 135 px row, overflowed it
+   visibly, and painted over the block beneath — two blocks with very different
+   content came out identical heights, which was the tell. A wrapping flex line
+   sizes to its tallest item and has no row-sizing step to get wrong. */
+.module-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+}
+/* `1 1 440px`: two-up above about 950 px of body width, one-up below it, and
+   never shrinking below content — an overflowing line that squeezes its children
+   instead of wrapping is the same bug in a different costume. */
+.module-body > * { flex: 1 1 440px; min-width: 0; }
+/* A chart, a timeline or a ranked table is unreadable at half width. */
+.module-body > .wide { flex: 1 1 100%; }
+/* Anything that is not a titled block is a hero element on its own — the score
+   formula, the KPI tiles, the ranked queue — and those were never meant to share
+   a line with a four-row list. Full width unless it opts out. */
+.module-body > *:not(.slab) { flex: 1 1 100%; }
 .scroll-y::-webkit-scrollbar { display: none; }
+
+
+/* ── The viewfinder is always dark ───────────────────────────────────────────
+
+   THE CINEMATIC IS NOT A DOCUMENT. It is a camera feed: a dark sky, sand, and
+   overlays that have to read as instrument chrome burnt into a frame. In light
+   mode it inherited the light palette and became unusable — the mission log a
+   white slab across the sky, REC and LIVE invisible pale-on-pale, the PiP label
+   and the status pill gone entirely. It looked like the simulation had broken,
+   which is a fair reading of a screen you cannot see anything on.
+
+   Redeclaring the tokens on a container is exactly what custom properties are
+   for: everything inside this subtree resolves them to the dark values while the
+   console around it stays in whatever theme the operator chose. No component
+   inside has to know a theme exists.
+
+   The values are the dark ones from :root, repeated. That duplication is
+   deliberate and small; the alternative is a second indirection layer over every
+   surface token so that one subtree can opt out of one theme.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.viewfinder {
+  --surface-void: #070a0f;
+  --surface-panel: #0e1219;
+  --surface-raised: #151a24;
+  --surface-high: #1c2432;
+  --surface-inset: #05070b;
+
+  --line-hairline: #1a2130;
+  --line-active: #2a3446;
+  --line-focus: #3d4a63;
+
+  --text-primary: #dde4ee;
+  --text-secondary: #8a95a8;
+  --text-muted: #55606f;
+  --text-inverse: #070a0f;
+
+  --sev-active: #3fd4b8;
+  --sev-critical-ink: #ff9c8b;
+  --sev-warning-ink: #ffb75e;
+  --panel-healthy: #24406b;
+  --panel-scheduled: #3fd4b8;
+}
 
 /* ── Motion ──────────────────────────────────────────────────────────────── */
 
@@ -538,4 +726,75 @@ body {
 @keyframes reticle-breathe {
   0%, 100% { opacity: 0.85; }
   50% { opacity: 1; }
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────────────
+
+   CLAUDE.md §3 forbids this outright — "no dark/light toggle" — because the
+   console was specified for a projector in a dark room. The owner asked for it on
+   30 Aug after using the product on a laptop in daylight, which is a case the spec
+   did not consider. The instruction supersedes the line, and this note is here so
+   the next reader knows it was a decision rather than an oversight.
+
+   WHAT INVERTS AND WHAT DOES NOT. Surfaces, lines and text invert. The IRONBOW
+   RAMP DOES NOT. It is the actual false-colour LUT a thermal camera uses, and the
+   whole reason it is the console's semantic palette is that the interface's
+   colours and the camera's colours are then the same colours — a "light ironbow"
+   would be a different instrument. The ramp is only ever read against a surface,
+   never as one, so it survives the swap unchanged.
+
+   The `*-ink` variants exist because a ramp colour that works as a 40px fill is
+   often too pale as text. On light they have to go the other way: darker, not
+   lighter, so a critical figure stays legible on a near-white ground.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root[data-theme='light'] {
+  /* Surfaces: warm near-white rather than pure white. Pure white under a dark
+     ironbow ramp glares, and this console is nothing but figures on panels. */
+  --surface-void: #eceef2;      /* the ground the console sits on */
+  --surface-panel: #f7f8fa;     /* chrome: header, rails, footer */
+  --surface-raised: #eef0f4;    /* nested blocks inside a panel */
+  --surface-high: #e4e7ee;      /* a callout that must lift off --surface-raised */
+  --surface-inset: #e2e5ea;     /* map background, unfilled matrix cells */
+
+  --line-hairline: #d2d7e0;
+  --line-active: #b6bdca;
+  --line-focus: #8d97a8;
+
+  /* Contrast checked against --surface-panel (#f7f8fa), the ground almost all
+     text sits on. The redesign already had to promote --text-muted once for
+     failing at 2.8:1 on dark; it is held above 4.5:1 here from the start. */
+  --text-primary: #10151d;      /* ~16:1 */
+  --text-secondary: #4a5462;    /* ~7.6:1 — clear AA */
+  --text-muted: #6b7480;        /* ~4.7:1 — still passes, unlike its dark twin */
+  --text-inverse: #f7f8fa;
+
+  /* The one off-ramp colour. Teal at its dark-theme value is 2.1:1 on near-white,
+     so it darkens; it is used for agent activity and for the active tab, both of
+     which carry text. */
+  --sev-active: #0f766e;
+
+  /* Ramp colours as INK. Darker rather than lighter, or a 42px critical figure
+     washes out completely on a pale ground. */
+  --sev-critical-ink: #a5231a;
+  --sev-warning-ink: #8a4a05;
+  --sev-active-ink: #0f766e;
+
+  /* Map fills. `--panel-healthy` is deliberately quiet in both themes: it means
+     "nothing to look at here", and a bright healthy array would compete with the
+     two that need attention. */
+  --panel-healthy: #b9c6dc;
+  --panel-scheduled: #0f766e;
+}
+
+/* The scrim behind the dossier is a dark wash on dark; on light it has to be a
+   pale one, or opening the incident file plunges the screen into night. */
+:root[data-theme='light'] .scrim {
+  background: color-mix(in srgb, var(--surface-void) 88%, transparent);
+}
+
+/* A shadow reads as depth on a light ground and as dirt on a dark one, so the
+   box's is softer and shorter here. */
+:root[data-theme='light'] .console-root.rail-over .area-right {
+  box-shadow: 0 20px 52px -22px rgb(16 21 29 / 32%);
 }

@@ -88,13 +88,23 @@ export function EvidenceStrip() {
           an aerial capture of Bhadla. Presenting it as drone imagery would be the
           one unforced error in an evidence panel built entirely around declared
           provenance, and it is the first thing anyone will notice. Say it first. */}
+      {/* Promoted out of t-micro. This paragraph is the most important sentence in
+          the evidence panel — it is the project declining to overclaim, in the one
+          place where overclaiming would be easiest — and at 11 px on a projector
+          nobody was reading it, which made the honesty invisible and therefore
+          worthless. Provenance that cannot be read is not provenance. */}
       {(evidence.rgb || evidence.rgbAnnotated) && detection && (
-        <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          RGB frame is a <strong style={{ color: 'var(--text-secondary)' }}>detector
-          validation image</strong> from the held-out test split — ground-level
-          photography from the training dataset, not a capture of this site. The box
-          and the {confidence(detection.confidence)} are the model&rsquo;s real output
-          on an image it never saw. Thermal is a UAV frame; see the cell grid below.
+        <p className="t-prose" style={{
+          color: 'var(--text-secondary)', margin: 0, fontSize: 12, lineHeight: 1.5,
+        }}>
+          <strong style={{ color: 'var(--text-primary)' }}>
+            This photo came from the training dataset, not from our drone.
+          </strong>{' '}
+          It is a ground-level shot of a panel, held back from training so the model
+          had never seen it. The box is the model&rsquo;s own output on it, and it was{' '}
+          {Math.round(detection.confidence * 100)}% sure — {confidence(detection.confidence)}
+          {' '}as returned. The thermal frame beside it is a real UAV capture; the cell
+          grid below is measured from it.
         </p>
       )}
 

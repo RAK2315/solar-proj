@@ -15,9 +15,20 @@
 
 import type { ReactNode } from 'react';
 
-export function ModuleShell({ title, subtitle, action, children }: {
+export function ModuleShell({ title, subtitle, purpose, action, children }: {
   title: string;
+  /** What this screen is LOOKING AT right now — counts, the site clock, sources. */
   subtitle: string;
+  /**
+   * What this screen is FOR, in one plain sentence.
+   *
+   * `subtitle` answers "what am I seeing"; it does not answer "why would I open
+   * this". Those are different questions and only the second one is any use to
+   * somebody meeting the console for the first time — which, for a while yet, is
+   * everybody who matters. One sentence, prose, no vocabulary that needs the
+   * trade.
+   */
+  purpose: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -31,16 +42,17 @@ export function ModuleShell({ title, subtitle, action, children }: {
       }}
     >
       <header className="panel hair-b" style={{
-        display: 'flex', alignItems: 'center', gap: 'var(--sp-5)',
+        display: 'grid', gap: 'var(--sp-2)',
         padding: 'var(--sp-4) var(--sp-5)',
       }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-5)' }}>
         <h1 className="t-hero" style={{
           color: 'var(--sev-active)', margin: 0, letterSpacing: '0.02em',
           textTransform: 'uppercase', whiteSpace: 'nowrap',
         }}>
           {title}
         </h1>
-        <span className="t-micro" style={{
+        <span className="t-micro workings" style={{
           color: 'var(--text-secondary)', letterSpacing: '0.08em',
           textTransform: 'uppercase',
           borderLeft: '1px solid var(--line-active)', paddingLeft: 'var(--sp-5)',
@@ -49,26 +61,51 @@ export function ModuleShell({ title, subtitle, action, children }: {
           {subtitle}
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--sp-2)' }}>{action}</div>
+      </div>
+      <p className="t-prose" style={{
+        color: 'var(--text-secondary)', margin: 0, maxWidth: '92ch',
+      }}>
+        {purpose}
+      </p>
       </header>
 
-      <div className="scroll-y" style={{
-        padding: 'var(--sp-5)', display: 'grid', gap: 'var(--sp-5)', alignContent: 'start',
-      }}>
+      {/* A COLUMN, NOT A GRID. As a grid with auto rows this container sized its
+          rows once and then stopped agreeing with its own children: a slab
+          holding 400 px of content sat in a 135 px row, overflowed it visibly,
+          and painted straight over the block beneath. Two blocks with very
+          different content came out identical heights, which is the tell.
+
+          A flex column has no row-sizing step to get wrong — each child takes its
+          content height and the next one starts below it. `flex-shrink: 0` is the
+          load-bearing half: without it an overflowing column squeezes its
+          children instead of scrolling, which is the same bug wearing a hat. */}
+      <div className="scroll-y module-body">
         {children}
       </div>
     </section>
   );
 }
 
-/** A titled block inside a module screen. */
-export function Block({ title, note, children }: {
-  title: string; note?: string; children: ReactNode;
+/**
+ * A titled block inside a module screen.
+ *
+ * `wide` takes the full width of the body instead of sharing a line. Charts,
+ * timelines and ranked tables are unreadable at half width; a four-row list is
+ * wasteful at full width, and five of those stacked is a page you scroll three
+ * times to read.
+ */
+export function Block({ title, note, wide, children }: {
+  title: string; note?: string; wide?: boolean; children: ReactNode;
 }) {
   return (
-    <section className="slab">
+    <section className={wide ? 'slab wide' : 'slab'}>
       <header>
         <h2 className="t-h1" style={{ color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
-        {note && <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{note}</span>}
+        {note && (
+          <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
+            {note}
+          </span>
+        )}
       </header>
       <div className="slab-body" style={{ display: 'grid', gap: 'var(--sp-4)' }}>
         {children}

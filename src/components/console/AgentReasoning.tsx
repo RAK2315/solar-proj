@@ -55,7 +55,7 @@ function StageCard({
           <Sparkles size={13} strokeWidth={2} aria-hidden style={{ color: 'var(--sev-active)' }} />
           <span className="t-h2" style={{ color: 'var(--sev-active)' }}>{stage}</span>
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{model}</span>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>{model}</span>
       </div>
 
       <p className="t-prose" style={{ color: 'var(--text-primary)', margin: 0 }}>
@@ -105,7 +105,7 @@ export function AgentReasoning({ stages = 'all' }: { stages?: 'triage' | 'all' }
         text={`${triage.reasoning} ${triage.verificationRationale}`}
         startT={BEAT.triage}
         meta={
-          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+          <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
             suspect {triage.suspectComponent} · severity {triage.severity} ·
             {' '}physical verification {triage.requiresPhysicalVerification ? 'REQUIRED' : 'not required'}
           </span>
@@ -119,7 +119,7 @@ export function AgentReasoning({ stages = 'all' }: { stages?: 'triage' | 'all' }
         text={prognosis.reasoning}
         startT={BEAT.prognosis}
         meta={
-          <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+          <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
             {prognosis.degradationMechanism} · risk {prognosis.riskLevel} ·
             {' '}act before {prognosis.actBefore}
           </span>

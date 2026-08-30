@@ -66,10 +66,24 @@ export function EventCard({ event }: { event: DemoEvent }) {
   const linked = event.linkedPanelId;
 
   return (
+    // THE WHOLE ROW SELECTS THE ARRAY IT NAMES. An event is about an array and the
+    // obvious thing to do with it is look at that array — but the only way to was
+    // a small chip at the bottom of the card, which nobody finds. Clicking the row
+    // now does exactly what clicking the array on the map does.
+    //
+    // A row about nothing in particular (a system boot line) stays inert rather
+    // than pretending to be a control.
     <motion.article
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
+      role={linked ? 'button' : undefined}
+      tabIndex={linked ? 0 : undefined}
+      aria-label={linked ? `Inspect ${linked} — ${event.title}` : undefined}
+      onClick={linked ? () => selectPanel(linked) : undefined}
+      onKeyDown={linked
+        ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPanel(linked); } }
+        : undefined}
       style={{
         borderLeft: `4px solid ${SEVERITY_EDGE[event.severity]}`,
         borderBottom: '1px solid var(--line-hairline)',
@@ -79,6 +93,7 @@ export function EventCard({ event }: { event: DemoEvent }) {
         padding: 'var(--sp-3)',
         display: 'grid',
         gap: 'var(--sp-2)',
+        cursor: linked ? 'pointer' : undefined,
       }}
     >
       <div style={{

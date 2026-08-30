@@ -1,15 +1,37 @@
 # SURYA AGENT
 
-**Autonomous inspection & triage console for utility-scale solar.**
+**A triage system for solar farm maintenance.**
 
-An agent watches a 500 MW block of Bhadla Solar Park, detects that a string is
-underperforming, decides telemetry alone cannot say *why*, dispatches a drone to look,
-localises the defect from real imagery, projects how it evolves against a 72-hour
-forecast, and hands the operator a ranked repair order with a deadline — then stops and
-waits for a human to approve it.
+## In one paragraph, for anyone
+
+A big solar farm has tens of thousands of panels. When one starts producing less
+than it should, the monitoring system says so — and nothing else. It cannot say
+whether the panel is dirty, cracked, shaded, or broken, and those need completely
+different responses. So somebody drives out to look. SURYA AGENT works out which
+arrays are losing the most, figures out *why* from the shape of the loss, sends a
+drone only when a drone would actually tell it something new, calculates how much
+worse each problem gets if you wait, and hands the operator a ranked list of what
+to fix first — then stops and waits for a person to approve it.
 
 > Prior art stops at **detection**: a panel is bad. This stops at **a deadline**: the
 > string becomes unrecoverable after 14:00, here is why, and a person has to say yes.
+
+**The three things that make it more than a defect detector:**
+
+1. **It says no.** An array that is down evenly across every string, at normal
+   temperature, is dirty. The agent books the wash crew and explicitly declines to
+   fly a drone, because imaging a dirty panel confirms what the telemetry already
+   said. An agent that always dispatches has not decided anything.
+2. **It computes a deadline** rather than looking one up — from how much heat the
+   cracked cell accumulates against the weather forecast.
+3. **It says what waiting costs.** Fix now, in six hours, tomorrow, or in three
+   days, with the energy lost for each and the point where the damage stops being
+   recoverable.
+
+**Submission summary:** [`docs/submission.md`](docs/submission.md).
+**Run it:** `npm install && npm run demo`.
+
+---
 
 **Status:** deployable. Two modes over one console —
 

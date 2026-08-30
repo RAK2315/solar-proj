@@ -9,10 +9,24 @@
  *
  *   1. The Groq key never reaches the client. A key in a client bundle is a
  *      published key.
- *   2. THE FACTS ARE RECOMPUTED HERE. The client sends a panel id and a site time,
- *      nothing more. If it sent the readings, a caller could ask the model to
- *      reason about numbers the site never produced, and the cross-check would
- *      dutifully approve them because they would match what was sent.
+ *   2. THE FACTS ARE RECOMPUTED HERE. The client sends a panel id, a site time,
+ *      and any faults the OPERATOR HAS INJECTED this session — and nothing else.
+ *      If it sent the readings, a caller could ask the model to reason about
+ *      numbers the site never produced, and the cross-check would dutifully
+ *      approve them because they would match what was sent.
+ *
+ *      THE INJECTED EVENTS ARE NOT AN EXCEPTION TO THAT, and the distinction is
+ *      the whole point: a scenario event says "this array has a crack on five
+ *      strings from 11:20", and the server then computes what that DOES from the
+ *      same physics it uses for everything else. It is a cause, not a reading.
+ *      `InjectedEvent` below is a strict allowlist, so a reading cannot ride in
+ *      on the same request.
+ *
+ *      Without this the agent was answering about a different site. An operator
+ *      injects a fault on A-14, the console shows −56.6 %, and the triage route —
+ *      which knew nothing about the injection — computed A-14 as healthy and
+ *      reported "actual power equals expected, deviation 0.00 %, normal
+ *      operation" underneath a CRITICAL badge. Correct reasoning, wrong world.
  *   3. The cross-check runs before a single word is returned. A response with a
  *      number that is not in the data is rejected and retried; if it will not
  *      comply, the route returns unavailable and the console says so.
@@ -23,16 +37,48 @@
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
 import { allowedNumbers, checkProse, checkTriage, type TriageFacts } from '@/lib/agentCheck';
 import { farm, forecast } from '@/lib/data';
-import { liveFrameAt } from '@/lib/live';
+import { liveFrameAt, type ScenarioEvent } from '@/lib/live';
 import { CELL_TEMP_REF_C, cellTemp } from '@/lib/physics';
 import { LiveTriageOutput } from '@/lib/types';
 
 export const runtime = 'nodejs';
 /** Model output depends on live site state, so nothing here may be cached. */
 export const dynamic = 'force-dynamic';
+
+/**
+ * What a client may say about a fault it has injected.
+ *
+ * A strict allowlist, and `.strict()` is load-bearing: any extra key is rejected
+ * rather than ignored, so a reading cannot be smuggled in beside a cause and then
+ * quietly used. Everything here is a CAUSE — which array, which mechanism, how
+ * many strings, how far the derate falls, when it started. The consequences are
+ * computed server-side from the same model that evaluates the committed faults.
+ */
+const InjectedEvent = z.object({
+  id: z.string().max(80),
+  type: z.string().max(40),
+  panelId: z.string().max(12),
+  startHour: z.number().finite(),
+  rampMinutes: z.number().finite().min(0).max(600),
+  faultedStrings: z.number().int().min(0).max(7).optional(),
+  terminalMismatch: z.number().min(0).max(1).optional(),
+  accessCost: z.number().min(0).max(10).optional(),
+  moduleId: z.string().max(20).optional(),
+  stringId: z.string().max(20).optional(),
+  mechanism: z.string().max(200).optional(),
+  injected: z.literal(true).optional(),
+}).strict();
+
+const TriageRequest = z.object({
+  panelId: z.string().min(1).max(12),
+  siteSeconds: z.number().finite(),
+  /** Faults the operator raised this session. Capped so a request cannot be huge. */
+  injected: z.array(InjectedEvent).max(20).optional(),
+}).strict();
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MAX_ATTEMPTS = 3;
@@ -49,17 +95,47 @@ mention a quantity you were not given, describe it in words instead.
 BIND EVERY NUMBER TO EXACTLY ONE OBJECT. A string deviation and an array deviation are
 different quantities measured on different things. Never attribute one to the other.
 
-THE DECISION THAT MATTERS. If this array is deviating materially, telemetry alone
-cannot tell you WHY, and requiresPhysicalVerification must be true. If it is within
-tolerance, say so plainly and set requiresPhysicalVerification to false - do not
-invent a reason to fly a drone at a healthy array.
+THE DECISION THAT MATTERS is whether a drone should fly. Decide it from the SHAPE
+of the loss, not from its size. Two signatures separate the candidate mechanisms:
 
-When it IS deviating: heavy
-localised soiling and physical cell damage (a cracked cell driving its bypass diode
-into conduction) produce very similar signatures under clear-sky, high-irradiance
-conditions, and both raise cell temperature. State this ambiguity explicitly, name
-BOTH candidate mechanisms, and say that only imaging - visual and thermal - can
-distinguish them.
+  EVEN ACROSS THE ARRAY, NO THERMAL RISE - every string down by about the same
+  amount and cell temperature at the fleet median. That is SOILING. Dirt reduces
+  the light going in, so it reduces heat as well as power. Imaging a dirty panel
+  confirms it is dirty, which the telemetry has already established, so
+  requiresPhysicalVerification must be FALSE and you should say the array needs
+  cleaning rather than inspecting.
+
+  ONE STRING FAR BELOW THE OTHERS, AND THE ARRAY RUNNING HOTTER THAN THE FLEET -
+  a localised electrical fault. A cracked cell drives its bypass diode into
+  conduction, and the bypassed substring dissipates the power it no longer
+  exports, which lifts the whole array's average temperature. Telemetry cannot say
+  WHICH module, and only imaging can, so requiresPhysicalVerification must be TRUE.
+
+  YOU ARE NOT GIVEN PER-STRING TEMPERATURES and you do not need them. The thermal
+  reading is an ARRAY average against a fleet median, and a bypassed substring is
+  enough to lift that average. Do not report the absence of per-string temperature
+  as a reason the cause cannot be established - the array figure is the measurement
+  this decision is made on, and treating it as insufficient would send a drone to
+  every array on the site.
+
+  SIGNATURES THAT DISAGREE - an even loss that is nonetheless hot, or a localised
+  loss that is cold. Say the cause is not established, do not choose between the
+  mechanisms, and set requiresPhysicalVerification TRUE.
+
+WHEN BOTH SIGNALS POINT THE SAME WAY, SAY SO. A string materially below the array
+AND an array above the fleet median is not an ambiguous case - it is the localised
+electrical fault, and reporting it as unresolvable understates what the telemetry
+established. The remaining unknown is WHICH MODULE, not WHAT KIND OF FAULT, and
+that is the correct reason to ask for imaging. Do not describe those two agreeing
+signals as "conflicting".
+
+If the array is within tolerance, say so plainly and set
+requiresPhysicalVerification to false - do not invent a reason to fly a drone at a
+healthy array.
+
+DO NOT CLAIM AMBIGUITY YOU HAVE THE EVIDENCE TO RESOLVE. Saying "only imaging can
+distinguish these" about an array that is evenly down and at fleet temperature is
+wrong, and it wastes a drone sortie the operator has a limited number of.
 
 severity is OPERATIONAL URGENCY, not diagnostic certainty. confidence is a probability
 between 0 and 1.
@@ -99,11 +175,19 @@ No imaging has been captured for this array. Only SCADA telemetry is available.`
 }
 
 /** Recomputed here, from the model — never taken from the request body. */
-function buildFacts(panelId: string, siteSeconds: number): TriageFacts | null {
+function buildFacts(
+  panelId: string,
+  siteSeconds: number,
+  injected: ScenarioEvent[] = [],
+): TriageFacts | null {
   const panel = farm.zones.flatMap((z) => z.panels).find((p) => p.id === panelId);
   if (!panel) return null;
 
-  const frame = liveFrameAt(siteSeconds);
+  // The operator's own injections are merged into the site the same way the
+  // console merges them, so the agent and the screen are looking at one world.
+  // Second argument is the set of arrays with approved work orders, which the
+  // server has no business knowing; the injections are the third.
+  const frame = liveFrameAt(siteSeconds, new Set(), injected);
   const reading = frame.panels[panelId];
   if (!reading) return null;
 
@@ -163,20 +247,22 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { panelId?: string; siteSeconds?: number };
+  let parsed;
   try {
-    body = await request.json();
+    parsed = TriageRequest.safeParse(await request.json());
   } catch {
     return NextResponse.json({ error: 'bad-request' }, { status: 400 });
   }
-
-  const panelId = String(body.panelId ?? '');
-  const siteSeconds = Number(body.siteSeconds ?? 0);
-  if (!panelId || !Number.isFinite(siteSeconds)) {
-    return NextResponse.json({ error: 'bad-request' }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'bad-request', reason: parsed.error.issues[0]?.message ?? 'invalid body' },
+      { status: 400 },
+    );
   }
 
-  const facts = buildFacts(panelId, siteSeconds);
+  const { panelId, siteSeconds, injected = [] } = parsed.data;
+
+  const facts = buildFacts(panelId, siteSeconds, injected);
   if (!facts) {
     return NextResponse.json({ error: 'unknown-array' }, { status: 404 });
   }

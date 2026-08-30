@@ -171,6 +171,141 @@ untouched and every selector kept its signature.
 - **Signal quality is derived from mission state**, not modelled. It is two numbers
   that change when a drone is airborne, and it says nothing it cannot support.
 
+## 6b. Found by the browser harness, 19 Aug 2026
+
+`npm run shoot` (playwright-core driving the installed Chrome — see
+`scripts/shoot.mjs`) is the first thing on this machine that opens the product.
+It found two things immediately that 345 pure-function tests could not.
+
+- **✅ FIXED — `projectToScreen` was mirrored.** It built `right` as the camera's
+  LEFT, so both basis vectors came out flipped and every projected point landed
+  rotated 180 degrees about the centre of frame. `reticleRect` was immune (it
+  bounding-boxes four corners symmetric about the target, and a point reflection
+  through that target leaves the box identical), which is why nothing caught it —
+  but every panel ID tag was drawn on the far side of the frame from the array it
+  names, which is exactly the doubt those tags exist to answer. `scene.test.ts`
+  now checks the projection against a real three.js `PerspectiveCamera` instead of
+  against itself.
+
+- **✅ FIXED — `data/telemetry.json` shipped in the client bundle.** All 1.1 MB of
+  it, as a single `JSON.parse('...')` line inside `chunks/app/layout.js`. The dev
+  server truncated that chunk on roughly one load in two; the browser threw
+  `SyntaxError: Invalid or unexpected token`, hydration never ran, and the page
+  still looked completely correct because the server-rendered markup was all
+  there. Nothing responded to a click.
+
+  The demo is one incident on one array, so across all 91 frames exactly ONE of
+  the 120 arrays ever changes — the other 119 were stored identically, ninety-one
+  times over. `data/telemetry_client.json` stores the base once plus the per-frame
+  differences: **1617 kB → 52 kB, 3.2%**. `layout.js` in dev went from carrying
+  the whole file to 405 kB total.
+
+  It is a shipping format, not a summary, and two things keep it that way:
+  `scripts/pack_telemetry.ts` refuses to write unless unpacking reproduces
+  `telemetry.json` **byte for byte**, and `telemetryPack.test.ts` asserts the same
+  against the committed pair. `telemetry.json` is still the source of truth and
+  every invariant is still asserted against it.
+
+- **The demo must run from a production build, not from `npm run dev`.** Measured,
+  not assumed: `npm run check:live` loads the real console in the real browser and
+  presses a real key. Against `next dev` it was dead on 1 load in 10 — the scene
+  chunk is 12 MB and `page.js` 9.6 MB of unminified three.js, and a chunk that
+  size truncates whatever else is fixed. Against `next start` it was awake on
+  **20 of 20**. `npm run demo` builds and serves, so the safe path is the short
+  one.
+
+## 6c. The detector on the render — 30 Aug 2026
+
+- ✅ **The modules are textured with photographs and the detector fires on them.**
+  Two modules of the inspected array carry real panel photographs from the test
+  split; the crop handed to the model is the module rather than the module plus a
+  field of sand, and a live pass now returns `Cracked` at 0.57–0.63 on the render.
+  Generator: `scripts/make_panel_textures.mts`. Provenance is stated on screen.
+
+- [ ] **`crackedOnly()` understates what the model said.** On the wide crop the
+  model's top answer was `Saglam` (intact) at 0.94; the UI discards every
+  non-`Cracked` class and prints "the model found nothing", which is true of
+  cracked boxes and quieter than the truth. Showing the best other class, clearly
+  labelled as not what we are looking for, would be more honest and would also
+  make a false negative legible.
+
+- [ ] **The other 118 arrays are still untextured.** Two were done as a test so the
+  owner could look before the rest. The instanced field in `PanelField.tsx` shares
+  one material, so texturing it means either a shared atlas or accepting one
+  photograph across the whole field.
+
+- [ ] **Measure inference time on the demo machine.** Every figure taken here came
+  through headless Chrome on a software rasteriser and ranged 300 ms to 40 s
+  depending on what the scene was doing. The console prints the real measurement;
+  it just has not been read on real hardware.
+
+## 6d. Left open after the Phase 23 review
+
+- [ ] **A job with no work to do still consumes a crew.** `schedule.ts`: a
+  `shading` or `none` cause books `REPAIR_HOURS = 0` and `needsInspection =
+  false`, yet still takes `TRAVEL_HOURS_BASE × accessCost` of a crew's day — so a
+  row DayPlan labels "no repair — geometry" can push a real repair past its
+  deadline. That is the one number the component exists to report. Not changed
+  here because it moves a headline figure ("2 of 4 jobs finish late") and the
+  right answer may be to drop such jobs from the plan rather than to zero their
+  travel.
+
+- [ ] **A panel texture that 404s fails quietly.** `CrackedPanel` logs the error
+  and falls back to the drawn texture, but `SurfaceProvenance` and the incident
+  file go on saying the surface is a photograph. The claim is not wired to whether
+  the image actually loaded.
+
+## 6e. Found by looking at it, 30 Aug 2026 — all reproduced and measured
+
+Three reports from the owner plus one thing found while chasing them. None is
+fixed; all are presentation-layer, and none touches physics, data or the agent.
+
+- [ ] **The 3D canvas is sized to `scale` of its container, so the cinematic scene
+  fills only part of the frame on any window smaller than 1920x1080.** Measured
+  during a real sortie at 1512x900: the container is 1920x1080 untransformed, and
+  the canvas CSS box comes out 1512x850 — exactly the `useFitToWindow` factor,
+  0.7875. R3F measures its container with `getBoundingClientRect()`, which returns
+  POST-transform pixels, and writes that back as the canvas size; the wrapper's
+  `scale()` then shrinks it a second time. So the scene renders into the top-left
+  `scale` fraction and the rest is black. At 1920x1080 the scale is 1 and it is
+  correct, which is why every screenshot harness has missed it. On a 1366x768
+  projector roughly half the frame would be black. Likely fix: `resize={{ offsetSize:
+  true }}` on `<Canvas>` — `offsetWidth` ignores transforms — but measure it, do not
+  assume it. **This is the highest-value fix on the list.**
+
+- [ ] **`useFitToWindow` caps the scale at 1, so zooming out gives a small console
+  island in a large dark bezel.** Measured at a 2560x1450 viewport: scale 1, a
+  ~320px bezel each side. The cap was written to stop 52px type becoming 78px on a
+  4K monitor, which is right for a monitor and wrong for browser zoom — zooming out
+  doubles the CSS viewport and the app responds by rendering physically smaller.
+  Letting it scale above 1:1 makes the console zoom-invariant, which is what a
+  fitted fixed-size design should be.
+
+- [ ] **The run ledger's "same pixels" caption is wrong during a flight.** It
+  decides two runs share pixels by comparing their SOURCE STRING
+  (`log[0].source === log[1].source`). An inspection pass fires several runs with
+  the identical string `the drone's camera over B-17` while the camera ORBITS, so
+  the ledger prints "same pixels as the run above it — the same answer is the
+  point" directly above `2 found / 1 found / 1 found / nothing found`. The varying
+  counts are correct and expected — legibility depends on the angle, which is why
+  the pass keeps its best frame. The caption claiming they are the same pixels is
+  the defect. It has to compare the frame, not its label. (The caption is correct
+  in its other case, two Verify runs on the committed photograph.)
+
+- [ ] **Four explanatory notes land in one band in the cinematic.** Measured
+  y-positions at 1512x900: 687 "the box is the module, not the crack" (LiveReticle),
+  710 the target reticle's label tab, 791 "The module surface here is a photograph"
+  (SurfaceProvenance), 828 the flight-speed control. Each was added in a different
+  phase to answer a different fair objection and none knew about the others. They
+  overlap each other and the PiP. Individually defensible, collectively unreadable
+  — this wants one provenance strip, not four.
+
+Also noticed, not a code bug: **the agent reads AGENT UNAVAILABLE locally** because
+`GROQ_API_KEY` is unset on this machine. The panel degrades correctly and says so.
+It is already a standing operator item below.
+
+---
+
 ## 7. Deliberately out of scope
 
 Auth, accounts, a second site, historical browsing, a settings page, a theme toggle.

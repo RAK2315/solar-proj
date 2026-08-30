@@ -55,17 +55,25 @@ export function RepairQueueBar() {
         padding: '0 var(--sp-5)',
       }}
     >
+      {/* THE TWO NUMBERS HERE COUNT DIFFERENT THINGS and used to read as a
+          contradiction: "Work orders · 0 tasks · NEXT INC-B17 CRITICAL" invites
+          the reading that there are no jobs and also a job. There are none
+          APPROVED, and one RECOMMENDED, and the whole point of the product is
+          that those are separate until a human closes the gap. So each figure now
+          says which it is. */}
       <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>
         {mode === 'live' ? 'Work orders' : 'Repair queue'}
       </span>
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>·</span>
       <span className="t-data" style={{ color: 'var(--text-primary)' }}>
-        {pending} {pending === 1 ? 'task' : 'tasks'}
+        {pending} {mode === 'live'
+          ? `approved${pending === 0 ? ' — nothing dispatched yet' : ''}`
+          : (pending === 1 ? 'task' : 'tasks')}
       </span>
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>·</span>
 
       <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
-        NEXT
+        {mode === 'live' ? 'AGENT RECOMMENDS' : 'NEXT'}
         <span className="t-data-em" style={{ color: 'var(--text-primary)', margin: '0 var(--sp-2)' }}>
           {next.id} · {next.panelId}
         </span>

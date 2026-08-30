@@ -30,7 +30,16 @@ export default function SolarFarmScene() {
     <Canvas
       dpr={[1, 1.5]}
       shadows={false}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      /* `preserveDrawingBuffer` so the drone's camera frame can actually be READ
+         back. Without it WebGL is free to clear the buffer after compositing and
+         `toDataURL` returns a blank image — which is the whole capture, silently
+         empty. It costs a little performance and buys the one thing the live
+         detector needs: a real frame from the real scene. */
+      gl={{
+        antialias: true,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true,
+      }}
       camera={{ fov: 65, near: 0.5, far: 600, position: [-70, 8, 90] }}
       style={{ position: 'absolute', inset: 0 }}
     >

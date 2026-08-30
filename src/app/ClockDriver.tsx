@@ -17,6 +17,15 @@ export function ClockDriver() {
   useDemoClockDriver();
   useRehearsalKeys();
 
+  // The theme is operator state, and the tokens that implement it hang off
+  // `<html data-theme>`. Applying it in an effect rather than during render keeps
+  // the server's markup and React's first render agreeing — the same reason
+  // `useHydrated` waits, and the same reason the session rehydrates below.
+  const theme = useSession((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
   // Restore the operator's session AFTER mount. The store is configured with
   // skipHydration precisely so this happens here and not during render — reading
   // storage while rendering would have the server and the client disagree about

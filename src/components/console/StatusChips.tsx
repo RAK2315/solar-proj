@@ -118,14 +118,22 @@ export function StatusChips() {
             Critical on output. No capture and no booked window on the site record for{' '}
             {panelId}, so nothing here fixes an hour to act by.
           </>
-        ) : dark
-          // At zero irradiance `healthy` means "producing nothing, as expected",
-          // which is not the same claim and must not be printed as if it were.
-          ? 'No generation at this hour. Status cannot be evaluated from output until '
-            + 'sunrise; any known fault is carried forward below.'
-          : degraded
-            ? 'Degraded. Monitor; no hard deadline yet.'
-            : 'Within tolerance. No intervention scheduled.'}
+        ) : status === 'scheduled'
+          // WORK IS APPROVED. This branch did not exist, so a scheduled array fell
+          // through to the healthy sentence and the console printed "Within
+          // tolerance. No intervention scheduled." directly under a SCHEDULED badge,
+          // beside a −41.7 % deviation and a named crack mechanism. Three claims,
+          // two of them false, in one box.
+          ? 'Work approved by an operator. A crew is assigned; the fault is still '
+            + 'present until they reach it.'
+          : dark
+            // At zero irradiance `healthy` means "producing nothing, as expected",
+            // which is not the same claim and must not be printed as if it were.
+            ? 'No generation at this hour. Status cannot be evaluated from output until '
+              + 'sunrise; any known fault is carried forward below.'
+            : degraded
+              ? 'Degraded. Monitor; no hard deadline yet.'
+              : 'Within tolerance. No intervention scheduled.'}
       </p>
 
       {override && (

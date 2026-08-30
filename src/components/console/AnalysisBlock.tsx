@@ -20,6 +20,7 @@
  */
 
 import { MWh, degC, kW, pct, serviceDate, wm2 } from '@/lib/format';
+import { plainDeviation, plainLoss, plainStringDeviation } from '@/lib/plain';
 import {
   getPanel, useIsDark, usePanelReading, useProjectedLossMWh, useSelectedPanelId,
   useWeather,
@@ -31,8 +32,10 @@ import {
  * without a box — a box around each would make two cards, and this is one reading
  * next to another.
  */
-function Hero({ label, value, unit, colour, note }: {
+function Hero({ label, value, unit, colour, note, plain }: {
   label: string; value: string; unit: string; colour: string; note?: string;
+  /** The same fact in words. See src/lib/plain.ts for why both are shown. */
+  plain?: string;
 }) {
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-2)', minWidth: 0, color: colour }}>
@@ -46,6 +49,16 @@ function Hero({ label, value, unit, colour, note }: {
         <span className="t-data-em" style={{ color: 'currentColor' }}> {unit}</span>
       </span>
       <span className="underline-rule" aria-hidden><i style={{ width: '100%' }} /></span>
+      {/* Prose, not mono — this is a sentence, and the type roles are what tell an
+          operator at a glance which marks on this screen are measurements and
+          which are commentary. */}
+      {plain && (
+        <span className="t-prose" style={{
+          color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.45,
+        }}>
+          {plain}
+        </span>
+      )}
       {note && (
         <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{note}</span>
       )}
@@ -101,6 +114,16 @@ export function AnalysisBlock() {
   if (!reading || !panel) return null;
 
   const deviating = reading.deviationPct < -1;
+
+  /**
+   * How many of the array's groups are faulted, recovered from the two deviations
+   * rather than looked up: dev_array = dev_string × faulted / total, so the ratio
+   * of the two figures IS the fraction. Derived, so it holds in both modes and for
+   * an injected fault the committed scenario has never heard of.
+   */
+  const faultedStrings = reading.stringDeviationPct
+    ? Math.round((reading.deviationPct / reading.stringDeviationPct) * panel.stringsPerArray)
+    : 0;
   const [devValue, devUnit] = splitUnit(pct(reading.deviationPct));
   const [lossValue, lossUnit] = splitUnit(MWh(projectedLoss));
   const losing = projectedLoss > 0.01;
@@ -135,6 +158,7 @@ export function AnalysisBlock() {
               label="Array deviation"
               value={devValue}
               unit={devUnit}
+              plain={plainDeviation(reading.deviationPct)}
               note={`${id} · ${panel.stringsPerArray} strings`}
               colour={deviating ? 'var(--sev-critical-ink)' : 'var(--text-primary)'}
             />
@@ -146,6 +170,7 @@ export function AnalysisBlock() {
                 label="Est. energy loss"
                 value={lossValue}
                 unit={lossUnit}
+                plain={plainLoss(projectedLoss)}
                 note="72 h, from the forecast curve"
                 colour="var(--sev-warning-ink)"
               />
@@ -163,12 +188,26 @@ export function AnalysisBlock() {
             <Reading label="Irradiance" value={wm2(weather.irradiance)} />
           </div>
 
+          {/* The two deviations are different quantities on different objects, and
+              to anyone who does not know that they look like the console
+              contradicting itself. The sentence says which is which. */}
           {reading.stringDeviationPct !== undefined && (
-            <Row
-              label={`String deviation · ${id}-S3`}
-              value={pct(reading.stringDeviationPct)}
-              colour="var(--sev-critical-ink)"
-            />
+            <div style={{ display: 'grid', gap: 'var(--sp-1)' }}>
+              <Row
+                label={`String deviation · ${id}-S3`}
+                value={pct(reading.stringDeviationPct)}
+                colour="var(--sev-critical-ink)"
+              />
+              <span className="t-prose" style={{
+                color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.45,
+              }}>
+                {plainStringDeviation(
+                  reading.stringDeviationPct,
+                  faultedStrings,
+                  panel.stringsPerArray,
+                )}
+              </span>
+            </div>
           )}
         </>
       )}

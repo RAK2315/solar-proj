@@ -38,7 +38,7 @@ const MODULES: Array<{ id: ModuleId; label: string; tab: string; Icon: typeof Gr
   // Not an operations screen — a rehearsal one. It injects scenario events so the
   // console can be exercised on cases the committed site does not happen to be in
   // right now, and everything it produces is marked as injected.
-  { id: 'scenario', label: 'Scenario', tab: 'Sims', Icon: Radar },
+  { id: 'scenario', label: 'Rehearsal', tab: 'Rehearse', Icon: Radar },
 ];
 
 export function IconRail() {

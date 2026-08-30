@@ -24,8 +24,8 @@
  */
 
 import {
-  Area, AreaChart, CartesianGrid, Legend, Line, ReferenceLine, ResponsiveContainer,
-  Tooltip, XAxis, YAxis,
+  Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { AlertTriangle, Sun, TrendingDown, Zap } from 'lucide-react';
 
@@ -108,16 +108,30 @@ export function AnalyticsModule() {
 
   const data = curve.map((p) => ({
     hour: p.hourOffset,
-    label: clockAt(p.hourOffset),
     delivered: Number(p.outputMW.toFixed(1)),
-    // What the site WOULD have produced with every array inside tolerance. The gap
-    // between the two lines is the thing this screen exists to show.
-    expected: Number((p.outputMW + p.shortfallKW / 1000).toFixed(1)),
+    // WHAT THE FAULTS COST, IN kW, ON ITS OWN SCALE.
+    //
+    // This used to be `expected = delivered + shortfall`, plotted as a second
+    // line in MW so the GAP was the subject. The gap is 0.11 MW on a 400 MW
+    // axis — a tenth of a pixel. The caption described a difference nobody could
+    // see, which is worse than not drawing it. The loss is the same quantity
+    // measured against a scale it is actually visible on.
+    lostKW: Number(p.shortfallKW.toFixed(1)),
   }));
+
+  // Ticks every three hours across whatever the curve covers.
+  const lastHour = data.length ? data[data.length - 1].hour : 0;
+  const hourTicks: number[] = [];
+  for (let h = Math.ceil(data[0]?.hour ?? 0); h <= lastHour; h += 3) hourTicks.push(h);
 
   return (
     <ModuleShell
       title="Analytics"
+      purpose={`
+        The whole site across a day, and where the losses come from — worked out
+        from the physics model as you look at it, so this screen and the map cannot
+        disagree.
+      `}
       subtitle={`24 h from the model // ${curve.length} whole-site evaluations at sampled hours, not a stored series // site clock ${frame.clock}`}
     >
       <div style={{
@@ -139,12 +153,19 @@ export function AnalyticsModule() {
       </div>
 
       <Block
-        title="Power generation profile"
+        title="Power generation profile" wide
         note={`peak ${num(peak.outputMW, 0)} MW at ${clockAt(peak.hourOffset)}`}
       >
-        <div style={{ height: 300 }}>
+        {/* 220, not 300. At full width this curve is legible well below the height
+            it had, and every pixel it gives back is a pixel of the four blocks
+            beneath it that an operator was scrolling to reach. */}
+        <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            {/* ComposedChart, not AreaChart. An `AreaChart` renders only its Area
+                children: the dashed line and the NOW marker were in the markup,
+                in the DOM tree, and drawn nowhere — verified by querying the SVG,
+                which held zero line curves and zero reference lines. */}
+            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="deliveredFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--sev-active)" stopOpacity={0.22} />
@@ -152,11 +173,27 @@ export function AnalyticsModule() {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--line-hairline)" vertical={false} />
+              {/* A NUMERIC time axis, not a categorical one. Categories were the
+                  hour labels, and a curve spanning a full day starts and ends at
+                  the same clock time — so "10:00" appeared twice in the domain,
+                  the band scale could not resolve it, and the NOW marker was
+                  discarded without a word. Verified by querying the SVG: no
+                  reference-line layer at all. */}
               <XAxis
-                dataKey="label" interval={11} tickLine={false}
+                dataKey="hour" type="number" domain={['dataMin', 'dataMax']}
+                ticks={hourTicks} tickFormatter={clockAt} tickLine={false}
                 axisLine={{ stroke: 'var(--line-hairline)' }} tick={AXIS}
               />
-              <YAxis width={52} tickLine={false} axisLine={false} unit=" MW" tick={AXIS} />
+              <YAxis
+                yAxisId="mw" width={52} tickLine={false} axisLine={false}
+                unit=" MW" tick={AXIS}
+              />
+              {/* The loss keeps its own scale, on the right, in kW. Sharing the
+                  MW axis is what made it invisible. */}
+              <YAxis
+                yAxisId="loss" orientation="right" width={56} tickLine={false}
+                axisLine={false} unit=" kW" tick={AXIS}
+              />
               <Tooltip
                 contentStyle={{
                   background: 'var(--surface-panel)',
@@ -165,10 +202,10 @@ export function AnalyticsModule() {
                   fontFamily: 'var(--font-mono)', fontSize: 12,
                 }}
                 labelStyle={{ color: 'var(--text-secondary)' }}
-                formatter={(v: number, name) => [
-                  `${num(v, 1)} MW`,
-                  name === 'delivered' ? 'Delivered' : 'Expected, all arrays nominal',
-                ]}
+                labelFormatter={(h: number) => clockAt(h)}
+                formatter={(v: number, name) => (name === 'Lost to faults'
+                  ? [`${num(v, 1)} kW`, name]
+                  : [`${num(v, 1)} MW`, name])}
               />
               <Legend
                 verticalAlign="top" align="right" iconType="plainline"
@@ -176,39 +213,43 @@ export function AnalyticsModule() {
                   fontFamily: 'var(--font-cond)', fontSize: 11, letterSpacing: '0.12em',
                   textTransform: 'uppercase', color: 'var(--text-secondary)',
                 }}
-                formatter={(name) => (name === 'delivered'
-                  ? 'Delivered' : 'Expected')}
-              />
-              {/* Expected is a dashed line, not a filled area: it is a model output
-                  rather than something that happened, and the two must not read the
-                  same way on one chart. */}
-              <Line
-                type="monotone" dataKey="expected" stroke="var(--text-secondary)"
-                strokeWidth={1} strokeDasharray="4 3" dot={false}
-                isAnimationActive={false}
+                // No formatter: the series carry their own `name`, and mapping
+                // dataKeys here is what printed "Delivered" twice.
+
               />
               <Area
+                yAxisId="mw" name="Delivered"
                 type="monotone" dataKey="delivered" stroke="var(--sev-active)"
                 strokeWidth={1.75} fill="url(#deliveredFill)" dot={false}
                 isAnimationActive={false}
               />
+              {/* Dashed, and not filled: this is what the site FAILED to make.
+                  Drawing it the same way as the output would read as more power. */}
+              <Line
+                yAxisId="loss" name="Lost to faults"
+                type="monotone" dataKey="lostKW" stroke="var(--sev-critical)"
+                strokeWidth={1.5} strokeDasharray="4 3" dot={false}
+                isAnimationActive={false}
+              />
               <ReferenceLine
-                x={clockAt(nowHour - (nowHour % (1 / 4)))}
+                yAxisId="mw"
+                x={nowHour}
                 stroke="var(--sev-warning)" strokeDasharray="3 3"
                 label={{
                   value: 'NOW', position: 'top', fontSize: 11,
                   fill: 'var(--sev-warning-ink)', fontFamily: 'var(--font-mono)',
                 }}
               />
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
         <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
           Left of NOW is the site as it ran. Right of NOW is the model&rsquo;s
           projection under the committed forecast — clear sky, no cloud, the faults
-          left unrepaired. Approving work moves the curve. The dashed line is the
-          same site with every array inside tolerance; the gap between them is{' '}
-          {num(lostMWh, 2)} MWh across the day.
+          left unrepaired. Approving work moves the curve. The dashed red line is
+          what the faults are costing, in kW on the right-hand scale: it integrates
+          to {num(lostMWh, 2)} MWh across the day. It has its own axis because at
+          the site&rsquo;s own scale the loss is a tenth of a pixel.
         </p>
       </Block>
 

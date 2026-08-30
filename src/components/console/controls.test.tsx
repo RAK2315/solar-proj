@@ -143,7 +143,7 @@ describe('VIEW QUEUE → goes to the queue', () => {
 describe('the scenario screen', () => {
   it('is reachable from the rail', () => {
     render(<ConsoleRoot />);
-    fireEvent.click(screen.getByRole('button', { name: 'Scenario' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rehearsal' }));
     expect(useSession.getState().module).toBe('scenario');
   });
 

@@ -141,8 +141,17 @@ describe('target reticle claims only what was measured', () => {
     // on 1 Aug 2026 and returned 0.9084 on a held-out test image, so the honest
     // caption is now the measurement itself.
     const text = cine(BEAT.rgbScan + 1);
-    expect(text).toContain('(0.91)');
+    expect(text).toContain('0.91');
     expect(text).not.toContain('surface scan in progress');
+  });
+
+  it('says the number is REPLAYED, because the frame under it is not its frame', () => {
+    // The bracket is drawn over the live rendered panel, and the confidence was
+    // computed months ago on a photograph. Both facts are fine; putting them
+    // together without a caption says the model just found a crack in THIS frame,
+    // which it did not — run live on the render it returns nothing.
+    const text = cine(BEAT.rgbScan + 1);
+    expect(text).toContain('from the committed capture, not this frame');
   });
 
   it('quotes the committed detection rather than a literal', () => {
@@ -150,7 +159,7 @@ describe('target reticle claims only what was measured', () => {
     // the detector is ever retrained, this fails rather than letting a stale figure
     // survive in a component.
     expect(detection).not.toBeNull();
-    expect(cine(BEAT.rgbScan + 1)).toContain(`(${detection!.confidence.toFixed(2)})`);
+    expect(cine(BEAT.rgbScan + 1)).toContain(detection!.confidence.toFixed(2));
   });
 
   it('names the MODULE, not just the array — the reticle frames one panel', () => {

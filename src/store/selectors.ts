@@ -22,12 +22,23 @@ import {
   repairQueue, telemetry,
 } from '@/lib/data';
 import {
-  eventFor, liveFrameAt, referenceShortfallKW, type LiveFrame,
+  eventFor, forecastOffset, inverterComparison, liveFrameAt, referenceShortfallKW,
+  type LiveFrame,
 } from '@/lib/live';
-import { F_SOIL, isDark, soilFor } from '@/lib/physics';
+import {
+  CELL_TEMP_REF_C, F_SOIL, cellTemp, irradianceAt, isDark, soilFor,
+} from '@/lib/physics';
 import {
   liveQueueAt, projected72hLossMWh, REFERENCE_SHORTFALL_KW, type LiveQueue,
 } from '@/lib/queue';
+import { diagnose } from '@/lib/causes';
+import {
+  deferOutcomes, openCircuitShortfallKW, type DeferOutcome,
+} from '@/lib/defer';
+import { buildIncident, type Incident } from '@/lib/incident';
+import {
+  jobsSavedByOneMoreCrew, planDay, type SitePlan,
+} from '@/lib/schedule';
 import { liveEvents } from '@/lib/liveEvents';
 import { rankQueue } from '@/lib/ranking';
 import { typographic } from '@/lib/format';
@@ -152,6 +163,13 @@ export const pickOutput = (f: TelemetryFrame) => f.farmOutputMW;
  * undercut the single most important claim in the demo — see C12 in
  * docs/contract-freeze.md.
  */
+/**
+ * Peak irradiance on the site's own day — the denominator solar elevation is read
+ * against. Computed once from the same curve the whole product runs on, because a
+ * second sun model would be a second answer to how high the sun is.
+ */
+const PEAK_IRRADIANCE = Math.max(...Array.from({ length: 24 }, (_, h) => irradianceAt(h)));
+
 export const WORK_ORDER_EVENT_ID = 'ev-14-workorder';
 
 export function useVisibleEvents(): DemoEvent[] {
@@ -205,8 +223,36 @@ export function usePanelStatus(id: string): PanelStatus {
   return reading.status;
 }
 
+/**
+ * The peer-string comparison for the selected array — the table that makes the
+ * fault self-evident.
+ *
+ * IT READ THE DEMO CLOCK. `useFrame()` samples the committed 91-frame telemetry at
+ * the demo's `t`, and live mode never advances `t`. So in live mode this returned
+ * frame zero for ever: three inverters at 36.10 kW and 0.0 %, sitting two hundred
+ * pixels under a heading saying the selected array was down 41.7 %. The console
+ * contradicting itself, in one screenful, about the single most persuasive number
+ * it has.
+ *
+ * This is the SEVENTH time a live surface has been found gated on the scripted
+ * clock — after the anomaly matrix, both defect lists, the captured frames, B-17's
+ * prose under other arrays, and the deadline under any critical array. The fix is
+ * the same shape every time, and `inverterComparison` had already been written for
+ * it in lib/live.ts and then never connected to anything.
+ *
+ * Found by looking at a screenshot. 374 tests did not see it, because the table
+ * renders its heading and three well-formed rows either way.
+ */
 export function useInverterReadings(): Record<string, InverterReading> {
-  return useFrame().inverters;
+  const mode = useMode();
+  const demoFrame = useFrame();
+  const siteFrame = useSiteFrame();
+  const panelId = useSelectedPanelId();
+
+  return useMemo(
+    () => (mode === 'demo' ? demoFrame.inverters : inverterComparison(siteFrame, panelId)),
+    [mode, demoFrame, siteFrame, panelId],
+  );
 }
 
 /**
@@ -364,11 +410,34 @@ export const useForecast = (): Forecast => forecast;
  * uses. INC-B17 only exists once the agent has produced it (t ≥ recommendation),
  * which is why the footer reads 3 tasks before the beat and 4 after.
  */
+/**
+ * The ranked queue behind the footer strip.
+ *
+ * IT WAS THE DEMO QUEUE IN BOTH MODES — the eighth instance of a live surface
+ * reading the scripted clock, and the most damaging one yet. The committed
+ * `repair_queue.json` is a snapshot at the demo's reference hour, and the filter
+ * below hides B-17 until the demo reaches its recommendation beat. Live mode never
+ * advances `t`, so B-17 was hidden PERMANENTLY: the footer of a console showing a
+ * critical array at −41.7 % with a computed 14:00 deadline announced that the next
+ * job was a soiled array at −9 %. The one number the whole product exists to
+ * produce — what to do first — was wrong, in live mode, always.
+ *
+ * `useLiveQueue()` had been right about this since Phase 15 and the Repairs screen
+ * has been using it ever since. The footer simply never got switched over, so the
+ * two disagreed with each other on the same screen.
+ */
 export function useRepairQueue(): RepairTask[] {
+  const mode = useMode();
   const t = useDemoClock((s) => s.t);
+  const live = useLiveQueue();
+
   return useMemo(
-    () => rankQueue(repairQueue.filter((x) => x.id !== 'INC-B17' || t >= BEAT.recommendation)),
-    [t],
+    () => (mode === 'demo'
+      // The scripted queue, with B-17 held back until the beat that introduces it.
+      ? rankQueue(repairQueue.filter((x) => x.id !== 'INC-B17' || t >= BEAT.recommendation))
+      // The site as it actually stands, ranked by the same pure function.
+      : live.tasks),
+    [mode, t, live],
   );
 }
 
@@ -612,15 +681,14 @@ export function useAllFeedEvents(): DemoEvent[] {
   const mode = useSession((s) => s.mode);
   const siteSeconds = useSession((s) => s.siteSeconds);
   const missions = useSession((s) => s.missions);
-  const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
   const demoEvents = useVisibleEvents();
 
   return useMemo(
     () => (mode === 'demo'
       ? demoEvents
-      : liveEvents(siteSeconds, missions, workOrders, injected)),
-    [mode, demoEvents, siteSeconds, missions, workOrders, injected],
+      : liveEvents(siteSeconds, missions, injected)),
+    [mode, demoEvents, siteSeconds, missions, injected],
   );
 }
 
@@ -894,4 +962,174 @@ export function useZoneBreakdown(): ZoneBreakdown[] {
     }
     return out;
   }), [frame]);
+}
+
+/* ── The incident ────────────────────────────────────────────────────────────
+   One array's problem as a single object, assembled from everything the console
+   already knows. See src/lib/incident.ts for why it is derived and not stored.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The selected array's incident, at this moment.
+ *
+ * Every input here is a figure some other part of the console is already showing,
+ * which is the point: the incident does not introduce a source of truth, it gives
+ * the existing ones a shape. If this hook and the rail ever disagreed, one of them
+ * would be reading a different clock — the bug this project makes most often.
+ */
+export function useIncident(panelId: string): Incident {
+  const mode = useMode();
+  const siteSeconds = useSiteSeconds();
+  const injected = useInjected();
+  const reading = usePanelReading(panelId);
+  const fault = useArrayFault(panelId);
+  const projectedLoss = useProjectedLossMWh(panelId);
+  const override = useOverride(panelId);
+  const { tasks } = useLiveQueue();
+  const missions = useSession((s) => s.missions);
+  const workOrders = useSession((s) => s.workOrders);
+  // What a healthy array runs at right now — the baseline a thermal rise is
+  // measured against, from the same model, not a stored constant.
+  const siteFrame = useSiteFrame();
+  const fleetMedianCellTemp = mode === 'demo'
+    ? CELL_TEMP_REF_C
+    : cellTemp(siteFrame.ambientC, siteFrame.irradiance);
+
+  return useMemo(() => {
+    // The drone leg timings live in session.ts because the missions do. A mission
+    // counts as INSPECTED once it has been on station, not once it was ordered.
+    const mission = missions.find((m) => m.panelId === panelId);
+    const onStationAt = mission ? mission.startedAt + MISSION.outbound : null;
+    const inspectedAt = mission
+      && siteSeconds - mission.startedAt >= MISSION.outbound + MISSION.inspecting
+      ? onStationAt
+      : null;
+    const dispatchedAt = mission && siteSeconds >= mission.startedAt ? mission.startedAt : null;
+
+    const task = tasks.find((t) => t.panelId === panelId);
+    const rank = task ? tasks.indexOf(task) + 1 : null;
+    const order = workOrders.find((w) => w.panelId === panelId);
+
+
+    return buildIncident({
+      panelId,
+      deviationPct: reading?.deviationPct ?? 0,
+      referenceShortfallKW: mode === 'demo'
+        ? Math.max(0, (reading?.expectedKW ?? 0) - (reading?.actualKW ?? 0))
+        : referenceShortfallKW(panelId, siteSeconds, injected),
+      fault,
+      inspectedAt,
+      dispatchedAt,
+      projectedLossMWh: projectedLoss,
+      hoursUntilDeadline: task?.hoursUntilDeadline ?? null,
+      queueRank: rank,
+      workOrderAt: order?.createdAt ?? null,
+      override: override ? { at: override.createdAt, reason: override.reason } : null,
+      // Scoped, as everything about captured imagery must be: we hold a detection
+      // for B-17 and for no other array. Seventh time of asking.
+      detection: hasCapturedEvidence(panelId) ? detectionData : null,
+      // What is actually wrong — dirt, geometry, damage, or nothing established.
+      // This is what makes the chain a triage: different causes reach different
+      // conclusions and different actions.
+      // Instrument readings only — never the committed soiling value. Reading
+      // `f_soil` here would be consulting the answer: it is what the diagnosis is
+      // trying to establish, and no operator on a real site can see it.
+      cause: diagnose({
+        panelId,
+        deviationPct: reading?.deviationPct ?? 0,
+        stringDeviationPct: reading?.stringDeviationPct,
+        cellTempC: reading?.cellTempC ?? 0,
+        fleetMedianCellTempC: fleetMedianCellTemp,
+        hourOffset: mode === 'demo' ? 0 : forecastOffset(siteSeconds),
+        peakIrradiance: PEAK_IRRADIANCE,
+      }),
+    });
+  }, [
+    panelId, mode, siteSeconds, injected, reading, fault, projectedLoss, override,
+    tasks, missions, workOrders, fleetMedianCellTemp,
+  ]);
+}
+
+/** The incident for whichever array is selected. */
+export const useSelectedIncident = (): Incident => useIncident(useSelectedPanelId());
+
+/**
+ * What waiting costs, for the selected array.
+ *
+ * Every input is already on screen somewhere: the array's shortfall at reference
+ * conditions, its deadline from the live queue, and where the site clock sits on
+ * the forecast curve. The one thing this adds is the OPEN-CIRCUIT shortfall — the
+ * declared post-deadline mechanism — and it comes from `evaluateArray` with a
+ * mismatch of zero, which is what `string-outage` means everywhere else here.
+ */
+export function useDeferOutcomes(panelId: string): DeferOutcome[] {
+  const mode = useMode();
+  const siteSeconds = useSiteSeconds();
+  const injected = useInjected();
+  const reading = usePanelReading(panelId);
+  const fault = useArrayFault(panelId);
+  const { tasks } = useLiveQueue();
+  const incident = useIncident(panelId);
+
+  return useMemo(() => {
+    const shortfall = mode === 'demo'
+      ? Math.max(0, (reading?.expectedKW ?? 0) - (reading?.actualKW ?? 0))
+      : referenceShortfallKW(panelId, siteSeconds, injected);
+
+    const task = tasks.find((t) => t.panelId === panelId);
+
+    return deferOutcomes({
+      shortfallAtRefKW: shortfall,
+      // Scoped to THIS array's fault: a two-string crack opens two strings, not
+      // five. Defaulting to B-17's five for every array would overstate the cliff
+      // on a shallower fault, which is the same class of error as borrowing its
+      // evidence.
+      openCircuitKW: openCircuitShortfallKW(fault?.faultedStrings),
+      // THE CLIFF BELONGS TO THE CRACK. A soiled array's "deadline" is a booked
+      // cleaning window, not a thermal-dose threshold, and there is no diode on
+      // it to fail. Passing that window here would have the console warn an
+      // operator that dirt is about to open their strings.
+      hoursUntilDeadline: incident.cause.id === 'crack'
+        ? task?.hoursUntilDeadline ?? null
+        : null,
+      nowH: mode === 'demo' ? 0 : forecastOffset(siteSeconds),
+    });
+  }, [mode, panelId, siteSeconds, injected, reading, fault, tasks, incident]);
+}
+
+/** The tariff the operator has set. Every rupee figure rests on it. */
+export const useTariff = () => useSession((s) => s.tariffInrPerKWh);
+export const useSetTariff = () => useSession((s) => s.setTariff);
+
+/**
+ * The ranked queue as a plan, with the crews and aircraft the site actually has.
+ *
+ * The cause is what decides the work: a soiled array skips the aircraft entirely
+ * and its crew leaves immediately, which is the scheduling payoff of the triage
+ * stage. Resolved here per array rather than inside `planDay`, so the scheduler
+ * stays a pure function of tasks and a lookup.
+ */
+export function useDayPlan(): { plan: SitePlan; savedByOneMoreCrew: number } {
+  const { tasks } = useLiveQueue();
+  const siteSeconds = useSiteSeconds();
+  const frame = useSiteFrame();
+
+  return useMemo(() => {
+    const median = cellTemp(frame.ambientC, frame.irradiance);
+    const causeFor = (panelId: string) => {
+      const r = frame.panels[panelId];
+      return diagnose({
+        panelId,
+        deviationPct: r?.deviationPct ?? 0,
+        stringDeviationPct: r?.stringDeviationPct,
+        cellTempC: r?.cellTempC ?? median,
+        fleetMedianCellTempC: median,
+        hourOffset: forecastOffset(siteSeconds),
+        peakIrradiance: PEAK_IRRADIANCE,
+      }).id;
+    };
+
+    const input = { tasks, causeFor };
+    return { plan: planDay(input), savedByOneMoreCrew: jobsSavedByOneMoreCrew(input) };
+  }, [tasks, frame, siteSeconds]);
 }

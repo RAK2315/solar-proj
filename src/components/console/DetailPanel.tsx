@@ -30,18 +30,21 @@
  * at a size that suits it.
  */
 
+import { X } from 'lucide-react';
+
 import { hasCapturedEvidence } from '@/lib/data';
 import { useSession } from '@/store/session';
 import {
   BEAT, useAfter, useAgentCache, useCellGrid, useEvidence, useHasSelection,
-  useInspected, useInspectionClock, useIsDark, useMode, usePanelStatus,
-  useSelectedPanelId,
+  useDeferOutcomes, useInspected, useInspectionClock, useIsDark, useLiveQueue,
+  useMode, usePanelStatus, useSelectedPanelId,
 } from '@/store/selectors';
 import { DispatchPanel } from './DispatchPanel';
 import { LiveTriage } from './LiveTriage';
 import { AgentReasoning } from './AgentReasoning';
 import { AnalysisBlock } from './AnalysisBlock';
 import { ApprovalBar } from './ApprovalBar';
+import { CostOfWaiting } from './CostOfWaiting';
 import { ForecastBand } from './ForecastBand';
 import { InverterTable } from './InverterTable';
 import { Recommendation } from './Findings';
@@ -93,7 +96,11 @@ function Block({ label, note, children }: {
           borderBottom: '1px solid var(--line-hairline)', paddingBottom: 4,
         }}>
           <span className="t-h2" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-          {note && <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>{note}</span>}
+          {note && (
+          <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
+            {note}
+          </span>
+        )}
         </div>
       )}
       {children}
@@ -108,8 +115,12 @@ export function DetailPanel() {
   const inspected = useInspected(panelId);
   const hasSelection = useHasSelection();
   const dark = useIsDark();
+  const deferOutcomes = useDeferOutcomes(panelId);
+  const { tasks: queueTasks } = useLiveQueue();
+  const deadlineHours = queueTasks.find((t) => t.panelId === panelId)?.hoursUntilDeadline ?? null;
   const grid = useCellGrid();
   const setDossier = useSession((s) => s.setDossier);
+  const selectPanel = useSession((s) => s.selectPanel);
   const demoTriaged = useAfter(BEAT.triage);
   const demoScanned = useAfter(BEAT.rgbScan);
   const demoThermal = useAfter(BEAT.thermalScan);
@@ -161,6 +172,7 @@ export function DetailPanel() {
         borderBottom: '1px solid var(--line-active)',
         background: 'var(--surface-void)',
         display: 'grid', gap: 'var(--sp-3)',
+        position: 'relative',
       }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
@@ -188,14 +200,46 @@ export function DetailPanel() {
             </span>
           </div>
 
-          {triaged && (
-            <span className="chip" style={{
-              background: statusColour,
-              color: selectedStatus === 'healthy' ? 'var(--text-inverse)' : 'var(--text-inverse)',
-            }}>
-              {selectedStatus.toUpperCase()}
-            </span>
-          )}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flex: '0 0 auto',
+          }}>
+            {triaged && (
+              <span className="chip" style={{
+                background: statusColour,
+                color: 'var(--text-inverse)',
+              }}>
+                {selectedStatus.toUpperCase()}
+              </span>
+            )}
+
+            {/* CLOSE. The panel is a box that opens on a question and should shut
+                when the question is answered — without it the only way back to a
+                clear map was to reload. `Esc` does the same thing.
+
+                In the row rather than pinned to the corner: absolutely positioned
+                it sat straight on top of the status chip, and "CRITICAL" and the
+                close control rendered as one unreadable smear.
+
+                Live mode only — the scripted demo needs the panel up for its beats
+                and has no operator to close it. */}
+            {mode === 'live' && (
+              <button
+                type="button"
+                className="btn-reset"
+                onClick={() => selectPanel(null)}
+                aria-label="Close the array panel"
+                title="Close · Esc"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  color: 'var(--text-secondary)', padding: '3px 5px',
+                  border: '1px solid var(--line-active)',
+                }}
+              >
+                <span className="t-micro">ESC</span>
+                <X size={12} strokeWidth={2} aria-hidden />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* The verdict in one sentence, on a keyed edge. The chips it replaces were
@@ -203,7 +247,10 @@ export function DetailPanel() {
         {triaged && <StatusChips />}
       </header>
 
-      <div className="scroll-y" style={{
+      {/* `rail-body` is what makes this wrap into columns inside the wide card —
+          see globals.css. The grid fallback here is what the demo's docked rail
+          still uses, where the column IS the right shape. */}
+      <div className="scroll-y rail-body" style={{
         padding: 'var(--sp-4)', display: 'grid', gap: 'var(--sp-4)',
         alignContent: 'start',
       }}>
@@ -218,9 +265,15 @@ export function DetailPanel() {
         {/* ── 1. STATE ─────────────────────────────────────────────────────── */}
         {/* No heading. The two 42px figures ARE the heading — a "STATE" label above
             them would be the loudest thing in the region competing with them. */}
-        {triaged && <AnalysisBlock />}
+        <div className="rail-wide">{triaged && <AnalysisBlock />}</div>
 
-        {triaged && (
+        {/* Withheld at night for the same reason the deviation above it is: with no
+            sun, actual and expected are both zero on every inverter, and three rows
+            of 0.00 kW / 0.0 % is a comparison that says a faulted string looks
+            exactly like a healthy one. It became possible to print it only once the
+            table started reading the live model instead of the demo's frame zero —
+            night.test.tsx caught it the same hour. */}
+        {triaged && !dark && (
           <Group title="Peer strings" note="same position, each inverter">
             <InverterTable />
           </Group>
@@ -232,14 +285,27 @@ export function DetailPanel() {
             three stacked prose stages in a 448px column were a third of the density
             problem on their own. Prognosis and recommendation are read in the
             dossier, where there is room for them. */}
+        {/* THE HEADING IS DELIBERATELY MODEST. "Agent assessment" put the language
+            model's box where the reader's eye lands and let it stand for the whole
+            system, which is backwards: the physics computes, the model narrates.
+            Naming it for what it does — and stating in the note that it explains
+            figures it was handed rather than producing them — is both more honest
+            and, in front of somebody deciding whether to believe any of this,
+            considerably more persuasive. */}
         {mode === 'demo' && agent && triaged && (
-          <Group title="Agent assessment" note={agent.meta.model}>
+          <Group
+            title="Why the system thinks this"
+            note={`${agent.meta.model} · explains the figures above, never sources them`}
+          >
             <AgentReasoning stages="triage" />
           </Group>
         )}
 
         {mode === 'live' && triaged && (
-          <Group title="Agent assessment" note="cross-checked against this array">
+          <Group
+            title="Why the system thinks this"
+            note="every number it writes is checked against this array before it is shown"
+          >
             <LiveTriage compact />
           </Group>
         )}
@@ -253,33 +319,40 @@ export function DetailPanel() {
           >
             {mode === 'live' && <DispatchPanel />}
 
-            {/* The evidence itself is in the dossier. What belongs HERE is the one
-                line that says it exists and the control that opens it — a summary
-                an operator can act on, not the material itself. */}
-            {thermal && captured && (
-              <>
-                <button
-                  type="button"
-                  className="btn-reset t-h1"
-                  onClick={() => setDossier(true)}
-                  style={{
-                    display: 'flex', justifyContent: 'center', alignItems: 'center',
-                    gap: 'var(--sp-2)', width: '100%',
-                    background: 'transparent',
-                    border: '1px solid var(--sev-active)',
-                    color: 'var(--sev-active)',
-                    padding: 'var(--sp-3)',
-                  }}
-                >
-                  Open inspection dossier
-                  <span aria-hidden>→</span>
-                </button>
-                <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-                  {grid.defects.length} anomalous cells in {grid.clusters} cluster
-                  {hasFrames && ', with the captured thermal and RGB frames'}.
-                </p>
-              </>
-            )}
+            {/* THE CONTROL IS NO LONGER GATED ON IMAGERY. The dossier used to be
+                the imagery viewer, so opening it without a capture would have been
+                opening an empty box. It is the INCIDENT FILE now — the evidence
+                chain inside it is derivable for all 120 arrays — and gating the
+                product's central argument on the one array that happens to have a
+                photograph would have hidden it from 119 of them.
+
+                The scoping did not lift, it MOVED: the imagery column inside the
+                dossier carries it, which is the only part that was ever scoped. */}
+            <button
+              type="button"
+              className="btn-reset t-h1"
+              onClick={() => setDossier(true)}
+              style={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                gap: 'var(--sp-2)', width: '100%',
+                background: 'transparent',
+                border: '1px solid var(--sev-active)',
+                color: 'var(--sev-active)',
+                padding: 'var(--sp-3)',
+              }}
+            >
+              {thermal && captured ? 'Open inspection dossier' : 'Open incident file'}
+              <span aria-hidden>→</span>
+            </button>
+            <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
+              {thermal && captured
+                ? <>
+                    {grid.defects.length} anomalous cells in {grid.clusters} cluster
+                    {hasFrames && ', with the captured thermal and RGB frames'}.
+                  </>
+                : 'The full chain of reasoning: what was observed, what was checked, '
+                  + 'what it means, and what a person decided.'}
+            </p>
 
             {/* An array we hold no imagery for gets one sentence at the point where
                 the imagery would have been, rather than a header explaining an
@@ -308,6 +381,20 @@ export function DetailPanel() {
         {prognosed && (
           <Group title="Outlook" note="72 h forecast · cost of waiting">
             <ForecastBand showRisk={captured} />
+
+            {/* THE DECISION-SUPPORT STEP, and the only thing on this screen that a
+                detector plus a dashboard could not produce. The band above says
+                what the weather does; this says what WAITING does, which is the
+                question the operator is actually holding.
+
+                Not gated on captured evidence: the calculation is the array's own
+                shortfall against the committed forecast, and it needs no
+                photograph. It is gated on there being a loss to weigh at all —
+                CostOfWaiting renders nothing for an array that is not losing. */}
+            <CostOfWaiting
+              outcomes={deferOutcomes}
+              hoursUntilDeadline={deadlineHours}
+            />
           </Group>
         )}
 

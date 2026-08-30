@@ -42,9 +42,14 @@ describe('dispatching a drone shows the flight', () => {
   });
 
   it('CUTS TO THE CINEMATIC when the operator dispatches', () => {
+    // C-31 is SOILED, so the agent does not want the sortie and the control reads
+    // "FLY ANYWAY" rather than "DISPATCH DRONE" — the operator overruling a
+    // recommendation, which is a thing they must always be able to do. The cut to
+    // the cinematic is the same either way: a drone in the air is a drone in the
+    // air, whoever decided it should be.
     useSession.setState({ siteSeconds: 100, selectedPanelId: 'C-31' });
     render(<ConsoleRoot />);
-    fireEvent.click(screen.getByText(/DISPATCH DRONE → C-31/));
+    fireEvent.click(screen.getByText(/FLY ANYWAY → C-31/));
     cleanup();
 
     expect(useSession.getState().missions).toHaveLength(1);

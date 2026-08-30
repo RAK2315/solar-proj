@@ -12,14 +12,16 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { PerspectiveCamera, Vector3 } from 'three';
 
 import { farm } from './data';
 import { hasCrackMechanism } from './live';
 import {
-  ARRAY_SPACING_Z, CRUISE_ALT, DAMAGED_INDEX, DAMAGED_MODULE, INSPECT_ALT, M,
-  ORBIT_DEG_PER_SEC, ORBIT_RADIUS, PANELS_PER_ARRAY, PAD, POV_IN, arrayCentre,
-  arrayPosition, cameraAt, crackVisible, droneAt, droneVisible, inspectionTarget,
-  isPOV, moduleOffsetX, panelInstances, projectToScreen, reticleRect, thermalAmount,
+  ARRAY_SPACING_Z, ASPECT, CRUISE_ALT, DAMAGED_INDEX, DAMAGED_MODULE, INSPECT_ALT,
+  LABEL_GROUND_OFFSET_Z, M, ORBIT_DEG_PER_SEC, ORBIT_RADIUS, PANELS_PER_ARRAY,
+  PANEL_H, PANEL_TILT, PAD, POV_IN, arrayCentre, arrayPosition, cameraAt,
+  crackVisible, droneAt, droneVisible, inspectionTarget, isPOV, labelAnchor,
+  moduleOffsetX, panelInstances, projectToScreen, reticleRect, thermalAmount,
   visibleLabels,
 } from './scene';
 
@@ -259,6 +261,60 @@ describe('the reticle frames ONE module, not the whole row', () => {
   });
 });
 
+/**
+ * THE PROJECTION IS CHECKED AGAINST THE RENDERER, NOT AGAINST ITSELF.
+ *
+ * `projectToScreen` builds its own basis so the overlays can frame real geometry
+ * without a GPU. That is only worth anything if it agrees with the camera the
+ * scene is actually drawn with — and for a long time it did not: `right` was
+ * built as the camera's LEFT, so both basis vectors came out flipped and every
+ * point landed rotated 180 degrees about the centre of frame.
+ *
+ * Nothing caught it. `reticleRect` takes the bounding box of four corners
+ * symmetric about the target, and a point reflection through that target leaves
+ * that box identical. The panel ID tags were the visible casualty: each one was
+ * drawn on the opposite side of the frame from the array it names.
+ *
+ * So this compares against three's own PerspectiveCamera. A hand-rolled
+ * projection needs an independent oracle, and the renderer is the only one that
+ * counts.
+ */
+describe('the pure projection agrees with the camera the scene is drawn with', () => {
+  const throughThree = (world: typeof DAMAGED_MODULE, cam: ReturnType<typeof cameraAt>,
+    aspect: number) => {
+    const c = new PerspectiveCamera(cam.fov, aspect, 0.1, 1000);
+    c.position.set(cam.pos.x, cam.pos.y, cam.pos.z);
+    c.up.set(0, 1, 0);
+    c.lookAt(new Vector3(cam.look.x, cam.look.y, cam.look.z));
+    c.updateMatrixWorld(true);
+    c.updateProjectionMatrix();
+    const v = new Vector3(world.x, world.y, world.z).project(c);
+    return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
+  };
+
+  it('puts every array of the field where three.js puts it', () => {
+    for (const id of ['A-08', 'B-17', 'C-31']) {
+      const target = inspectionTarget(id);
+      for (let t = M.dispatch; t <= M.recommendation; t += 2) {
+        const cam = cameraAt(t, target);
+        for (const world of [target, labelAnchor(arrayCentre(id)), PAD]) {
+          const mine = projectToScreen(world, cam);
+          const theirs = throughThree(world, cam, ASPECT);
+          if (!mine.visible) continue;
+          expect(mine.x, `x at t=${t} on ${id}`).toBeCloseTo(theirs.x, 3);
+          expect(mine.y, `y at t=${t} on ${id}`).toBeCloseTo(theirs.y, 3);
+        }
+      }
+    }
+  });
+
+  it('is not mirrored: right of the axis is right of frame, above is above', () => {
+    const cam = { pos: { x: 0, y: 0, z: 0 }, look: { x: 0, y: 0, z: -10 }, fov: 45 };
+    expect(projectToScreen({ x: 5, y: 0, z: -10 }, cam).x).toBeGreaterThan(0.5);
+    expect(projectToScreen({ x: 0, y: 5, z: -10 }, cam).y).toBeLessThan(0.5);
+  });
+});
+
 describe('array ID tags identify the target instead of asserting it', () => {
   it('labels B-17 during the inspection, and marks it as the faulted one', () => {
     const labels = visibleLabels(48);
@@ -284,6 +340,33 @@ describe('array ID tags identify the target instead of asserting it', () => {
         expect(l.x).toBeLessThan(1);
         expect(l.y).toBeGreaterThan(0);
         expect(l.y).toBeLessThan(1);
+      }
+    }
+  });
+
+  /**
+   * The tags used to be projected from panel height, so they hung in the air beside
+   * the modules instead of sitting on the site. These pin the fix: the anchor is on
+   * the ground, in front of the row, and close enough in that the frame still holds
+   * it at inspection altitude — 2.5 m out was already off the top of the shot.
+   */
+  it('anchors each tag to the dirt in front of its array, not to mid-air', () => {
+    const base = arrayPosition('B', 3, 1, 8);
+    const anchor = labelAnchor(base);
+    expect(anchor.y).toBe(0);
+    expect(anchor.x).toBe(base.x);
+    expect(anchor.z - base.z).toBeCloseTo(LABEL_GROUND_OFFSET_Z, 6);
+    // Clear of the module's own ground footprint, and nowhere near the next row.
+    expect(LABEL_GROUND_OFFSET_Z).toBeGreaterThan((PANEL_H / 2) * Math.cos(PANEL_TILT));
+    expect(LABEL_GROUND_OFFSET_Z).toBeLessThan(ARRAY_SPACING_Z / 2);
+  });
+
+  it('keeps the grounded tag in frame right through the inspection', () => {
+    for (const id of ['A-08', 'B-17', 'C-31']) {
+      for (let t = M.rgb; t <= M.thermalDone; t += 1) {
+        const labels = visibleLabels(t, id);
+        expect(labels.find((l) => l.faulted)?.id, `lost the tag at t=${t} on ${id}`)
+          .toBe(id);
       }
     }
   });

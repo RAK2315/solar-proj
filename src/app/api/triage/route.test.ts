@@ -137,9 +137,14 @@ describe('the cross-check runs before anything reaches the browser', () => {
 });
 
 describe('the facts come from the model, not from the caller', () => {
-  it('ignores readings supplied in the request body', async () => {
+  it('REJECTS a request carrying readings, rather than ignoring them', async () => {
+    // It used to ignore unknown keys, which was safe and quiet. The body schema
+    // is `.strict()` now, because the route began accepting one legitimate extra
+    // field — the operator's injected faults — and the moment a body has a shape
+    // worth describing, "anything else is a mistake" is better said out loud than
+    // dropped on the floor.
     mockGroq(goodTriage);
-    await post({
+    const res = await post({
       panelId: 'B-17',
       siteSeconds: 600,
       // A caller trying to have the agent reason about a fiction.
@@ -147,13 +152,61 @@ describe('the facts come from the model, not from the caller', () => {
       actualKW: 1,
     });
 
+    expect(res.status).toBe(400);
+    // And it never reached the model at all.
+    expect((globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls)
+      .toHaveLength(0);
+  });
+
+  it('accepts an injected FAULT and computes its consequences itself', async () => {
+    // A scenario event is a CAUSE — this array, this mechanism, these strings,
+    // from this hour. The server works out what it does. That is the whole reason
+    // it is allowed through when a reading is not: without it the agent answered
+    // about a different site, reporting "deviation 0.00%, normal operation" under
+    // a CRITICAL badge on an array the operator had just broken on purpose.
+    mockGroq({ ...goodTriage, suspectComponent: 'A-03-S3' });
+    const res = await post({
+      panelId: 'A-03',
+      siteSeconds: 3600,
+      injected: [{
+        id: 'test-inj',
+        type: 'mismatch-fault',
+        panelId: 'A-03',
+        startHour: 10,
+        rampMinutes: 3,
+        faultedStrings: 5,
+        terminalMismatch: 0.416,
+        mechanism: 'cracked cell driving its bypass diode into conduction',
+        injected: true,
+      }],
+    });
+
+    expect(res.status).toBe(200);
+
     const sent = JSON.parse(
       String((( globalThis.fetch as unknown as { mock: { calls: unknown[][] } })
         .mock.calls[0][1] as RequestInit).body),
     );
     const prompt = JSON.stringify(sent.messages);
-    expect(prompt).not.toContain('99.9');
-    expect(prompt).toContain('B-17');
+    // The array is materially down in the prompt — the server computed that from
+    // the cause, and nobody sent it a number.
+    expect(prompt).toContain('A-03');
+    expect(prompt).not.toContain('0.00%');
+  });
+
+  it('rejects an injected fault carrying a reading', async () => {
+    // The allowlist is the whole safety of letting anything through.
+    mockGroq(goodTriage);
+    const res = await post({
+      panelId: 'A-03',
+      siteSeconds: 3600,
+      injected: [{
+        id: 'x', type: 'mismatch-fault', panelId: 'A-03',
+        startHour: 10, rampMinutes: 3,
+        deviationPct: -99.9,
+      }],
+    });
+    expect(res.status).toBe(400);
   });
 
   it('describes the array the caller actually asked about', async () => {

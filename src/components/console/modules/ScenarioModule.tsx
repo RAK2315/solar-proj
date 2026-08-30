@@ -32,6 +32,7 @@ import {
   useInjected, useSelectedPanelId, useSiteFrame, useSiteSeconds,
 } from '@/store/selectors';
 import { INJECTABLE, useSession, type InjectableId } from '@/store/session';
+import { nextRehearsalTarget } from '@/lib/rehearsal';
 import { Block, Empty, ModuleShell, Table, Cell } from './ModuleShell';
 
 /** Array deviation a spec will reach: strings × (mismatch − 1) ÷ strings-per-array. */
@@ -68,7 +69,12 @@ export function ScenarioModule() {
 
   return (
     <ModuleShell
-      title="Scenario"
+      title="Rehearsal"
+      purpose={`
+        Put a fault on an array on purpose, to exercise the console on a case the
+        site is not in right now. It starts a fault; the physics works out the rest,
+        and everything it produces is marked as a rehearsal.
+      `}
       subtitle={`${injected.length} injected // a rehearsal screen, not an operations one // everything it produces is marked as injected // site clock ${clockAt(forecastOffset(siteSeconds))}`}
       action={(
         <>
@@ -129,6 +135,30 @@ export function ScenarioModule() {
             </select>
           </label>
 
+          {/* SOMEWHERE ELSE. The picker defaults to the selected array, so
+              pressing INJECT a few times in a row put every fault on the same
+              handful and the site stopped looking like a site. This walks the
+              whole block on a coprime stride — deterministic, so the third press
+              always lands where the third press landed, and reproducible for a
+              judge who re-runs the demo, but far enough each step that it reads
+              as arbitrary. `Math.random()` is banned here for exactly that
+              reason. */}
+          <button
+            type="button"
+            className="btn-reset t-h2"
+            onClick={() => {
+              const next = nextRehearsalTarget(frame, taken, injected.length);
+              if (next) setPanelId(next);
+            }}
+            aria-label="Pick another array to break, somewhere else on the site"
+            style={{
+              border: '1px solid var(--line-active)', color: 'var(--text-secondary)',
+              padding: 'var(--sp-3)', whiteSpace: 'nowrap',
+            }}
+          >
+            SOMEWHERE ELSE
+          </button>
+
           <label style={{ display: 'grid', gap: 'var(--sp-1)' }}>
             <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>MECHANISM</span>
             <select
@@ -182,7 +212,7 @@ export function ScenarioModule() {
         )}
       </Block>
 
-      <Block title="Injected this session" note="cleared on reset, persisted across reload">
+      <Block title="Injected this session" wide note="cleared on reset, persisted across reload">
         {injected.length === 0 ? (
           <Empty>
             Nothing injected. The site is running the committed scenario:
@@ -220,7 +250,7 @@ export function ScenarioModule() {
         )}
       </Block>
 
-      <Block title="Committed scenario" note="data/scenario.json — not editable here">
+      <Block title="Committed scenario" wide note="data/scenario.json — not editable here">
         <Table head={['array', 'status now', 'output', 'expected', 'deviation']}>
           {allPanels
             .filter((p) => (frame.panels[p.id]?.status ?? 'healthy') !== 'healthy')

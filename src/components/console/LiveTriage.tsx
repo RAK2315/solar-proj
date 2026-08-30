@@ -20,12 +20,14 @@
  */
 
 import { useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
+import { RotateCw, Sparkles } from 'lucide-react';
 
 import { hours, typographic } from '@/lib/format';
 import { forecastOffset } from '@/lib/live';
 import { clockAt } from '@/lib/physics';
-import { useMode, useSelectedPanelId, useSiteSeconds } from '@/store/selectors';
+import {
+  useInjected, useMode, usePanelStatus, useSelectedPanelId, useSiteSeconds,
+} from '@/store/selectors';
 import { useTriage } from '@/store/triage';
 
 /** How far site time may move before the card's figures need a caveat. */
@@ -45,15 +47,27 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
   const siteSeconds = useSiteSeconds();
   const entry = useTriage((s) => s.byPanel[panelId]);
   const request = useTriage((s) => s.request);
+  const retry = useTriage((s) => s.retry);
+
+  // The array's CONDITION, which is what a triage verdict is actually about. An
+  // answer given while B-17 was still healthy must not survive B-17 cracking —
+  // the console carried "within tolerance, inspection unnecessary, confidence
+  // 1.00" under a CRITICAL badge for exactly that reason.
+  const condition = usePanelStatus(panelId);
+  // The operator's injected faults, so the agent reasons about the site the
+  // console is showing rather than the committed one.
+  const injected = useInjected();
 
   useEffect(() => {
     if (mode !== 'live') return;
-    request(panelId, siteSeconds);
-    // Intentionally not depending on siteSeconds: triage is a judgement about a
-    // fault, not a per-tick reading. Re-requesting every frame would burn the rate
-    // limit and make the prose flicker.
+    request(panelId, siteSeconds, condition, injected);
+    // Neither `siteSeconds` nor `injected` is a dependency, for the same reason:
+    // triage is a judgement about a fault, not a per-tick reading, and a fault
+    // injected on a DIFFERENT array is not news about this one. Re-requesting on
+    // either would burn the rate limit and make the prose flicker. `condition` IS
+    // a dependency, and it already changes when an injection lands here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, panelId, request]);
+  }, [mode, panelId, condition, request]);
 
   if (mode !== 'live') return null;
 
@@ -73,17 +87,34 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
 
   if (entry.status === 'unavailable') {
     return (
-      <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+      <div style={{ display: 'grid', gap: 'var(--sp-2)', justifyItems: 'start' }}>
         <span className="chip" style={{ background: 'var(--sev-warning)' }}>
           AGENT UNAVAILABLE
         </span>
         <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
-          No reasoning for {panelId}. The telemetry above is unaffected — it comes from
-          the site model, not the agent.
+          No reasoning for {panelId}. Everything else on this screen is unaffected —
+          the readings come from the site model, not from the agent.
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           {entry.reason}
         </span>
+        {/* Without this, one flaky moment made an array's agent unavailable until
+            it was deselected and reselected — a recovery nobody finds under
+            pressure, and the exact situation a venue's wifi creates. */}
+        <button
+          type="button"
+          className="btn-reset"
+          onClick={() => void retry(panelId, siteSeconds, condition, injected)}
+          aria-label={`Ask the agent about ${panelId} again`}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            border: '1px solid var(--line-active)', padding: '4px var(--sp-2)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <RotateCw size={12} strokeWidth={2} aria-hidden />
+          <span className="t-h2">TRY AGAIN</span>
+        </button>
       </div>
     );
   }
@@ -111,7 +142,7 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
             Triage · {panelId}
           </span>
         </span>
-        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           {/* Triage runs once per array and the site keeps moving afterwards, so
               the readings above WILL drift away from the ones this paragraph was
               written about. That is correct behaviour and it reads as two systems
@@ -124,7 +155,7 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
       </div>
 
       {stale && (
-        <span className="t-micro" style={{ color: 'var(--sev-warning-ink)' }}>
+        <span className="t-micro workings" style={{ color: 'var(--sev-warning-ink)' }}>
           Site time has advanced {hours(elapsedHours)} since this ran. The numbers in
           State are current; the ones quoted here are from {clockAt(forecastOffset(entry.requestedAt ?? 0))}.
         </span>
@@ -140,14 +171,14 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
         </p>
       )}
 
-      <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+      <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
         suspect {t.suspectComponent} · severity {t.severity} · confidence{' '}
         {t.confidence.toFixed(2)} · physical verification{' '}
         {t.requiresPhysicalVerification ? 'REQUIRED' : 'not required'}
       </span>
 
       {!compact && (
-        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           Every number above was checked against this array&rsquo;s telemetry before it
           was shown.
         </span>

@@ -133,7 +133,17 @@ export function AnomalyMatrix({ cellSize = 62 }: { cellSize?: number }) {
               </div>
             );
           })}
-        <span className="t-micro" style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
+        {/* Two sentences doing two different jobs. The first says what the reader
+            is looking at; the second is the provenance caveat, which is precise,
+            load-bearing and completely opaque to anyone outside the trade. Neither
+            can replace the other — dropping the caveat would overclaim, and
+            leading with it means nobody reads either. */}
+        <span className="t-prose" style={{
+          color: 'var(--text-secondary)', marginTop: 4, fontSize: 12, lineHeight: 1.45,
+        }}>
+          Each figure is how much hotter that cell runs than the rest of the panel.
+        </span>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           ΔT is a cell mean under a declared {grid.thermalSpanC} °C span — the source is
           normalised 8-bit, not radiometric.
         </span>

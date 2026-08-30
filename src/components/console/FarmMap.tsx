@@ -20,7 +20,7 @@ import { ZoomIn, ZoomOut } from 'lucide-react';
 
 import {
   useActiveMissions, useFarm, useMode, usePanelStatus, useRouteProgress,
-  useSelectedPanelId, useSiteFrame, useZoneSummary,
+  useHasSelection, useSelectedPanelId, useSiteFrame, useZoneSummary,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import type { PanelArray, PanelStatus, Zone } from '@/lib/types';
@@ -194,6 +194,9 @@ export function FarmMap() {
   const progress = useRouteProgress();
   const mode = useMode();
   const selected = useSelectedPanelId();
+  // `selected` always holds an id — it falls back to the faulted array — so it
+  // cannot answer "has the operator picked one yet". This can.
+  const hasSelection = useHasSelection();
   const select = useSession((s) => s.selectPanel);
   // In live mode the route is drawn to whatever the operator dispatched to; in
   // demo mode it is the scripted run to B-17.
@@ -271,6 +274,25 @@ export function FarmMap() {
             {farm.region.toUpperCase()} · {farm.lat.toFixed(3)}° N, {farm.lon.toFixed(3)}° E ·{' '}
             {farm.tilt}° / {farm.azimuth}° · {mode === 'live' ? frame.clock : 'REPLAY'}
           </span>
+          {/* The five module screens each say what they are FOR. This one did not,
+              and it is the screen everybody meets first — the identity line above
+              says where the site is, which is not the same as saying what you are
+              looking at or what to do with it.
+
+              ONLY UNTIL THE FIRST CLICK. It is an instruction, and an instruction
+              you have already followed is clutter: this box floats over the map,
+              so every line in it costs three arrays you cannot see. */}
+          {!hasSelection && (
+          <span className="t-prose" style={{
+            color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.45, maxWidth: '52ch',
+          }}>
+            {mode === 'live'
+              ? 'Every array on the site, coloured by how far it is from what the model '
+                + 'expects. Pick one to see what is wrong with it and what it costs.'
+              : 'The scripted incident, replaying. One array fails, the agent investigates, '
+                + 'and an operator decides.'}
+          </span>
+          )}
         </span>
 
         <span style={{ display: 'flex', gap: 'var(--sp-2)', pointerEvents: 'auto' }}>

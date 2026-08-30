@@ -60,13 +60,21 @@ export function useDemoClockDriver(): void {
  *   ← →     seek ∓5s
  *   1 2 3   speed 0.5× / 1× / 2×
  *   R       reset
+ *   Shift+R FULL reset — the session as well as the clock
  *   C V     force console / cinematic (press again to hand the view back to t)
  *   D       show / hide the debug readout
  *   M       switch between LIVE and DEMO
  *   Esc     close the dossier
  *
- * In live mode only Space (pause site time), D and M apply — seeking a live site
- * would be a lie about what a console can do.
+ * In live mode only Space (pause site time), Shift+R, D and M apply — seeking a
+ * live site would be a lie about what a console can do.
+ *
+ * WHY Shift+R EXISTS SEPARATELY. `R` rewinds the recording. It does not touch the
+ * operator's session, and the session PERSISTS across reload — work orders,
+ * missions, injected faults and site time all survive. So a rehearsal that went
+ * wrong stays wrong through a refresh, and the way back was to clear browser
+ * storage by hand. In front of an audience that is not a recovery, it is a stall.
+ * Shift+R puts both clocks and the whole session back to first-run state.
  *
  * These write only to rehearsal state. Nothing the audience sees reads them.
  */
@@ -79,8 +87,12 @@ export function useRehearsalKeys(): void {
 
       // Escape closes the dossier before anything else looks at the key, so it
       // works in both modes and never falls through to a rehearsal control.
+      // Escape closes the topmost thing: the dossier if it is open, otherwise the
+      // array panel. Without the second half the only way back to a clear map was
+      // to reload, which is not a thing an operator should have to discover.
       if (e.key === 'Escape') {
         if (session.dossierOpen) session.setDossier(false);
+        else if (session.mode === 'live' && session.selectedPanelId) session.selectPanel(null);
         return;
       }
 
@@ -90,6 +102,14 @@ export function useRehearsalKeys(): void {
         session.setMode(session.mode === 'demo' ? 'live' : 'demo');
         return;
       }
+      // The panic key. Works in BOTH modes, and before the mode check, because
+      // the state it clears is exactly the state that makes a mode misbehave.
+      if (e.key === 'R' && e.shiftKey) {
+        session.resetSession();
+        s.reset();
+        return;
+      }
+
       if (session.mode === 'live') {
         // Live mode: space pauses site time rather than a recording.
         if (e.key === ' ') { e.preventDefault(); session.toggleRunning(); }

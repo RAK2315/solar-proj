@@ -24,7 +24,12 @@
 import { num } from '@/lib/format';
 import { scoreBreakdown, leadMargin } from '@/lib/ranking';
 import { panelLabel } from '@/lib/queue';
-import { useLiveQueue, useSetModule, useSiteFrame, useWorkOrders } from '@/store/selectors';
+import {
+  useDayPlan, useLiveQueue, useSetModule, useSetTariff, useSiteFrame, useTariff,
+  useWorkOrders,
+} from '@/store/selectors';
+import { DayPlan } from '../DayPlan';
+import { CREW_COUNT, DRONE_COUNT } from '@/lib/schedule';
 import { Action, Block, Empty, ModuleShell } from './ModuleShell';
 
 const SEV_COLOUR: Record<string, string> = {
@@ -63,11 +68,29 @@ function Factor({ label, value, colour, wide = false }: {
   );
 }
 
+/** The operator between two factors. The row IS the formula, so it says so. */
+function Op({ children }: { children: string }) {
+  return (
+    <span
+      aria-hidden
+      className="t-metric"
+      style={{
+        color: 'var(--text-muted)', fontSize: 20, alignSelf: 'start', marginTop: 4,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function RepairsModule() {
   const { tasks, unscheduled } = useLiveQueue();
   const orders = useWorkOrders();
   const frame = useSiteFrame();
   const setModule = useSetModule();
+  const { plan, savedByOneMoreCrew } = useDayPlan();
+  const tariff = useTariff();
+  const setTariff = useSetTariff();
 
   const margin = leadMargin(tasks);
   const totalLoss = tasks.reduce((a, t) => a + t.lossMWhPerDay, 0);
@@ -75,6 +98,11 @@ export function RepairsModule() {
   return (
     <ModuleShell
       title="Repairs"
+      purpose={`
+        What to fix first, and what taking them in that order does to the afternoon.
+        The order is arithmetic, not a model's opinion — every row below is the sum
+        that produced its own score, written out.
+      `}
       subtitle={`${tasks.length} open // ${orders.length} approved // ranked by a pure function, not by a model // site clock ${frame.clock}`}
       action={(
         <Action onClick={() => setModule('site')} ariaLabel="Go to the site map">
@@ -94,7 +122,31 @@ export function RepairsModule() {
         <code className="t-data-em" style={{ color: 'var(--sev-active)', fontSize: 16 }}>
           SCORE = ( LOSS(MWh/day) × SEVERITY_WEIGHT × URGENCY ) ÷ ACCESS_COST
         </code>
-        <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+        {/* WHAT THE FOUR WORDS MEAN. The screen said "all four inputs are shown
+            next to the score" and then showed four unlabelled numbers; an
+            operator who does not already know the function learns nothing from
+            that. Each row below prints the same arithmetic with its operators, so
+            this only has to be read once. */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--sp-4)',
+        }}>
+          {[
+            ['LOSS', 'MWh this array fails to generate per day, from the model at the current site time'],
+            ['WEIGHT', 'how serious the fault is — critical 3.0, warning 1.5, active 1.0'],
+            ['URGENCY', '1 + 24 ÷ hours left, so a tightening deadline outweighs a bigger but distant loss'],
+            ['ACCESS', 'how hard the array is to reach — 1.0 is normal, higher is worse'],
+          ].map(([word, meaning]) => (
+            <span key={word} style={{ display: 'grid', gap: 2 }}>
+              <span className="t-label" style={{ color: 'var(--text-primary)' }}>{word}</span>
+              <span className="t-micro" style={{
+                color: 'var(--text-secondary)', lineHeight: 1.45,
+              }}>
+                {meaning}
+              </span>
+            </span>
+          ))}
+        </div>
+        <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           score = loss × severity × urgency ÷ access · urgency = 1 + 24 ÷ hours to
           deadline, so a tightening deadline dominates a larger but distant loss.
           Deterministic: the same site state produces the same order every time.
@@ -136,7 +188,9 @@ export function RepairsModule() {
                   </span>
                 </span>
 
-                <span style={{ display: 'grid', gap: 4, minWidth: 190 }}>
+                <span style={{
+                  display: 'grid', gap: 4, minWidth: 190, justifyItems: 'start',
+                }}>
                   <span className="chip" style={{ background: SEV_COLOUR[t.severity] }}>
                     {t.severity.toUpperCase()}
                   </span>
@@ -147,12 +201,16 @@ export function RepairsModule() {
 
                 <span style={{
                   marginLeft: 'auto', display: 'flex', alignItems: 'flex-start',
-                  gap: 'var(--sp-5)',
+                  gap: 'var(--sp-3)',
                 }}>
                   <Factor label="Loss MWh/d" value={num(t.lossMWhPerDay, 2)} />
+                  <Op>×</Op>
                   <Factor label="Weight" value={num(b.severity, 2)} />
+                  <Op>×</Op>
                   <Factor label="Urgency" value={num(b.urgency, 2)} />
+                  <Op>÷</Op>
                   <Factor label="Access" value={num(b.access, 1)} />
+                  <Op>=</Op>
                   <span style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
                     <Factor
                       label="Score"
@@ -176,6 +234,58 @@ export function RepairsModule() {
             );
           })}
         </div>
+      )}
+
+      {/* THE PLAN, under the list that produced it.
+          The ranked list says which job matters most, which an operator already
+          suspected. The plan says what taking them in that order actually does to
+          the afternoon — and that is the part they cannot work out themselves.
+          It used to come first, and a Gantt chart is the wrong thing to meet on a
+          screen called Repairs before you have seen what is being repaired. */}
+      {tasks.length > 0 && (
+        <Block
+          title="Today, with the crews on shift" wide
+          note={`${CREW_COUNT} crews · ${DRONE_COUNT} aircraft · greedy down the ranking`}
+        >
+          <DayPlan
+            plan={plan}
+            savedByOneMoreCrew={savedByOneMoreCrew}
+            tariff={tariff}
+            lossPerDayMWh={totalLoss}
+          />
+
+          {/* The assumption, where it can be argued with rather than discovered.
+              A tariff nobody can change reads as a claim; one the operator sets
+              reads as what it is. */}
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+              borderTop: '1px solid var(--line-hairline)', paddingTop: 'var(--sp-3)',
+            }}
+          >
+            <span className="t-label" style={{ color: 'var(--text-secondary)' }}>
+              Tariff assumption
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={0.25}
+              value={tariff}
+              onChange={(e) => setTariff(Number(e.target.value))}
+              aria-label="Electricity tariff assumption, rupees per kWh"
+              style={{ width: 220, accentColor: 'var(--sev-active)' }}
+            />
+            <span className="t-data-em" style={{ color: 'var(--text-primary)' }}>
+              ₹{tariff.toFixed(2)}
+              <span className="t-micro" style={{ color: 'var(--text-secondary)' }}> /kWh</span>
+            </span>
+            <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
+              we have no sourced tariff for this block — set your own and every rupee
+              figure above moves
+            </span>
+          </label>
+        </Block>
       )}
 
       <Block

@@ -17,6 +17,7 @@
 
 import { MotionConfig } from 'framer-motion';
 
+import { useFitToWindow, SHELL_H, SHELL_W } from '@/hooks/useFitToWindow';
 import { CinematicView } from '@/components/cinematic/CinematicView';
 import { ConsoleRoot } from '@/components/console/ConsoleRoot';
 import { DebugReadout } from '@/components/DebugReadout';
@@ -27,18 +28,48 @@ export default function Page() {
   // in live mode, and the C/V rehearsal keys override both.
   const view = useActiveView();
 
+  // The design is 1920x1080 and stays that way; this scales it to whatever window
+  // it has been opened in. See src/hooks/useFitToWindow.ts for why scaling rather
+  // than reflowing.
+  const scale = useFitToWindow();
+
   return (
     // reducedMotion="user" makes framer-motion honour the OS setting. The CSS
     // media query in globals.css cannot reach JS-driven animation, and the feed's
     // slide-in is JS-driven. The MATRIX FILL deliberately still runs under reduced
     // motion — it is information, not decoration (plan/04 §5).
     <MotionConfig reducedMotion="user">
+    {/* The letterbox. Centres the scaled console and paints the ground behind it,
+        so a window of any aspect ratio gets even margins rather than the console
+        pinned to a corner.
+
+        CENTRED BY ABSOLUTE POSITION, not by grid or flex alignment. An item WIDER
+        than its container is the case those get wrong: `place-items: center` left
+        the 1920 px box at x=0, the transform then scaled it about its own middle,
+        and the console started 204 px in and ran off the right edge — which is
+        very nearly the bug this was meant to fix. Half the container, minus half
+        the element, is arithmetic that does not care whether it overflows. */}
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      overflow: 'hidden',
+      // A FIXED DARK BEZEL, not the theme's ground. This is the margin around a
+      // 1920x1080 design being fitted to a smaller window, and it frames both a
+      // light console and a dark cinematic. Following the theme made it a pale
+      // border around the camera feed, which read as the scene having failed to
+      // fill the screen.
+      background: '#0b0e13',
+    }}>
     <main
       style={{
-        width: 'var(--shell-w)',
-        height: 'var(--shell-h)',
-        position: 'relative',
+        width: SHELL_W,
+        height: SHELL_H,
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
         overflow: 'hidden',
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        transformOrigin: 'center center',
       }}
     >
       <div
@@ -57,6 +88,7 @@ export default function Page() {
 
       <DebugReadout />
     </main>
+    </div>
     </MotionConfig>
   );
 }

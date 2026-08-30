@@ -19,7 +19,8 @@
 import { hasCapturedEvidence } from '@/lib/data';
 import { hours, pctPlain } from '@/lib/format';
 import {
-  useActiveMissions, useInspected, usePanelStatus, useSelectedPanelId, useSiteSeconds,
+  useActiveMissions, useIncident, useInspected, usePanelStatus, useSelectedPanelId,
+  useSiteSeconds,
 } from '@/store/selectors';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 
@@ -32,6 +33,8 @@ export function DispatchPanel() {
   const missions = useActiveMissions();
   const inspected = useInspected(panelId);
   const dispatch = useSession((s) => s.dispatch);
+  // What is actually wrong, and therefore whether imaging would add anything.
+  const { cause } = useIncident(panelId);
 
   const mission = missions.find((m) => m.panelId === panelId);
   const captured = hasCapturedEvidence(panelId);
@@ -97,12 +100,24 @@ export function DispatchPanel() {
     );
   }
 
+  // THE AGENT'S ANSWER DECIDES HOW THIS READS. It used to say "dispatch to find
+  // out which" for ANY deviating array — including one the console had just
+  // diagnosed as dirt four lines above, with "do not fly a drone" written out in
+  // full. Two flatly opposed instructions in one panel.
+  //
+  // The button never disappears: an operator can always overrule the agent, and a
+  // recommendation you cannot ignore is an order. But when the agent does not
+  // want the sortie, the panel says so and the button stops being the loud one.
+  const wantsDrone = status === 'healthy' || cause.needsDrone;
+
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
         {status === 'healthy'
           ? `${panelId} is within tolerance. Telemetry cannot rule out early soiling or a hairline crack — only imaging can.`
-          : `${panelId} is deviating. Telemetry alone cannot separate soiling from physical damage; dispatch to find out which.`}
+          : wantsDrone
+            ? `${panelId} is deviating and telemetry cannot say which module. Imaging can.`
+            : cause.action}
       </p>
 
       <button
@@ -114,13 +129,20 @@ export function DispatchPanel() {
           boxSizing: 'border-box',
           width: '100%',
           textAlign: 'center',
-          padding: 'var(--sp-4)',
-          background: canDispatch ? 'var(--sev-active)' : 'var(--surface-high)',
-          color: canDispatch ? 'var(--text-inverse)' : 'var(--text-secondary)',
+          padding: wantsDrone ? 'var(--sp-4)' : 'var(--sp-3)',
+          background: canDispatch && wantsDrone ? 'var(--sev-active)' : 'transparent',
+          border: canDispatch && !wantsDrone ? '1px solid var(--line-active)' : 'none',
+          color: canDispatch && wantsDrone
+            ? 'var(--text-inverse)'
+            : 'var(--text-secondary)',
           letterSpacing: '0.12em',
         }}
       >
-        {canDispatch ? `DISPATCH DRONE → ${panelId}` : 'BOTH DRONES COMMITTED'}
+        {!canDispatch
+          ? 'BOTH DRONES COMMITTED'
+          : wantsDrone
+            ? `DISPATCH DRONE → ${panelId}`
+            : `FLY ANYWAY → ${panelId}`}
       </button>
 
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>

@@ -948,3 +948,1044 @@
    the one thing that has not been run. Colab only - plan/COLAB-NOTEBOOK.md,
    cells 1-5 and 7.
 
+
+
+================================================================================
+ PHASE 17 - HEAT ON CELLS, MARKERS ON THE GROUND, AND A BROWSER AT LAST
+================================================================================
+
+ Two visual changes to the 3D cinematic, and the first tool on this machine that
+ opens the product. The tool found more than the changes did.
+
+ 1. THE THERMAL VIEW HEATS CELLS, NOT MODULES
+
+    CrackedPanel set mat.emissiveIntensity, which is a whole-material property,
+    so a broken module glowed as one solid rectangle. A real IR frame of a
+    bypassed substring shows a hot BAND with the busbars dark between the cells,
+    because the cells dissipate and the interconnects do not.
+
+    The heat is now an emissive MAP drawn on the same 5x7 lattice the surface
+    texture already used. The scalar says how far into the thermal pass we are;
+    the map says where the heat is. The lattice is stroked black on the emissive
+    canvas and each lit cell is inset by the busbar width, so the dark grid
+    survives between two adjacent hot cells.
+
+ 2. WHICH CELLS LIGHT UP - A THREE-WAY SPLIT, NOT A TWO-WAY ONE
+
+    CrackedPanel's docstring described two kinds of claim. There are now three,
+    and the docstring says so:
+
+      the crack polyline              a MECHANISM the site record declares
+                                      hasCrackMechanism() - many arrays
+      heat on the cells it crosses    the same MECHANISM, illustrated
+                                      hasCrackMechanism() - many arrays
+      heat on the measured row-2 band a MEASUREMENT from a real UAV capture
+                                      hasCapturedEvidence() - B-17 AND NOBODY ELSE
+
+    The line to hold is between the second and third. A non-B-17 array may show
+    hot cells, but they are derived from the illustrated crack path and never
+    from cellGrid.defects. Reading cellGrid.defects for another array would be
+    the seventh instance of this project's most repeated bug.
+
+    So the choice does not live in the component. src/lib/panelCells.ts is pure
+    and holds the crack polyline once - the stroke and the crossed-cell set are
+    both derived from it, where they used to be two lists that could drift - plus
+    hotCells(), which is the gate. panelCells.test.ts asserts each branch is
+    structurally what it claims: the measured branch is exactly the committed
+    defect set weighted by its own dT, and the illustrated branch is exactly the
+    polyline derivation at one flat weight. A gradient across illustrated cells
+    would be a temperature reading nobody took.
+
+    The accepted risk, recorded so it is not rediscovered as a bug: a non-B-17
+    thermal view now looks more evidential than it strictly is. Two things keep
+    it honest and must not be undone - the console's AnomalyMatrix stays
+    B-17-only, and the cinematic's detection label stays gated on cue.cracked.
+
+ 3. THE ARRAY ID TAGS ARE PAINTED ON THE DIRT
+
+    They were projected from the array centre at POST_HEIGHT + 0.9, a metre above
+    the modules, so each one hung in mid-air beside the panels it named. They now
+    project from labelAnchor() - a point on the ground, PANEL_H/2 + 0.3 m toward
+    the low edge of the tilt, which clears the module's own ground footprint of
+    0.73 m with a third of a metre of sand to spare. During the crossing the tags
+    sit in the service corridors between rows, which is where a site paints them.
+
+    The offset cannot simply be made larger: the camera orbits the module at
+    15 deg/s from 5.6 m up, so a world-fixed offset swings across the frame, and
+    at 2.5 m the tag leaves the shot during the pass.
+
+ 4. projectToScreen WAS MIRRORED - FOUND BY LOOKING, FIXED HERE
+
+    It built `right` as (fz, 0, -fx), which is the camera's LEFT. Both basis
+    vectors came out flipped, so every projected point landed rotated 180 degrees
+    about the centre of frame.
+
+    Nothing caught it in 345 tests. reticleRect bounding-boxes four corners
+    symmetric about the target, and the camera looks AT the target, so that box
+    is centred on the middle of frame - a point reflection through the centre
+    returns it very nearly unchanged. The reticle was accidentally right. The
+    panel ID tags were the visible casualty: each was drawn on the far side of
+    the frame from the array it names, which is precisely the doubt those tags
+    exist to answer. It only became obvious once they were anchored somewhere
+    asymmetric enough to notice.
+
+    scene.test.ts now checks the projection against a real three.js
+    PerspectiveCamera across three arrays and the whole flight, rather than
+    against itself. A hand-rolled projection needs an independent oracle.
+
+ 5. A BROWSER ON THIS MACHINE
+
+    Every visual bug of the last two sessions reached the owner's screenshot
+    instead of being caught here. scripts/shoot.mjs drives the real console in
+    the Chrome that is already installed, through playwright-core - a 3 MB dev
+    dependency, no browser download, no second engine to keep current.
+
+      npm run shoot -- B-17 14 52     array, site hour, point on the scene clock
+
+    It clicks the controls an operator clicks rather than reaching into the
+    stores, so what it proves is what an operator would see. Two things it had to
+    learn, both recorded in the file:
+
+      The day scrub steps in 15-minute jumps and a range input snaps to its own
+      step lattice however you write to it, so it can only express scene seconds
+      18, 33, 48, 63 - which misses the entire thermal window bar its first frame.
+      It jumps to the lattice point below the mark and lets the site clock run the
+      rest, POLLING the on-screen timecode rather than waiting a wall-clock
+      interval: the one rAF loop clamps dt to 0.1 s per frame, so under SwiftShader
+      the clock advances at the frame rate and not at real time.
+
+      After the cut to the cinematic the console survives only inside the PiP,
+      which is aria-hidden and drawn at 0.31 scale behind overlays. Roles cannot
+      see it and a real click would be intercepted, so controls are pressed by
+      aria-label through a dispatched event.
+
+    Output goes to docs/shots/, which is gitignored. The script is reproducible;
+    the PNGs describe one moment on one machine.
+
+ 6. THE DEV SERVER TRUNCATES ITS OWN BUNDLE - OPEN, docs/backlog.md 6b
+
+    data/telemetry.json ships in the client bundle, all 1.1 MB of it, as a single
+    JSON.parse('...') line in chunks/app/layout.js. The dev server truncates that
+    chunk on roughly one load in two. The browser throws SyntaxError, hydration
+    never runs, and THE PAGE STILL LOOKS COMPLETELY CORRECT because the
+    server-rendered markup is all there - nothing simply responds to a click.
+
+    shoot.mjs reloads until the page is alive. That is a workaround. The fix is
+    for the console to stop pulling the full 91-frame demo telemetry into a client
+    component: live mode computes from physics.ts and does not need it, and demo
+    mode needs one frame at a time.
+
+ GATES AT THE END OF PHASE 17
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean - no headline number hardcoded in src/
+   validate:data         PASS
+   vitest                360 passed / 21 files   (was 345 / 20)
+   next build            clean, /console 331 kB first load
+
+ NEW TESTS (15)
+   src/lib/panelCells.test.ts        the crack path is reproducible, connected and
+                                     on the module; and the gate - measured cells
+                                     are the committed capture, illustrated cells
+                                     are the polyline, an uncracked module is cold.
+   src/lib/scene.test.ts (+4)        the projection agrees with three.js across
+                                     the flight and is not mirrored; the ID tag is
+                                     anchored to the ground in front of its array
+                                     and stays in frame through the inspection.
+
+
+================================================================================
+ PHASE 18 - THE DEMO SURVIVES THE ROOM, AND THE CONSOLE STOPS TALKING TO ITSELF
+================================================================================
+
+ Steering pass ahead of CodeYourCult (5-6 Sep). The product was reviewed against
+ what a judge actually evaluates rather than against the build plan, and the
+ finding was that the biggest risks were not missing features. They were: a page
+ that could render perfectly and ignore every click, a screen full of vocabulary
+ nobody outside the trade reads, and two surfaces contradicting each other in
+ front of the operator. docs/hackathon-checklist.md is the running list.
+
+ 1. 1.6 MB OF TELEMETRY WAS REACHING THE BROWSER
+
+    Known since Phase 17 and recorded as open. The dev server truncated the chunk
+    carrying it on roughly one load in two; the browser threw a SyntaxError,
+    hydration never ran, and THE PAGE STILL LOOKED COMPLETELY CORRECT because the
+    server-rendered markup was all there. Nothing responded to a click.
+
+    The demo is one incident on one array, so across all 91 frames exactly ONE of
+    the 120 arrays ever changes. The other 119 were stored identically, ninety-one
+    times over. data/telemetry_client.json stores the base once plus the per-frame
+    differences: 1617 kB -> 52 kB, 3.2%. layout.js in dev went from carrying the
+    whole file to 405 kB total.
+
+    It is a SHIPPING FORMAT, not a summary, and that distinction is the whole
+    safety of it. pack_telemetry.ts packs, unpacks with the function the
+    application itself uses, re-serialises, and refuses to write unless the bytes
+    match the original exactly. telemetryPack.test.ts asserts the same against the
+    committed pair, reading both off disk so it compares two artefacts rather than
+    a value against itself. telemetry.json remains the source of truth and every
+    invariant is still asserted against it.
+
+ 2. THE DEMO MUST RUN FROM A PRODUCTION BUILD
+
+    Measured rather than assumed. scripts/check_live.mjs loads the real console in
+    the real browser, waits for the liveness chip to flip, and then presses a key
+    an operator presses - so what it proves is that the app RESPONDS, not merely
+    that it painted.
+
+      next dev     dead on 1 load in 10. The scene chunk is 12 MB unminified and
+                   page.js 9.6 MB; a chunk that size truncates whatever else is
+                   fixed.
+      next start   awake on 20 of 20.
+
+    Also found: a .next holding both dev and production artefacts breaks _document
+    and produces 404s that look like a code fault. npm run demo cleans, builds and
+    serves in one command, so the safe path is also the short one.
+
+ 3. A DEAD PAGE NOW SAYS SO
+
+    useHydrated() is false on the server and on the first client render, true
+    after an effect. The mode chip reads "NOT READY - RELOAD" in red until then.
+    Any hydration failure produces the silent-perfect-page symptom, so this is not
+    specific to the bug above and does not go away now that it is fixed.
+
+ 4. THE OFFLINE AGENT PATH HAD TWO HOLES, BOTH ABOUT VENUE WIFI
+
+    A dead network threw and was handled. A network that ACCEPTED the connection
+    and then stalled did neither: the console pulsed "Triaging B-17..." forever. A
+    stall that looks like work is worse than a failure that says so. There is now
+    a 20 s deadline, reported as a timeout in the operator's own words.
+
+    And a failure was FINAL - one flaky moment made that array's agent unavailable
+    until it was deselected and reselected, which is not a recovery anyone finds
+    under pressure. TRY AGAIN exists.
+
+ 5. THE PLAIN-LANGUAGE LAYER - src/lib/plain.ts
+
+    Nothing renamed, nothing softened. The precise term keeps its place, its unit
+    and its identifier, and a plain sentence goes next to it.
+
+    It is a module and not strings in components because the sentences that carry
+    a quantity are DERIVED. "Producing about 42% less power than it should" typed
+    into a component is a headline number hardcoded in src/, which is exactly what
+    check:literals exists to fail the build over.
+
+    The one that matters most explains why two figures about the same panel
+    disagree: "That is one damaged group of panels, down 58%. 5 of the array's 7
+    groups are affected, which is why the array's own figure is smaller." That
+    distinction is a credibility marker to somebody who knows the vocabulary and
+    an apparent bug to everybody else.
+
+    Related: the evidence provenance paragraph - this project declining to
+    overclaim, in the one place where overclaiming would be easiest - was set at
+    11 px, where nobody read it. Provenance that cannot be read is not provenance.
+    It now leads with "This photo came from the training dataset, not from our
+    drone."
+
+ 6. THE AGENT CARD WAS OVERSELLING THE WEAKEST COMPONENT
+
+    "Agent assessment" put the language model's box where the eye lands and let it
+    stand for the whole system, which is backwards: the physics computes, the
+    model narrates. It is now "Why the system thinks this", and the note says the
+    model explains the figures above and never sources them. More honest, and in
+    front of somebody deciding whether to believe any of this, more persuasive.
+
+ 7. TWO LIVE SURFACES WERE STILL READING THE SCRIPTED CLOCK
+
+    Instances SEVEN and EIGHT. Both found by looking at a screenshot. 380 tests
+    stayed green through both, because each renders a heading and well-formed rows
+    whichever clock it reads.
+
+    THE PEER-STRING TABLE - the element CLAUDE.md sec 13 calls the single most
+    persuasive in the console - called useFrame(), which samples the committed
+    telemetry at the demo's t. Live mode never advances t. So it showed three
+    inverters at 36.10 kW and 0.0 %, two hundred pixels below a heading saying the
+    selected array was down 41.7 %. inverterComparison() had been written for
+    exactly this in Phase 11 and then connected to nothing.
+
+    THE FOOTER QUEUE read the committed demo queue, filtered by
+    t >= BEAT.recommendation, in BOTH modes. Live mode never advances t, so B-17
+    was filtered out permanently: the footer of a console showing a critical array
+    with a computed 14:00 deadline announced that the next job was a soiled array
+    at -9 %. That is the one number this product exists to produce. useLiveQueue()
+    had been right since Phase 15 and the Repairs screen has used it ever since -
+    the two disagreed with each other on the same screen.
+
+    A consequence, caught by night.test.tsx within the hour: once the table read
+    the live model, at night it printed 0.0 % on three zeroes - the same
+    "arithmetic on nothing" Phase 15 removed elsewhere. Withheld after dark now,
+    like the deviation above it.
+
+    The four new tests render the components that were wrong, on their own.
+    Searching the whole rail's text for "-58.4 %" proves nothing: the string
+    deviation is printed higher up the same column, so that assertion passes with
+    the bug still in place. Verified by reverting both fixes - three of the four
+    fail, and the one that did not was testing something that was never broken.
+
+ GATES AT THE END OF PHASE 18
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                384 passed / 25 files   (was 360 / 21)
+   next build            clean, /console 323 kB first load
+   check:live            20/20 awake against next start
+
+ NEW TESTS (24)
+   lib/telemetryPack.test.ts     the shipped file is the same site as the checked
+                                 one, byte for byte, key order included.
+   lib/plain.test.ts             every sentence tracks the reading it describes,
+                                 and the ones carrying an assumption say so.
+   store/triage.test.ts          the offline path: dead network, stall, server
+                                 reason, no double-asking, retry, and that the
+                                 client still sends an id and a time and never a
+                                 reading.
+   console/demoSafety.test.tsx   the liveness chip, and Shift+R clearing a
+                                 rehearsal without R throwing away the operator's
+                                 work.
+   console/live.test.tsx (+4)    the two clock bugs above, asserted on the units
+                                 that were wrong.
+
+
+================================================================================
+ PHASE 19 - THE INCIDENT, THE COST OF WAITING, AND TRIAGE THAT MEANS TRIAGE
+================================================================================
+
+ Groups C through H of docs/hackathon-checklist.md. The steering review found the
+ product was a very good description of the present and had almost nothing to say
+ about a decision. These are the four things that changed that, and the six bugs
+ found on the way - every one of them by looking at the running console.
+
+ 1. THE INCIDENT IS ONE OBJECT - src/lib/incident.ts
+
+    Everything the product knew about a failing array was already on screen and
+    spread across a dozen components that had never been introduced to each other.
+    Each was correct; together they were a list of facts rather than an argument.
+
+    An incident IS the argument, and it has a shape: observed, checked, diagnosed,
+    projected, recommended, decided. DERIVED, never stored - a pure function of
+    the site at a moment plus what the operator has done, so scrubbing time
+    backwards rewinds it and there is nowhere for a stale one to hide.
+
+    ONE STRUCTURE, TWO VIEWS. The timeline is the chain filtered to steps that
+    happened, sorted by when. They cannot disagree, because there is only one.
+
+    Every step carries the BASIS of its claim - measured / from the model /
+    calculated / declared assumption / written by the agent / operator - and the
+    name of what produced it. Deliberately NOT colour-ranked by trustworthiness: a
+    declared assumption is not worse than a measurement, it is different, and the
+    reader gets to decide what that is worth.
+
+    The dossier became the INCIDENT FILE. It had been gated on captured imagery,
+    which would have hidden the product's central argument behind the one array
+    that has a photograph. The gate MOVED to the imagery column - the only part
+    that was ever scoped - rather than lifting.
+
+ 2. WHAT WAITING COSTS - src/lib/defer.ts
+
+    The one thing here a detector cannot do. Fix now, in six hours, tomorrow, or
+    in three days, with the energy never generated for each.
+
+    THE STEP IS THE POINT. Up to the deadline the array is derated. Past it the
+    declared mechanism is that the bypass diode fails, which OPENS the strings
+    rather than derating them - modelled exactly as string-outage is modelled
+    everywhere else, terminalMismatch 0 through the same evaluateArray. That
+    discontinuity is what makes a deadline a deadline rather than a suggestion.
+
+    A window is a FRACTION of the committed integral, never a second integral.
+    Recomputing gives 3.058 where the committed figure is 3.07, and two answers
+    for B-17's loss on one screen would cost more than the third decimal is worth.
+    A test asserts the full window reproduces the committed figure exactly.
+
+    Measured on screen at 17:30 site time: Now 0.00 / In 6 h 0.01 / Tomorrow 1.75
+    / In 3 days 4.02 MWh. The six-hour figure is near zero because those six hours
+    are night, which is the model being right rather than a bug.
+
+    No cliff is ever claimed for an array without a computed crack deadline. Dirt
+    gets worse linearly and nothing catastrophic is asserted about it.
+
+ 3. TRIAGE THAT SORTS DIFFERENT PROBLEMS - src/lib/causes.ts
+
+    Until this existed the site had one mechanism at three depths, so every
+    incident ended in "fly the drone, replace the module". A system that always
+    reaches the same conclusion is a detector with extra steps.
+
+    THE FIRST VERSION WAS CIRCULAR AND WAS REWRITTEN. It diagnosed soiling by
+    reading the array's f_soil out of the committed scenario - which is the
+    ANSWER, not the evidence, and no operator on a real site can see it. A triage
+    engine that consults ground truth is looking up, not triaging.
+
+    It now discriminates on the SHAPE of the loss, from readings an instrument
+    actually produces:
+
+      SOILING   the whole array down evenly, cell temperature at the fleet
+                median. Dirt reduces the light going in, so it reduces heat as
+                well as power.
+      A CRACK   one string far below the others, and that string running hot,
+                because a reverse-biased substring dissipates what it no longer
+                exports.
+
+    A test greps the module to assert it never reaches for soilFor or eventFor.
+
+    SHADING IS WHY THE 3D EARNS ITS PLACE. Whether a row can shade the one behind
+    it is decided by tilt, row pitch and solar elevation, and none of those is
+    visible on a flat map - a 2D plan has no height and no tilt, so it cannot
+    answer the question at all. At this site (25 deg, 8 m pitch, 1.6 m collector)
+    the limit is 5.9 deg, so shading is a dawn-and-dusk phenomenon and is RULED
+    OUT at midday BY GEOMETRY. That elimination narrows the diagnosis without
+    adding a loss term to the frozen physics. The 3D is not a picture of the
+    answer; it is where part of the answer comes from.
+
+    THE REFUSAL MATTERS MORE THAN THE DISPATCH. Measured on screen for A-08, from
+    the live model: "All seven strings show a similar ~11.34% power shortfall
+    while cell temperature matches the fleet median... imaging is not required to
+    confirm soiling; cleaning the array is the appropriate action." Confidence
+    0.92, physical verification NOT REQUIRED.
+
+ 4. THE QUEUE BECAME A DAY - src/lib/schedule.ts, src/lib/money.ts
+
+    Ranking without scarcity is sorting. rankQueue produced a perfectly good
+    ordered list and nothing acted on it.
+
+    A greedy pass down the existing ranking, each job taking whichever resource
+    frees up first. DELIBERATELY NOT AN OPTIMISER: a solver gives a better
+    schedule and an unarguable one, and the entire value of priorityScore is that
+    a person can read it and disagree. accessCost, which has been in the committed
+    queue since the beginning and until now only ever divided a score, moves a
+    clock here.
+
+    On screen: "With 2 crews and 2 aircraft, 2 of 4 jobs finish after their
+    deadline - B-17, A-31. They are not late because they are unimportant; they
+    are late because higher-ranked work has both crews." The "what would another
+    crew buy" answer re-runs the identical model rather than estimating.
+
+    MONEY IS AN ASSUMPTION THE OPERATOR OWNS. CLAUDE.md sec 1 forbids quoting a
+    tariff we cannot source, and that rule stands. It does not mean money cannot
+    appear - it means money cannot appear as a FACT. The tariff is shown next to
+    every figure derived from it, changeable with a slider, persisted, and
+    captioned "an assumption you set, not a sourced tariff". Rupees group the
+    Indian way, because the site is in Rajasthan.
+
+ 5. SIX BUGS, ALL FOUND BY LOOKING
+
+    THE AGENT'S VERDICT NEVER EXPIRED. Triage was cached per array and never
+    re-asked. Select B-17 at 10:00, its crack begins at 10:04, and the console
+    then carried "all metrics are within tolerance, physical inspection is
+    unnecessary - confidence 1.00" under a CRITICAL badge and a -41.7% deviation,
+    permanently. The cache is now keyed on the array's CONDITION as well as its
+    id: a change in what there is to judge invalidates the judgement.
+
+    THE CROSS-CHECK FORBADE THE RIGHT ANSWER. agentCheck demanded
+    requiresPhysicalVerification true for ANY materially deviating array - the
+    rule you write when the site has one fault type. It made "book the wash crew
+    instead of flying" an answer the model was not allowed to give. It now
+    enforces the same signature rule the deterministic diagnosis uses, importing
+    the thresholds rather than restating them.
+
+    THE PROMPT INSTRUCTED THE MODEL TO CLAIM AMBIGUITY IT COULD RESOLVE. It said
+    soiling and cell damage always look alike and only imaging can separate them.
+    Rewritten around the two signatures, with an explicit line: do not claim
+    ambiguity you have the evidence to resolve, it wastes a sortie.
+
+    THE CRACK'S ESCALATION WAS BEING APPLIED TO DIRT. The forecast step told a
+    soiled array that "the cell crosses its heat threshold in 25.9 hours", and the
+    cost-of-waiting would have warned that its bypass diode was about to fail. A
+    soiled array has no cell to crack and no diode to fail.
+
+    MODULE BODIES PAINTED BLOCKS OVER EACH OTHER, ON ALL FIVE SCREENS. The body
+    was a grid whose auto rows stopped agreeing with their children: a slab
+    holding 400 px sat in a 135 px row, overflowed it visibly, and drew straight
+    over the block beneath. Two blocks with very different content came out
+    identical heights, which was the tell. It predates this session. The body is a
+    flex column now - no row-sizing step to get wrong - and all five screens are
+    verified by measuring content height against rendered height in a browser.
+
+    A SECOND PROVENANCE LINE THAT CONTRADICTED ITS OWN CLAIM. "the ambiguity is a
+    property of the telemetry" printed under a step that had just said there was
+    no ambiguity and no inspection was needed.
+
+ 6. TWO WORKFLOW TRAPS THAT MAKE A DEMO LOOK BROKEN
+
+    Rebuilding underneath a running `next start` cost real time twice. The old
+    server keeps serving HTML referencing chunk hashes the rebuild deleted, so the
+    browser 404s on every script and hydration never runs; `next start` then fails
+    with EADDRINUSE and leaves the STALE server alive, so the failure is silent
+    unless you read the log. `npm run demo` is now scripts/serve.mjs: kill the
+    port, wipe .next, build, serve, in that order.
+
+    A .next holding both dev and production artefacts breaks _document and
+    produces 404s that look like a code fault.
+
+ GATES AT THE END OF PHASE 19
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                465 passed / 29 files   (was 384 / 25)
+   next build            clean
+   check:live            12/12 awake against next start
+
+ NEW TESTS (81)
+   lib/incident.test.ts     the chain's claims match the state they were built
+                            from; a step with nothing to say says nothing; and no
+                            step resting on captured imagery is ever built for an
+                            array we hold no imagery for.
+   lib/defer.test.ts        the full window reproduces the committed integral
+                            exactly; the step at the deadline is the declared
+                            mechanism; an array without a deadline gets no cliff.
+   lib/causes.test.ts       dirt and damage separated by the shape of the loss;
+                            geometry ruling shading in and out; the soiled array
+                            never getting a drone; and a grep asserting the module
+                            never reaches for ground truth.
+   lib/schedule.test.ts     a job's start time is a consequence of everything
+                            ranked above it; something actually slips; the "one
+                            more crew" answer is the same model, not a guess;
+                            money never returned without its assumption attached.
+   lib/agentCheck.test.ts   the cross-check permits the refusal, and still demands
+                            a drone for a hot localised loss and for signatures
+                            that disagree.
+
+
+================================================================================
+ PHASE 20 - THE OWNER OPENED IT ON A LAPTOP
+================================================================================
+
+ Everything in Phase 18 and 19 was checked against a 1920x1080 screenshot. Phase
+ 20 is what happened when the product was opened on a real 1512x900 laptop screen
+ by somebody who did not write it. Four contradictions, one standing complaint,
+ and two features.
+
+ The complaint, verbatim: "all other pages are also just a cluttersome place,
+ nothing looks good, i dont even know where to start, we need to really reduce the
+ amount of text and jargon spam everywhere every single page."
+
+ That is docs/ui-brief.md's complaint from August, again. The redesign answered
+ HIERARCHY and left DENSITY alone.
+
+ 1. FOUR THINGS THAT CONTRADICTED THEMSELVES
+
+    A SCHEDULED ARRAY SAID "WITHIN TOLERANCE. NO INTERVENTION SCHEDULED."
+    `status === 'scheduled'` had no branch in StatusChips and fell through to the
+    healthy sentence. It printed under a SCHEDULED badge, beside a -41.7 %
+    deviation and a named crack mechanism: three claims, two of them false, in one
+    box four lines tall.
+
+    B-17'S FINDINGS PRINTED UNDER A-08. `Findings` renders the committed cache,
+    which is B-17's and only B-17's; the dossier gated it on `agent` alone. So
+    A-08's incident file carried "INV-B output is -58.4%... string B-17-S3... 5 of
+    7 strings faulted". The TENTH instance of this project's most repeated bug,
+    and it was introduced in Phase 19 by adding a section without asking whose
+    data it was. Every new surface has to answer that question.
+
+    THE AGENT ARGUED WITH THE CONSOLE ABOUT TEMPERATURE, AND THE AGENT WAS RIGHT.
+    The chain said "that string is running 2.8 C hot". The model, given the same
+    facts, replied that it lacked per-string temperatures and therefore could not
+    say - and dropped to confidence 0.70 on a case it should be certain about.
+    It was correct: the thermal reading is an ARRAY average against a fleet
+    median. The prompt had been written telling it to look for a hot STRING, which
+    is a measurement nobody takes. The prompt, agentCheck and causes.ts now all
+    describe the array-level rise that is actually measured, and the prompt says
+    explicitly not to treat the absence of per-string data as a blocker.
+
+    A PROVENANCE LINE THAT CONTRADICTED ITS OWN STEP: "the ambiguity is a property
+    of the telemetry" printed under a step that had just said there was no
+    ambiguity and no inspection was needed.
+
+ 2. IT DID NOT FIT THE SCREEN
+
+    CLAUDE.md sec 3: "Desktop only, fixed 1920x1080. Do not spend time on
+    responsive layouts - this runs on a projector." Right for a recording, wrong
+    for a product somebody opens on a laptop: the console sat in a box with black
+    space around it and the right-hand third was off the edge.
+
+    SCALED, NOT REFLOWED. The design stays 1920x1080 and the browser draws it at
+    whatever size the window allows, like a slide fitting a projector. Reflowing
+    would have meant rebuilding six screens and re-pinning every test that asserts
+    what is on screen at a given second; scaling keeps the hierarchy the redesign
+    fought for - at 79 % on a 1512x900 laptop the 52 px figures are still 41 px.
+
+    Centred by ABSOLUTE POSITION, not by grid alignment. `place-items: center`
+    leaves an item WIDER than its container at x=0; the transform then scaled it
+    about its own middle and the console started 204 px in and ran off the right
+    edge, which is very nearly the bug this was meant to fix.
+
+ 3. SHOW WORKINGS - OFF BY DEFAULT
+
+    Every grey provenance line on this console exists to answer one question: how
+    do you know that? It is the most important thing here when a judge asks and
+    pure noise the rest of the time, and it was on screen permanently, in nine
+    places per screen. "expected output from physics.ts". "as at 12:03 ·
+    openai/gpt-oss-120b". "Every number above was checked against this array's
+    telemetry before it was shown."
+
+    One switch in the header, off by default. The claim stays visible; the receipt
+    is one click away, which is the second it is actually wanted. Implemented as a
+    class on the root and a `workings` class on the lines, so every component stays
+    a pure function of the store and the demo-script tests keep working in either
+    state.
+
+ 4. TWO THINGS THE SHELL CAN NOW DROP
+
+    THE EVENT RAIL was on every screen on the grounds that events do not stop
+    happening because you changed screens - true, and beside the point: on
+    Repairs, Analytics, Drones and Missions it was a fifth of the width spent on
+    something you are not looking at.
+
+    THE DETAIL RAIL held a third of the console permanently, including when
+    nothing was selected and it read "NO ARRAY SELECTED". It is a panel over the
+    map now: the map gets the full width, and the rail arrives when an operator
+    asks a question of an array. It needed `display: none !important` - DetailPanel
+    sets `display: grid` inline, and an inline style beats a class however specific
+    the selector.
+
+    THE DOSSIER was a full-width band of reasoning with two columns beneath it,
+    which on a laptop pushed the captured frames below the fold: the operator had
+    to scroll to reach the photograph the drone was sent for. Reasoning down the
+    left, material down the right, both visible at once.
+
+ 5. LIGHT MODE
+
+    Forbidden outright by CLAUDE.md sec 3. The owner asked for it after using the
+    product in daylight, which is a case the spec did not consider. That is the
+    decision; the line is superseded rather than quietly ignored, and the CSS says
+    so.
+
+    THE IRONBOW RAMP DOES NOT INVERT. It is the actual false-colour LUT a thermal
+    camera uses, and the whole reason it is this console's semantic palette is that
+    the interface's colours and the camera's colours are then the same colours. A
+    "light ironbow" would be a different instrument. Surfaces, lines and text
+    invert; the ramp is only ever read against a surface, never as one.
+
+    The `-ink` variants had to go the other way: darker rather than lighter, or a
+    42 px critical figure washes out on a near-white ground.
+
+ 6. THE DETECTOR RUNS IN THE BROWSER NOW
+
+    Asked directly: "why is the detection an animation instead of running yolo
+    model?" The honest answer was that the box IS real model output - YOLOv8n at
+    0.9084 on a held-out image - computed once and replayed, and replayed looks
+    exactly like animation. The most rigorous thing in the project read as the
+    least.
+
+    The fix is not to install torch here, which CLAUDE.md forbids and which would
+    not help Vercel anyway. It is ONNX: the same weights, exported once, running on
+    WebAssembly in the operator's browser on a frame captured from the 3D scene a
+    second earlier. "That box isn't saved. Watch."
+
+    WHAT IS IN src/lib/detect.ts is the arithmetic either side of the model, which
+    is the part that is actually work. THE SHAPE IS THE TRAP: v8 emits
+    [1, 4+classes, anchors] - the transpose of v5, and with no objectness column,
+    the class score IS the confidence. Reading it the other way round produces
+    boxes that are plausible, wrong, and completely silent about it. Sixteen unit
+    tests against hand-worked cases.
+
+    THE FRAME IS THE DRONE'S OWN CAMERA. `preserveDrawingBuffer` on the R3F canvas,
+    read back with toDataURL. Without that flag WebGL is free to clear the buffer
+    after compositing and the capture comes back blank - silently.
+
+    NO BOX IS EVER DRAWN FROM ANYTHING BUT MODEL OUTPUT. The scene knows exactly
+    where the crack is - panelCells.ts holds the polyline - and using it to place a
+    rectangle labelled as a detection would be fabricated evidence. A test asserts
+    an empty tensor yields an empty result.
+
+    Four honest states: no model (the export has not been run), running, found, and
+    FOUND NOTHING - which is a real answer, because the detector was trained on
+    ground-level photographs and a rendered panel is not one. If it finds nothing
+    the panel says so and the committed photograph keeps its detection.
+
+    OUTSTANDING: the export itself, docs/colab-export-onnx.md, which needs a Colab
+    account and two minutes. Until it is run the console says the detector is not
+    loaded and draws nothing.
+
+ 7. A LAYOUT BUG FOUND BY MEASURING RATHER THAN LOOKING
+
+    Module bodies were a grid whose auto rows stopped agreeing with their children:
+    a slab holding 400 px sat in a 135 px row, overflowed it visibly, and painted
+    over the block beneath. Two blocks with very different content came out
+    identical heights, which was the tell. Present on all five module screens and
+    predating this session. Now a flex column - no row-sizing step to get wrong -
+    and scripts/shots.mjs photographs every screen in both themes so the next one
+    is caught by looking.
+
+ GATES AT THE END OF PHASE 20
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                486 passed / 30 files   (was 465 / 29)
+   next build            clean, /console 336 kB first load (was 323)
+   check:live            10/10 awake
+
+ NEW TESTS (21)
+   lib/detect.test.ts             the letterbox round trip, IoU, suppression, and
+                                  the channel-major decode - including that an
+                                  empty tensor yields an empty result and that
+                                  nothing is invented.
+   console/live.test.tsx (+4)     the four contradictions, asserted as sentences.
+   store/session.test.ts          the persisted key set gained two operator
+                                  preferences and nothing else.
+   modules.test.tsx               the event rail is on the site screen and
+                                  deliberately nowhere else.
+
+
+================================================================================
+ PHASE 21 - TWO CONTROLS THAT WERE WORKING, AND A DETECTOR THAT NOW TRANSFERS
+================================================================================
+
+ Two jobs. Investigate a button reported as doing nothing, and find out whether
+ the trained detector can be made to fire on the rendered scene at all. Both were
+ settled by driving the running product in a browser and reading what came back,
+ not by reasoning about the code.
+
+ 1. "RUN THE DETECTOR ON THIS CAPTURED FRAME" WAS RUNNING THE WHOLE TIME
+
+    Measured: 520 ms on the first press, 298 ms on the second, real ONNX inference
+    both times, on the same pixels. Nothing was broken. Three things hid it.
+
+    THE ONLY VISIBLE TRACE WAS OFF THE SCREEN. The verdict paragraph sits below a
+    full-width photograph. Measured in the running app at 1512x900: the button
+    bottom is at y=621 and the verdict line at y=962. A control whose result you
+    cannot see is a control that does nothing, as far as the person pressing it is
+    concerned.
+
+    THE ANSWER IS THE SAME ANSWER. Re-running on identical pixels returns an
+    identical verdict, which is the property a measurement is supposed to have and
+    is indistinguishable from a dead button.
+
+    AND IT IS OVER IN 300 ms, so the "Running the detector..." label flashes past.
+
+    The fix is a RUN LEDGER directly under the button, above the frame: one line
+    per completed run, with its number, the wall clock, the inference time and the
+    verdict. A repeat run adds a line, and a line appearing is visible whatever the
+    answer says. When two consecutive runs are of the same pixels it says so, and
+    says that the same answer is the point.
+
+    No artificial delay was added. The reported millisecond figure is the measured
+    one; making a 300 ms event look like a 900 ms one would be lying about the one
+    number this panel exists to prove.
+
+ 2. THE VERIFY BUTTON WAS GENUINELY DEAD, AND THAT WAS THE BIGGER BUG
+
+    Found while instrumenting the first one. "Verify - reproduce the committed
+    0.91" runs this browser's pipeline over the committed evidence photograph and
+    checks it against a figure written down before the code existed. It is the
+    strongest claim in the product.
+
+    The panel chose what to display with `byPanel[panelId] ?? last`. Once a drone
+    had flown, `byPanel` held that array's filed capture forever, so the verify run
+    happened and updated a value nothing on screen was reading. Pressing it after
+    any flight changed nothing at all.
+
+    A result now carries the array it is about, what it was run on, its run number
+    and its clock time. The panel shows the most recent run ABOUT THIS ARRAY,
+    captioned with what that was, and falls back to the flight capture. Only the
+    flight files into `byPanel` - an operator re-running the detector can no longer
+    destroy the frame the aircraft brought back, which was the failure the
+    `?? last` ordering was originally written to prevent.
+
+ 3. THE MODULES ARE TEXTURED WITH PHOTOGRAPHS, AND IT TRANSFERS
+
+    The detector was returning nothing on the render, which was the correct answer
+    to the question it was being asked: it was trained on ground-level photographs
+    and the scene was a flat-shaded blue rectangle with a polyline drawn on it.
+
+    Two modules of the inspected array now carry actual photographs - the damaged
+    one a cracked panel, its neighbour an intact one. This is a MATERIAL, not
+    evidence, and it is what a digital twin is: geometry from the site plan,
+    surface from photography. Both the cinematic and the incident file say so on
+    screen, because at seven metres the render stops looking like a render and an
+    audience would otherwise be entitled to read it as a camera frame.
+
+    THE TEXTURES WERE CHOSEN BY MEASUREMENT, NOT BY EYE, and that mattered. Half
+    the `Good`-labelled crops in the test split come back `Cracked` above 0.5 from
+    our own weights - a real weakness of the model. Choosing the intact texture by
+    looking at it would have manufactured a false positive on a healthy module.
+    `scripts/make_panel_textures.mts` scores every written file and refuses to
+    write an intact texture the detector calls cracked.
+
+    NOT THE EVIDENCE FRAME. `IMG_0429` is the image the committed 0.9084 was
+    measured on; texturing the scene with it and then scoring the scene would be
+    teaching to the test. The generator refuses that file by name and a test
+    asserts neither texture is it.
+
+ 4. THE ROI WAS THE REASON IT STILL DID NOT FIRE
+
+    With the photographs on the modules the detector still returned nothing. The
+    saved capture answered why. `LiveReticle` padded the module's projected rect by
+    0.12 OF THE FRAME on each side, which more than doubled the crop: the model was
+    handed three modules and a field of sand.
+
+    Scored offline on that exact saved frame, with `scripts/score_image.mts`:
+
+      whole frame (as shipped)   Saglam 0.942   no cracked box
+      cropped to the module      Cracked 0.847
+      tight on the module        Cracked 0.876
+
+    So the fault was in the crop, not in the model. The margin is now a fraction of
+    the module's own projected size rather than of the frame. Measured after the
+    change, in the running app: `1 detection on that frame, at 0.63`, then 0.57 on
+    a later capture. The detector fires on the render, and every box is still
+    entirely its own output.
+
+    Worth knowing: the model's top answer on the wide crop was `Saglam` - intact -
+    at 0.94, which `crackedOnly()` discards before the UI sees it. The console then
+    says "the model found nothing", which is true of cracked boxes and understates
+    what the model actually said. Recorded in the backlog rather than changed here.
+
+ 5. WHAT WAS NOT MEASURED
+
+    Inference times taken through headless Chrome on a software rasteriser ranged
+    from 300 ms to 40 s depending on what the scene was doing. That is the software
+    GL competing for the CPU, not the network. The figures the console prints are
+    real; they need checking once on the machine that will run the demo.
+
+ GATES AT THE END OF PHASE 21
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                502 passed / 31 files   (was 494 / 30)
+   next build            clean
+   check:live            6/6 awake
+
+ NEW TESTS (8)
+   console/detection.test.tsx   the ledger lists every run with its own inference
+                                time and sits above the frame; the panel shows the
+                                run the operator last asked for, and keeps the
+                                flight capture when the last run was about another
+                                array; the photographed surface is declared on
+                                screen; and neither texture is the frame the
+                                committed detection was measured on, nor one our
+                                own weights call cracked.
+
+ NEW SCRIPTS
+   scripts/make_panel_textures.mts   crops the dataset's own labelled box, rotates
+                                     to landscape, scores what it wrote, and
+                                     refuses a dishonest texture. Writes
+                                     public/textures/ and data/panel_textures.json.
+   scripts/score_image.mts           asks the exported detector about any image and
+                                     crops of it, in Node. This is what located the
+                                     ROI bug.
+
+
+================================================================================
+ PHASE 22 - THE BOX, WHAT IT MEANS, AND A PAGE THAT EXPLAINED NOTHING
+================================================================================
+
+ Four things the owner found by using it. Three were about the detector and one
+ about a screen that had all the right numbers and no way in.
+
+ 1. THE LIVE BOX WAS DRAWN IN THE WRONG COORDINATE SPACE
+
+    A `Cracked 0.72` rectangle covering most of the viewfinder. The model returns
+    boxes in the pixels of the REGION IT WAS HANDED - the ROI crop - and the
+    cinematic overlay drew them as percentages of the whole screen. The result
+    carried no record of the crop, so the overlay could not have known better.
+
+    A result now carries its `roi`, and the overlay positions itself on that
+    rectangle before drawing anything inside it. Measured after: the box went from
+    432x614 spanning the frame to 372x529 sitting on the module.
+
+ 2. THE BOX IS THE MODULE, NOT THE CRACK, AND NOW IT SAYS SO
+
+    Read off the dataset's own labels rather than assumed: the median `Cracked`
+    box covers 30% of its image and the 90th percentile 47%. Every training
+    example boxes the WHOLE PANEL. So this is a module classifier with a localiser
+    attached, and a box that hugs the panel is it working correctly.
+
+    That is worth a sentence on screen, because an unexplained rectangle reads as
+    "the crack is here" - a claim this model cannot make and has never been asked
+    to. Where on the module is the thermal grid's job, which is the division of
+    labour the product already had and had never stated.
+
+ 3. IT FOUND NOTHING ON SOME FRAMES, AND THE PASS WAS KEEPING THE WRONG ONE
+
+    Reported as "clearly the yolo is not working" against a captured frame that
+    returned nothing four times running. It was working; it was being shown a bad
+    frame.
+
+    Scored offline on a real capture with scripts/score_image.mts:
+
+      whole camera frame          Good 0.331     no cracked box
+      module + generous margin    Cracked 0.808
+      module + small margin       Cracked 0.905
+      tight on the module         Cracked 0.920
+
+    Two changes followed. The crop margin went from 15% of the module's projected
+    size to 6%. And THE PASS NOW KEEPS ITS CLEAREST FRAME rather than its last:
+    the camera orbits while the detector samples, legibility depends on the angle,
+    and filing the final sample meant the dossier showed whichever pose the
+    aircraft happened to finish at. Every candidate is a real capture and every
+    box is real - choosing between them is what an inspection does, and the panel
+    says how many frames it chose from. A new sortie clears the old one.
+
+    Measured after both: live box 0.40 -> 0.70, filed capture 1 detection at 0.74.
+
+ 4. WORK ORDERS ARE NOT EVENTS
+
+    The operator approves work and the live feed reported it back as an incoming
+    alert. It is already in three places they are looking at - the footer counts
+    it, the array turns SCHEDULED on the map, and Repairs lists it - and the feed
+    is for things that happened TO the site. Their own click is not one.
+
+ 5. REPAIRS HAD EVERY NUMBER AND NO WAY IN
+
+    Verbatim: "the repairs page explains absolutely nothing, i have no clue what i
+    am looking at, what the graphs mean." The screen's own subtitle claimed all
+    four inputs were shown next to the score, and then showed four unlabelled
+    numbers under four unexplained words.
+
+    THE ROW IS NOW THE SUM. Operators are drawn between the figures, so each line
+    reads 1.01 x 3.00 x 11.67 / 1.0 = 35.35. Nothing has to be explained because
+    the arithmetic is on the screen.
+
+    THE FOUR WORDS ARE DEFINED ONCE, under the formula, in plain language -
+    including that urgency is 1 + 24/hours left, which is why a tightening
+    deadline outweighs a bigger but more distant loss.
+
+    THE GANTT HAD NO AXIS. Four bars on a black track with a tick and no scale
+    anywhere. It has hour marks from `now` and one sentence saying how to read it.
+
+    THE ORDER WAS WRONG. The plan came first, so the first thing on a screen
+    called Repairs was an unlabelled chart of a schedule for jobs you had not seen
+    yet. The ranked list goes first now and the plan reads as its consequence.
+
+    Also: severity chips were stretching to fill their grid cell, which turned a
+    label into a 150px bar that looked like a chart with no scale.
+
+ GATES AT THE END OF PHASE 22
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                507 passed / 31 files   (was 502 / 31)
+   next build            clean
+   check:live            6/6 awake
+
+ NEW TESTS (5)
+   console/detection.test.tsx   the box is described as the module and not the
+                                fracture; a pass names how many frames it chose
+                                from, claims no choice when it took one, and a new
+                                pass discards the last sortie's capture.
+   console/live.test.tsx        an approved work order is counted in the footer
+                                and is NOT reported back as a live event.
+
+
+================================================================================
+ PHASE 23 - A REVIEW, A SWEEP, AND THE CHART THAT DESCRIBED ITSELF WRONG
+================================================================================
+
+ No bug report this time. The product was reviewed as code and swept as a running
+ application, and the two found different things - which is the argument for doing
+ both.
+
+ 1. A GATE FOR THE BUG THAT KEEPS SHIPPING - scripts/check_layout.mjs
+
+    jsdom has no layout. Every element is 0x0, so a component whose content
+    overflows its box renders identically to one that fits, and 508 unit tests
+    stay green through it. This class of bug has now shipped twice: the module
+    bodies in Phase 19, and the site KPI strip found here.
+
+    THE KPI STRIP WAS 118px HOLDING 137px. `.area-kpi` does not clip, so the
+    anomaly zone bars painted 19px down over the map on every screen in both
+    themes - visible in every screenshot taken since the strip was built, and
+    never noticed. The row is sized to its content now. Not clipped: clipping
+    hides a reading instead of showing it.
+
+    The gate walks six screens in both themes plus the array panel and the
+    incident file, and reports any box smaller than its contents and anything
+    painting outside the shell. Scroll regions are exempt - a scroll region is
+    meant to be taller than its box - and a text node overflowing its own line
+    box is typography, not a fault, so only containers are measured.
+
+    FALSIFIED BEFORE IT WAS TRUSTED: with --kpi-h put back to 118px the gate
+    reports the spill; at 140px it reports nothing.
+
+ 2. THE GENERATION CHART DREW NEITHER OF THE TWO THINGS ITS CAPTION DESCRIBED
+
+    The caption promised a dashed line and a NOW marker. Querying the SVG: zero
+    line curves, zero reference lines, and a legend reading "Delivered" twice.
+
+    THE DASHED LINE WAS INSIDE AN <AreaChart>, WHICH RENDERS ONLY ITS AREAS. It
+    was in the markup and in the React tree and drawn nowhere. ComposedChart now.
+
+    AND IT WOULD HAVE BEEN INVISIBLE ANYWAY. `expected = delivered + shortfall`
+    is 0.11 MW above delivered on a 400 MW axis - a tenth of a pixel. The caption
+    described a gap nobody could see, which is worse than not drawing it. The
+    same quantity is now plotted as the LOSS, in kW, on its own right-hand axis,
+    where it is legible; the caption says so and says why it needs its own scale.
+
+    THE NOW MARKER WAS DISCARDED BY A DUPLICATE CATEGORY. The x axis was
+    categorical on clock labels and the curve spans a full day, so "10:00"
+    appeared twice in the domain and the band scale could not resolve it. The axis
+    is numeric hours with a formatter now, which is also what time actually is.
+
+ 3. ELEVEN REVIEW FINDINGS, NINE FIXED
+
+    THE LIVE OVERLAY WOULD HAVE DRAWN THE COMMITTED PHOTOGRAPH'S BOX OVER THE
+    SCENE. `LiveReticle` rendered whatever ran most recently. Press "reproduce the
+    committed 0.91" while the aircraft is on station and that result - taken on a
+    still photograph, carrying no ROI - would be drawn across the whole viewfinder
+    as though the model had found a crack in the render. That is fabricated
+    evidence, and it is the one thing the file exists not to do. It now draws only
+    a run that came from this flight, over this array, with a crop.
+
+    "RUN THE DETECTOR ON THIS LIVE FRAME" HANDED OVER THE WHOLE VIEWFINDER. The
+    exact input this project has measured as returning Saglam 0.94 and no cracked
+    box. Because the run carried the array's id it then replaced the pass's good
+    capture with a whole-frame miss. Both callers share one `moduleRoi()` now.
+
+    THE CLAMP WAS WRONG IN A WAY THAT MOVED BOXES. `x` was clamped to 0 and `w` to
+    1 independently, so x + w could exceed 1: the model saw a narrower strip than
+    the rectangle the overlay drew into, and every box landed stretched. The
+    result now stores the region ACTUALLY cropped rather than the one requested.
+
+    A FAILED RUN KILLED THE DETECTOR FOR THE SESSION. One bad frame set
+    `status: 'failed'`, which `LiveReticle` treats as terminal, and nothing
+    cleared it. "The model is unusable" and "this run failed" are separate states.
+
+    `busy` WAS DOCUMENTED AS PREVENTING OVERLAPPING RUNS AND NEVER READ. Two runs
+    both computed `runs + 1` after their awaits and took the same number - two
+    ledger rows with one React key.
+
+    THE MISSING-MODEL PATH KEPT NOTHING. Its comment said the captured frame stays
+    on screen; the branch returned without storing it, so the whole "capture
+    first, always" restructure had no effect in the one case it was written for.
+
+    THE SURFACE-PROVENANCE NOTE WAS SCOPED TO THE SELECTED ARRAY, not the flown
+    one - so an array no drone had been over was described as carrying
+    photographed modules. Instance eleven of this project's most repeated bug,
+    caught by review rather than by a screenshot for once.
+
+    Also: an unread `press()` return in the new gate, so a renamed control would
+    have made it measure the previous screen and still report success; a texture
+    load with no error path under a caption asserting the photograph loaded; and
+    two CanvasTextures leaked per retarget.
+
+    NOT FIXED, RECORDED: a `shading` or `none` job books zero repair hours and
+    still consumes a crew for travel, so a job with no work to do can push a real
+    repair past its deadline - the one number DayPlan exists to report. Pre-
+    existing, and moving it moves a headline figure; docs/backlog.md.
+
+ 4. DESLOP
+
+    An unused `workOrders` parameter kept alive by a seven-line comment defending
+    it - removed, with the caller. `Parameters<typeof reticleRect>[1]` where the
+    type has a name. The `{ x, y, w, h }` shape written out three times, now
+    `Roi`. A stale `label` field on the chart data. Two dead bindings the
+    parameter removal left behind.
+
+ GATES AT THE END OF PHASE 23
+   tsc --noEmit          clean
+   eslint src/           clean
+   check:literals        clean
+   check:layout          clean  6 screens x 2 themes + panel + incident file
+   validate:data         PASS  I1..I16 (I15 manual)
+   vitest                508 passed / 31 files   (was 507 / 31)
+   next build            clean
+   check:live            6/6 awake
+
+ MEASURED END TO END AFTER THE CHANGES
+   pass over B-17        4 frames, all found, best kept at 0.90
+   re-run on that frame  1 found
+   verify                1 detection at 0.91 — the committed figure, reproduced

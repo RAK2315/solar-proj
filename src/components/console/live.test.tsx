@@ -16,6 +16,8 @@ import { M } from '@/lib/scene';
 import { useDemoClock } from '@/store/demoClock';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 import { ConsoleRoot } from './ConsoleRoot';
+import { InverterTable } from './InverterTable';
+import { RepairQueueBar } from './RepairQueueBar';
 
 const FAULT_AT = 4 * 60;          // 10:04 site time, from data/scenario.json
 
@@ -384,6 +386,20 @@ describe('the human gate still gates', () => {
     expect(workOrders[0].id).toBe('INC-A03');
   });
 
+  it('does not report the operator’s own approval back as an incoming event', () => {
+    useSession.setState({
+      siteSeconds: MISSION_TOTAL,
+      workOrders: [{
+        id: 'INC-A03', panelId: 'A-03', createdAt: 60, note: 'inspect and replace',
+      }],
+    });
+    // The footer still counts it and the map still turns the array scheduled; the
+    // live feed is for things that happened TO the site.
+    const text = at(MISSION_TOTAL);
+    expect(text).not.toContain('WORK ORDER #INC-A03 CREATED');
+    expect(text).toContain('1 approved');
+  });
+
   it('turns the array to scheduled once the order exists', () => {
     useSession.setState({
       siteSeconds: FAULT_AT + 600,
@@ -406,5 +422,155 @@ describe('the feed reports what happened, not a script', () => {
     expect(at(FAULT_AT + 120)).toContain('B-17 is');
     cleanup();
     expect(at(FAULT_AT + 120)).toContain('below expected');
+  });
+});
+
+/**
+ * Two surfaces that were still reading the SCRIPTED clock in live mode.
+ *
+ * This is the project's most repeated bug and these were instances seven and
+ * eight. Both were found by looking at a screenshot, not by a test, because both
+ * render a heading and well-formed rows whichever clock they read.
+ *
+ * So each one is rendered ON ITS OWN here rather than inside the whole console.
+ * Searching the full rail's text for "−58.4 %" proves nothing: the string
+ * deviation is printed higher up the same column, so the assertion passes with
+ * the bug still in place. The unit under test has to be the unit that was wrong.
+ */
+describe('live surfaces that must not read the demo clock', () => {
+  const DEVELOPED = FAULT_AT + 20 * 60;   // B-17's fault fully ramped in
+
+  /** Just the peer-string table, for the selected array, at a site time. */
+  function peerTable(siteSeconds: number, panelId: string): string {
+    useSession.setState({ siteSeconds, selectedPanelId: panelId });
+    const { container } = render(<InverterTable />);
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+    cleanup();
+    return text;
+  }
+
+  /** Just the footer strip. */
+  function footer(siteSeconds: number, panelId: string): string {
+    useSession.setState({ siteSeconds, selectedPanelId: panelId });
+    const { container } = render(<RepairQueueBar />);
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+    cleanup();
+    return text;
+  }
+
+  it('the peer table quotes the live model, not the demo frame', () => {
+    // It called useFrame(), which samples the committed telemetry at the demo's
+    // `t` — never advanced in live mode. Every inverter therefore read 36.10 kW
+    // and 0.0 %, two hundred pixels below a heading saying this array was down
+    // 41.7 %. The console contradicting itself in one screenful.
+    const text = peerTable(DEVELOPED, 'B-17');
+
+    expect(text).toContain('−58.4 %');       // the faulted string's real shortfall
+    expect(text).not.toContain('36.10 kW');  // the frozen demo-frame value
+  });
+
+  it('the peer table keeps the contrast: B down, A and C flat', () => {
+    // The contrast IS the table. Both halves have to come from the same source,
+    // or the comparison is between a live figure and a stored one.
+    const text = peerTable(DEVELOPED, 'B-17');
+    const zeros = text.match(/0\.0 %/g) ?? [];
+    expect(zeros.length).toBe(2);            // INV-A and INV-C, and nothing else
+  });
+
+  it('the peer table follows the selected array, not always B-17', () => {
+    // A-31 carries a shallower crack. Selecting it must move the comparison.
+    const text = peerTable(DEVELOPED, 'A-31');
+    expect(text).toContain('A-31-S3');
+    expect(text).not.toContain('B-17-S3');
+  });
+
+  it('the footer ranks the critical array first, not a soiled one', () => {
+    // It read the committed demo queue, filtered by `t >= BEAT.recommendation`.
+    // Live mode never advances `t`, so B-17 was filtered out PERMANENTLY and the
+    // footer of a console showing a critical array announced that the next job
+    // was a soiled array at −9 %. The one number this product exists to produce.
+    const text = footer(DEVELOPED, 'B-17');
+
+    expect(text).toContain('INC-B17');
+    expect(text).not.toContain('INC-A08');
+    expect(text).toMatch(/ahead of #2/);
+  });
+});
+
+/**
+ * Four things the owner found by opening the product on a laptop.
+ *
+ * Every one of them renders a heading and a well-formed sentence, which is why
+ * 465 tests did not see any of them. These assert the SENTENCES.
+ */
+describe('claims that contradicted themselves', () => {
+  const DEVELOPED = FAULT_AT + 20 * 60;
+
+  it('an approved array does not say "no intervention scheduled"', () => {
+    // status === 'scheduled' had no branch and fell through to the healthy
+    // sentence, so the console printed "Within tolerance. No intervention
+    // scheduled." under a SCHEDULED badge, next to a −41.7 % deviation and a
+    // named crack mechanism.
+    useSession.setState({ siteSeconds: DEVELOPED, selectedPanelId: 'B-17' });
+    useSession.getState().createWorkOrder('B-17', 'approved in test');
+
+    const text = textNow();
+    expect(text).not.toContain('No intervention scheduled');
+    expect(text).toMatch(/Work approved by an operator/);
+    expect(text).toMatch(/still present until they reach it/);
+  });
+
+  it('never prints B-17\u2019s findings under another array', () => {
+    // `Findings` renders the COMMITTED cache, which is B-17's and only B-17's.
+    // The dossier gated it on `agent` alone, so A-08's incident file carried
+    // "INV-B output is −58.4%… string B-17-S3… 5 of 7 strings faulted".
+    const text = withDossier(DEVELOPED, 'A-08');
+
+    expect(text).not.toContain('B-17-S3');
+    expect(text).not.toContain('5 of 7 strings faulted');
+    // And it still says plainly that there is nothing on file for this array.
+    expect(text).toMatch(/No imagery is held on file for A-08/);
+  });
+
+  it('still shows the committed findings on the array they belong to', () => {
+    // Scoping must not become deletion: B-17's own file keeps them.
+    const text = withDossier(DEVELOPED, 'B-17');
+    expect(text).toContain('B-17-S3');
+  });
+
+  it('claims a thermal rise on the ARRAY, never on a string we cannot measure', () => {
+    // We hold an array-average temperature against a fleet median. Saying "that
+    // string is running hot" claimed a per-string reading that does not exist —
+    // and the agent, given the same facts, correctly refused to agree with it.
+    const text = withDossier(DEVELOPED, 'B-17');
+    expect(text).toMatch(/the array is running .* above the fleet median/);
+    expect(text).not.toMatch(/that string is running .* hot/);
+  });
+});
+
+/**
+ * The dispatch control has to agree with the diagnosis four lines above it.
+ *
+ * It used to say "dispatch to find out which" for ANY deviating array, including
+ * one the console had just diagnosed as dirt with "do not fly a drone" written
+ * out in full. Two flatly opposed instructions in one panel.
+ */
+describe('the dispatch control follows the diagnosis', () => {
+  const DEVELOPED = FAULT_AT + 20 * 60;
+
+  it('asks for a drone on a localised, hot fault', () => {
+    const text = at(DEVELOPED, 'B-17');
+    expect(text).toMatch(/DISPATCH DRONE → B-17/);
+    expect(text).toMatch(/telemetry cannot say which module/i);
+  });
+
+  it('does NOT ask for one on a soiled array — it offers an override', () => {
+    // The button never disappears: a recommendation an operator cannot ignore is
+    // an order. But it stops being the loud one, and the panel says what the
+    // agent actually wants done instead.
+    const text = at(DEVELOPED, 'A-08');
+    expect(text).toMatch(/FLY ANYWAY → A-08/);
+    expect(text).not.toMatch(/DISPATCH DRONE → A-08/);
+    expect(text).toMatch(/wash crew/i);
   });
 });

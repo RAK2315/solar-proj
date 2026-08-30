@@ -11,7 +11,7 @@ import {
   CINEMATIC_IN, CINEMATIC_OUT, DEMO_DURATION, useDemoClock, useView, viewAt,
 } from '@/store/demoClock';
 
-const KEYS = 'SPACE play/pause · ←→ seek 5s · 1 2 3 speed · R reset · C V view · D hide';
+const KEYS = 'SPACE play/pause · ←→ seek 5s · 1 2 3 speed · R reset · SHIFT+R full reset · C V view · D hide';
 
 export function DebugReadout() {
   const t = useDemoClock((s) => s.t);

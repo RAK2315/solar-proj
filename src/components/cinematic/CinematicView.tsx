@@ -28,12 +28,21 @@ import { PanelLabels } from './PanelLabels';
 import { PiPConsole } from './PiPConsole';
 import { ReturnToConsole } from './ReturnToConsole';
 import { StatusPill } from './StatusPill';
+import { SurfaceProvenance } from './SurfaceProvenance';
+import { useMode } from '@/store/selectors';
+import { FlightSpeed } from './FlightSpeed';
+import { LiveReticle } from './LiveReticle';
 import { TargetReticle } from './TargetReticle';
 import { Timecode } from './Timecode';
 
 export function CinematicView() {
+  const mode = useMode();
+
   return (
-    <div style={{
+    // `viewfinder` pins this subtree to the dark palette whatever theme the
+    // console is in. See globals.css: a camera feed with a document's colours is
+    // a screen you cannot read.
+    <div className="viewfinder" style={{
       width: 'var(--shell-w)', height: 'var(--shell-h)',
       position: 'relative', overflow: 'hidden',
       background: 'var(--surface-inset)',
@@ -41,6 +50,14 @@ export function CinematicView() {
       <CinematicBackground />
       <PanelLabels />
       <TargetReticle />
+      {/* The detector, run over the drone's own camera while it is on station.
+          Renders nothing at all until an ONNX export exists — see LiveReticle. */}
+      <LiveReticle />
+      {/* What the module surface is, stated where it is visible. */}
+      <SurfaceProvenance />
+      {/* Live mode only: the scripted demo runs on its own clock and a speed
+          control there would be a second answer to "what time is it". */}
+      {mode === 'live' && <FlightSpeed />}
       <MissionLog />
       <Timecode />
       <PiPConsole />

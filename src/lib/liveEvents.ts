@@ -16,7 +16,7 @@ import {
   type ScenarioEvent,
 } from './live';
 import type { DemoEvent, Severity } from './types';
-import type { Mission, WorkOrder } from '@/store/session';
+import type { Mission } from '@/store/session';
 import { MISSION, missionPhaseAt } from '@/store/session';
 
 const ev = (
@@ -49,7 +49,6 @@ const ev = (
 export function liveEvents(
   siteSeconds: number,
   missions: Mission[],
-  workOrders: WorkOrder[],
   injected: readonly ScenarioEvent[] = [],
 ): DemoEvent[] {
   const out: DemoEvent[] = [];
@@ -125,13 +124,9 @@ export function liveEvents(
     }
   }
 
-  // Work orders, as the operator raised them.
-  for (const w of workOrders) {
-    out.push(ev(`${w.id}-created`, w.createdAt, 'INSPECTION QUEUE', 'active',
-      `WORK ORDER #${w.id} CREATED`,
-      `${w.panelId} scheduled. ${w.note}`,
-      w.panelId));
-  }
+  // No work orders. Approving one is the operator's own decision, already on
+  // screen in three places — the footer counts them, the array turns SCHEDULED,
+  // Repairs lists them. This feed is for what happened TO the site.
 
   return out
     .filter((e) => e.t <= siteSeconds)

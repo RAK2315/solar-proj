@@ -17,6 +17,7 @@
  * which includes that exact 60 % case.
  */
 
+import { STRING_OUTLIER_MARGIN_PCT, THERMAL_RISE_THRESHOLD_C } from './causes';
 import type { LiveTriageOutput } from './types';
 
 /** Everything the model is told, and therefore everything it may say back. */
@@ -136,16 +137,58 @@ export const MATERIAL_DEVIATION_PCT = -2;
 
 export const isMaterial = (deviationPct: number) => deviationPct <= MATERIAL_DEVIATION_PCT;
 
+/**
+ * What the facts say about whether a drone is justified.
+ *
+ *   refused   the soiling signature — down evenly, no thermal rise. Imaging adds
+ *             nothing the telemetry has not already said.
+ *   required  anything else that is materially down: a localised hot string, or
+ *             signatures that do not agree with each other.
+ *
+ * Uses the same two thresholds the deterministic diagnosis uses, imported rather
+ * than restated. Two copies of a threshold is two answers waiting to happen.
+ */
+export function verificationExpectedFor(f: TriageFacts): 'required' | 'refused' {
+  const localised = f.stringDeviationPct !== undefined
+    && f.stringDeviationPct < f.deviationPct - STRING_OUTLIER_MARGIN_PCT;
+  const runningHot = f.cellTempC - f.fleetMedianCellTempC >= THERMAL_RISE_THRESHOLD_C;
+  return !localised && !runningHot ? 'refused' : 'required';
+}
+
 export function checkTriage(payload: LiveTriageOutput, f: TriageFacts): CheckResult {
   const material = isMaterial(f.deviationPct);
 
-  if (material && payload.requiresPhysicalVerification !== true) {
+  // WHETHER A DRONE SHOULD FLY IS DECIDED BY THE SHAPE OF THE LOSS, not its size.
+  //
+  // This used to demand `true` for ANY materially deviating array, which is the
+  // rule you write when the site has one fault type. It is wrong as soon as the
+  // site has two: an evenly-down, fleet-temperature array is dirty, imaging it
+  // confirms what the telemetry already established, and a sortie is spent for
+  // nothing. The agent that says "book the wash crew" is the useful one, and the
+  // cross-check has to permit it or the model can never be right.
+  //
+  // The thresholds come from `causes.ts` rather than being restated, so the
+  // deterministic diagnosis and the check on the model's answer cannot drift into
+  // demanding different things of the same array.
+  const expectation = verificationExpectedFor(f);
+
+  if (material && expectation === 'required' && payload.requiresPhysicalVerification !== true) {
     return {
       ok: false,
       reason:
-        `${f.panelId} is ${f.deviationPct.toFixed(2)}% below expected, and telemetry `
-        + 'cannot establish a root cause on its own. requiresPhysicalVerification '
-        + 'must be true.',
+        `${f.panelId} is ${f.deviationPct.toFixed(2)}% below expected and the loss is not `
+        + 'the even, fleet-temperature signature of soiling. Telemetry cannot establish '
+        + 'a root cause on its own, so requiresPhysicalVerification must be true.',
+    };
+  }
+
+  if (material && expectation === 'refused' && payload.requiresPhysicalVerification === true) {
+    return {
+      ok: false,
+      reason:
+        `${f.panelId} is down evenly across its strings at fleet temperature, which is `
+        + 'soiling. Imaging would confirm what the telemetry has already established, so '
+        + 'requiresPhysicalVerification must be false and the array should be cleaned.',
     };
   }
 

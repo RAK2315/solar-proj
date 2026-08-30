@@ -37,3 +37,13 @@ public/evidence/
 # NOT ignored: public/cinematic/flyover.webm, a committed CC0 plate (14 MB). It must
 # ship with the repo — a demo that fetches media at runtime is a demo that fails on a
 # bad conference network. Provenance: docs/media-provenance.md
+
+# Local verification screenshots from `npm run shoot`. The script is committed and
+# reproducible; the PNGs are half a megabyte each and describe one moment on one
+# machine. Regenerate them, do not carry them.
+docs/shots/
+
+# The exported detector. Produced by docs/colab-export-onnx.md and dropped in by
+# hand — a ~12 MB binary that this machine cannot generate and that would bloat
+# every clone. public/models/README.md says where it goes.
+public/models/*.onnx
