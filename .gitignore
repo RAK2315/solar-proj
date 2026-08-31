@@ -43,7 +43,5 @@ public/evidence/
 # machine. Regenerate them, do not carry them.
 docs/shots/
 
-# The exported detector. Produced by docs/colab-export-onnx.md and dropped in by
-# hand — a ~12 MB binary that this machine cannot generate and that would bloat
-# every clone. public/models/README.md says where it goes.
-public/models/*.onnx
+# public/models/*.onnx WAS ignored. It is committed now: the deployed build has no
+# other way to get it, and the browser detector is the product's strongest claim.
