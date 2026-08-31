@@ -372,6 +372,28 @@ body {
   margin-top: var(--sp-4);
 }
 
+/* A VIGNETTE UNDER THE OPEN PANEL.
+
+   On dark the card's shadow does the separating. On light it is a near-white
+   card on a near-white map and the edge all but disappears - reported as "the
+   white on white looks quite similar". A radial wash darkens the map towards the
+   corners and leaves the middle almost untouched, so the card sits ON something
+   without the map turning into a modal backdrop. It is drawn only while the
+   panel is open, and under it. */
+.console-root.rail-over:not(.rail-closed)::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--header-h) + var(--kpi-h)) 0 var(--footer-h) var(--rail-icons);
+  pointer-events: none;
+  z-index: 19;
+  background: radial-gradient(
+    ellipse 62% 58% at 50% 46%,
+    transparent 0%,
+    color-mix(in srgb, var(--surface-void) 34%, transparent) 62%,
+    color-mix(in srgb, var(--surface-void) 74%, transparent) 100%
+  );
+}
+
 /* The body wraps into columns for the same reason the module screens do, and by
    the same mechanism — a wrapping flex line sizes to its tallest item and has no
    row-sizing step to get wrong. `320px` puts three abreast in the wide card and
@@ -748,7 +770,20 @@ body {
    lighter, so a critical figure stays legible on a near-white ground.
    ───────────────────────────────────────────────────────────────────────────── */
 
-:root[data-theme='light'] {
+/* THE PIP IS THE EXCEPTION TO THE VIEWFINDER'S DARK PIN.
+
+   `.viewfinder` redeclares the dark tokens for the whole cinematic subtree, and
+   the picture-in-picture renders a real second <ConsoleRoot/> inside it - so an
+   operator working in light mode watched their own console turn black the moment
+   a drone launched. The PiP is not camera chrome; it is a monitor showing the
+   console, and the console is whatever theme they chose.
+
+   Re-applying the same block to `.pip-surface` costs one selector rather than a
+   second copy of the palette, and it wins on specificity (0,3,3 against
+   `.viewfinder`'s 0,1,0). Dark needs no rule: the viewfinder's values already
+   ARE the dark ones. */
+:root[data-theme='light'],
+:root[data-theme='light'] .viewfinder .pip-surface {
   /* Surfaces: warm near-white rather than pure white. Pure white under a dark
      ironbow ramp glares, and this console is nothing but figures on panels. */
   --surface-void: #eceef2;      /* the ground the console sits on */

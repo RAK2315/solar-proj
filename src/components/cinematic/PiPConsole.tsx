@@ -30,14 +30,20 @@ function Bracket({ style }: { style: React.CSSProperties }) {
 export function PiPConsole() {
   return (
     <div style={{ position: 'absolute', bottom: 32, left: 32 }}>
+      {/* The label sits over the SKY, which is pale. Teal-on-pale was unreadable
+          in exactly the frame that shows the drone leaving the pad, so the row
+          carries its own ground rather than depending on what is behind it. */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        width: W, paddingBottom: 6,
+        width: W, padding: '4px 8px', marginBottom: 4,
+        background: 'color-mix(in srgb, #0e1219 88%, transparent)',
+        border: '1px solid #1a2130',
+        boxSizing: 'border-box',
       }}>
-        <span className="t-h1" style={{ color: 'var(--sev-active)', letterSpacing: '0.14em' }}>
+        <span className="t-h1" style={{ color: '#3fd4b8', letterSpacing: '0.14em' }}>
           ⊡ CMD FEED · OPERATOR
         </span>
-        <span className="t-h1" style={{ color: 'var(--text-secondary)' }}>SLAVED</span>
+        <span className="t-h1" style={{ color: '#8a95a8' }}>SLAVED</span>
       </div>
 
       <div style={{
@@ -50,6 +56,7 @@ export function PiPConsole() {
             already exposes. Announcing it twice would be noise, not access. */}
         <div
           aria-hidden
+          className="pip-surface"
           style={{
             width: 1920, height: 1080,
             transform: `scale(${SCALE})`,

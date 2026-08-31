@@ -2200,3 +2200,64 @@
    check:layout          clean  + canvas fills 100% of its box at 1512x900
    check:live            6/6 awake
    next build            clean
+
+================================================================================
+ PHASE 26 - THREE SMALL ONES, ALL VISIBLE
+ 31 Aug 2026
+================================================================================
+
+ 1. THE PIP WENT DARK ON AN OPERATOR WORKING IN LIGHT MODE
+
+    `.viewfinder` redeclares the dark tokens for the whole cinematic subtree,
+    which is right for camera chrome and wrong for the one thing inside it that
+    is not chrome: the picture-in-picture renders a real second <ConsoleRoot/>.
+    So dispatching a drone turned the operator's own console black.
+
+    FIX: the light-theme block now also matches
+    `:root[data-theme='light'] .viewfinder .pip-surface`. One extra selector on
+    the block that already exists rather than a second copy of the palette, and
+    it wins on specificity, 0,3,3 against .viewfinder's 0,1,0. Dark needs no
+    rule - the viewfinder's values already ARE the dark ones.
+
+    The PiP's label row also got its own ground. Teal on a pale sky was
+    unreadable in exactly the frame that shows the drone leaving the pad, and
+    that row sits over the RENDER, not over a surface, so it uses fixed inks.
+
+ 2. THE RETICLE TAB STOPPED QUOTING A CONFIDENCE
+
+    Phase 25 made the tab defer to the live box when there was one. Reported
+    again: during the THERMAL pass there is no live box, `useLiveDetection()`
+    is gated on cue.t < M.thermal, and the committed 0.91 came back.
+
+    So the tab no longer carries a confidence at all. It says what the camera is
+    pointing at and how far off that array is running - measured for every array
+    on the site - and the detection is left to whoever ran on the pixels: the
+    live box in the frame, the incident file beside the photograph the committed
+    number was measured on.
+
+    Three tests went with it. Two of them had been passing for the wrong reason:
+    they asserted "0.91 appears in the cinematic", and the cinematic contains the
+    PiP, which contains the whole console including the evidence panel. The
+    replacement reads the RETICLE TAB alone.
+
+ 3. A VIGNETTE UNDER THE OPEN ARRAY PANEL
+
+    On light it was a near-white card on a near-white map. A radial wash on
+    `.console-root.rail-over:not(.rail-closed)::after` darkens towards the
+    corners and leaves the middle almost untouched, at z-index 19, under the
+    panel's 20. On dark it reads as depth rather than as a modal backdrop.
+
+ GATES AT THE END OF PHASE 26
+   tsc --noEmit          clean
+   eslint src/           clean
+   validate:data         PASS  I1..I16
+   check:literals        clean
+   vitest                508 passed / 31 files  (3 reticle tests -> 2)
+   check:layout          clean  + canvas fills 100% of its box at 1512x900
+   check:live            6/6 awake
+   next build            clean
+
+ VERIFIED IN THE BROWSER, LIGHT MODE, DURING A REAL SORTIE
+   PiP                   renders light while the console is light
+   reticle tab           "B-17 - B2-07 - RGB + thermal pass - -41.7 % vs expected"
+   array panel           vignette present, both themes

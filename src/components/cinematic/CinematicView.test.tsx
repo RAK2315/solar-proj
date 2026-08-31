@@ -29,6 +29,24 @@ function textAt(t: number, node: React.ReactElement): string {
 
 const cine = (t: number) => textAt(t, <CinematicView />);
 
+/**
+ * The reticle's own label, not the whole viewfinder.
+ *
+ * `cine()` includes the PiP, which renders the entire console - incident file,
+ * evidence panel and all. Asserting "0.91 appears somewhere in the cinematic"
+ * therefore passed whether the reticle carried it or not, which is how two of
+ * these tests went on passing after the tab stopped quoting it.
+ */
+function reticleTab(t: number): string {
+  useDemoClock.setState({ t, playing: false, approved: false, viewOverride: null });
+  const { container } = render(<CinematicView />);
+  const tab = [...container.querySelectorAll('span')]
+    .map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim())
+    .find((x) => x.startsWith('B-17') && x.includes('vs expected'));
+  cleanup();
+  return tab ?? '';
+}
+
 beforeEach(() => {
   // These describe DEMO mode — the scripted 90 seconds. Live mode is the
   // default now, so the tests state which world they are asserting about.
@@ -135,34 +153,37 @@ describe('target reticle claims only what was measured', () => {
     }
   });
 
-  it('shows the model’s real confidence now that the detector has run', () => {
-    // Before Colab landed this asserted the fallback caption — there was nothing to
-    // claim, so the reticle said so rather than borrowing a number. The detector ran
-    // on 1 Aug 2026 and returned 0.9084 on a held-out test image, so the honest
-    // caption is now the measurement itself.
-    const text = cine(BEAT.rgbScan + 1);
-    expect(text).toContain('0.91');
-    expect(text).not.toContain('surface scan in progress');
+  /**
+   * THE TAB CLAIMS NO CONFIDENCE AT ALL, and that is the fix rather than a loss.
+   *
+   * It used to print the committed 0.9084 with "from the committed capture, not
+   * this frame" attached. Every word of that was true, and it still put a second
+   * number beside the LIVE detector's box on the same module - 0.91 against 0.86,
+   * disagreeing, one of them measured months earlier on a different image. It was
+   * reported as a contradiction twice.
+   *
+   * A detection belongs to whoever ran on these pixels. The live box states it in
+   * the frame; the incident file states the committed one beside the photograph it
+   * was measured on. The tab says what the camera is pointing at and how far off
+   * that array is running, which is measured for every array on the site.
+   */
+  it('states identity and deviation, and quotes no confidence', () => {
+    const tab = reticleTab(BEAT.rgbScan + 1);
+    expect(tab).toContain('B-17 · B2-07');
+    expect(tab).toContain('vs expected');
+    expect(tab).not.toContain('0.9');
+    expect(tab).not.toContain('committed capture');
+    expect(tab).not.toContain('surface scan in progress');
   });
 
-  it('says the number is REPLAYED, because the frame under it is not its frame', () => {
-    // The bracket is drawn over the live rendered panel, and the confidence was
-    // computed months ago on a photograph. Both facts are fine; putting them
-    // together without a caption says the model just found a crack in THIS frame,
-    // which it did not — run live on the render it returns nothing.
-    const text = cine(BEAT.rgbScan + 1);
-    expect(text).toContain('from the committed capture, not this frame');
-  });
-
-  it('quotes the committed detection rather than a literal', () => {
-    // The number on screen must be the one in data/evidence/b17_detection.json. If
-    // the detector is ever retrained, this fails rather than letting a stale figure
-    // survive in a component.
+  // The committed number still has a home, and it is the one place the frame it
+  // was measured on is also on screen.
+  it('leaves the committed detection to the panel that shows its frame', () => {
     expect(detection).not.toBeNull();
     expect(cine(BEAT.rgbScan + 1)).toContain(detection!.confidence.toFixed(2));
   });
 
   it('names the MODULE, not just the array — the reticle frames one panel', () => {
-    expect(cine(BEAT.rgbScan + 1)).toContain('B-17 · B2-07');
+    expect(reticleTab(BEAT.rgbScan + 1)).toContain('B-17 · B2-07');
   });
 });

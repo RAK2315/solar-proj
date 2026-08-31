@@ -15,8 +15,7 @@
 > Every file named here exists in `docs/deck-images/`.
 >
 > The brief asks for problem, solution, implementation, stack, impact and team.
-> Slides 2, 3, 7, 8 and 9 cover those in that order. **Slide 9's team block is the
-> one thing in this file that still has to be filled in by hand.**
+> Slides 2, 3, 7, 8 and 9 cover those in that order, and slide 9 names the team.
 
 ---
 
@@ -379,8 +378,10 @@ believable
   ◻ The site map zooms but does not pan
   ◻ Inference speed has only been measured through a software renderer so far
 
-TEAM
-  <FILL IN: name — role — one line each>
+TEAM — SIGMOID
+Rehaan Ahmad Khan
+Shantana Singh
+Vishnu Tripathi
 
   Repository: github.com/RAK2315/solar-proj
 ```
@@ -388,7 +389,7 @@ TEAM
 ### Speaker notes
 - End on the thesis: "From anomaly to action."
 - The "what is not" block is not a weakness. Volunteering the limits is what makes everything above it credible, and it pre-empts the one question that would otherwise land badly.
-- **The team block must be filled in before this is submitted.** The brief asks for it explicitly.
+- The team block is filled in. The brief asks for it explicitly, so do not drop it for space.
 
 ---
 

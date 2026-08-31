@@ -31,11 +31,10 @@
  * explanation under "no capture on file".
  */
 
-import { confidence, pct } from '@/lib/format';
+import { pct } from '@/lib/format';
 import { M, reticleRect } from '@/lib/scene';
 import { useFlightCue } from '@/store/flightCue';
-import { useCurrentFrame, useDetection } from '@/store/selectors';
-import { useLiveDetection } from './LiveReticle';
+import { useCurrentFrame } from '@/store/selectors';
 
 const ARM = 30;
 
@@ -50,9 +49,7 @@ function Corner({ style }: { style: React.CSSProperties }) {
 
 export function TargetReticle() {
   const cue = useFlightCue();
-  const detection = useDetection();
   const frame = useCurrentFrame();
-  const live = useLiveDetection();
 
   const locked = cue.t >= M.lock;
   const scanned = cue.t >= M.rgb;
@@ -72,19 +69,15 @@ export function TargetReticle() {
   // The bracket still frames the module, because that is a true statement about
   // where the aircraft is pointing. The number now says where it came from.
   //
-  // AND WHEN THE DETECTOR HAS JUST RUN ON THESE PIXELS, IT OWNS THE CLAIM. Quoting
-  // the committed 0.91 beside a live box reading 0.86 put two confidences for one
-  // module on screen, disagreeing, one of them from a different image. The tab
-  // drops back to identity and telemetry; the box states the finding, once.
-  const deviation = `${cue.targetId} — RGB + thermal pass · `
-    + `${pct(reading?.deviationPct ?? 0)} vs expected`;
-  const label = live
-    ? `${cue.targetId} · B2-07 · ${pct(reading?.deviationPct ?? 0)} vs expected`
-    : cue.cracked
-      ? (detection
-        ? `${cue.targetId} · B2-07 — ${detection.label.toLowerCase()} ${confidence(detection.confidence)} · from the committed capture, not this frame`
-        : `${cue.targetId} · B2-07 — surface scan in progress`)
-      : deviation;
+  // AND IT NO LONGER QUOTES A CONFIDENCE AT ALL. The tab used to print the
+  // committed 0.91 with "not this frame" attached, which was true and still put
+  // a second, different number beside the live box's own - reported twice as
+  // reading like a contradiction. A detection belongs to whoever ran on these
+  // pixels: the live box states it in the frame, and the incident file states
+  // the committed one beside the photograph it was measured on. The tab's job
+  // is to say WHAT the camera is pointing at and HOW FAR OFF it is running.
+  const label = `${cue.targetId}${cue.cracked ? ' · B2-07' : ''} — `
+    + `RGB + thermal pass · ${pct(reading?.deviationPct ?? 0)} vs expected`;
 
   return (
     <div
