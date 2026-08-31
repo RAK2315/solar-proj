@@ -28,7 +28,6 @@ import { PanelLabels } from './PanelLabels';
 import { PiPConsole } from './PiPConsole';
 import { ReturnToConsole } from './ReturnToConsole';
 import { StatusPill } from './StatusPill';
-import { ViewfinderNotes } from './ViewfinderNotes';
 import { useMode } from '@/store/selectors';
 import { FlightSpeed } from './FlightSpeed';
 import { LiveReticle } from './LiveReticle';
@@ -53,9 +52,6 @@ export function CinematicView() {
       {/* The detector, run over the drone's own camera while it is on station.
           Renders nothing at all until an ONNX export exists — see LiveReticle. */}
       <LiveReticle />
-      {/* Every disclosure the viewfinder owes, in ONE strip. Four separate notes
-          used to land in the same band and overlap each other and the PiP. */}
-      <ViewfinderNotes />
       {/* Live mode only: the scripted demo runs on its own clock and a speed
           control there would be a second answer to "what time is it". */}
       {mode === 'live' && <FlightSpeed />}

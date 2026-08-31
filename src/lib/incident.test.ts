@@ -55,6 +55,7 @@ const clear = (over: Partial<IncidentInput> = {}): IncidentInput => ({
   workOrderAt: null,
   override: null,
   detection: null,
+  liveDetection: null,
   cause: causeFor('C-29', 0),
   ...over,
 });

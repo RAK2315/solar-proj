@@ -47,6 +47,7 @@ import type {
   PanelArray, PanelReading, PanelStatus, RepairTask, Severity, TelemetryFrame, ZoneId,
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
+import { useDetector } from './detector';
 import { useFlightCue } from './flightCue';
 import {
   MISSION, MISSION_TOTAL, missionPhaseAt, missionProgressAt, useSession,
@@ -994,6 +995,14 @@ export function useIncident(panelId: string): Incident {
   const fleetMedianCellTemp = mode === 'demo'
     ? CELL_TEMP_REF_C
     : cellTemp(siteFrame.ambientC, siteFrame.irradiance);
+  const filed = useDetector((s) => s.byPanel[panelId]);
+  const framesInPass = useDetector((s) => s.framesInPass[panelId] ?? 0);
+  const liveBest = useMemo(() => {
+    const top = filed?.detections.slice().sort((a, b) => b.confidence - a.confidence)[0];
+    return top
+      ? { label: top.label, confidence: top.confidence, frames: framesInPass }
+      : null;
+  }, [filed, framesInPass]);
 
   return useMemo(() => {
     // The drone leg timings live in session.ts because the missions do. A mission
@@ -1028,6 +1037,10 @@ export function useIncident(panelId: string): Incident {
       // Scoped, as everything about captured imagery must be: we hold a detection
       // for B-17 and for no other array. Seventh time of asking.
       detection: hasCapturedEvidence(panelId) ? detectionData : null,
+      // The run this browser did, on this array's own frame. Unlike the committed
+      // detection it is not scoped to B-17, because it is not B-17's measurement -
+      // it is whatever the model said about the frame the drone actually returned.
+      liveDetection: liveBest,
       // What is actually wrong — dirt, geometry, damage, or nothing established.
       // This is what makes the chain a triage: different causes reach different
       // conclusions and different actions.
@@ -1046,7 +1059,7 @@ export function useIncident(panelId: string): Incident {
     });
   }, [
     panelId, mode, siteSeconds, injected, reading, fault, projectedLoss, override,
-    tasks, missions, workOrders, fleetMedianCellTemp,
+    tasks, missions, workOrders, fleetMedianCellTemp, liveBest,
   ]);
 }
 

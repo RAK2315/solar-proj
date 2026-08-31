@@ -50,7 +50,7 @@
 import { BadgeCheck, Cpu, ScanSearch } from 'lucide-react';
 
 import {
-  detection as committed, evidenceUrl, panelTexture, panelTextureDataset,
+  detection as committed, evidenceUrl, panelTexture,
 } from '@/lib/data';
 import { hasCrackMechanism } from '@/lib/live';
 import { useSelectedPanelId } from '@/store/selectors';
@@ -383,9 +383,8 @@ export function LiveDetection() {
           <span className="t-micro workings" style={{
             color: 'var(--text-muted)', display: 'block', marginTop: 2,
           }}>
-            {surface.sourceImage} · {panelTextureDataset.name} ({surface.split} split)
-            {' '}· {panelTextureDataset.licence} · not the frame the committed
-            {' '}detection was measured on
+            {surface.provenance} · not the frame the committed detection was
+            {' '}measured on
           </span>
         </p>
       )}

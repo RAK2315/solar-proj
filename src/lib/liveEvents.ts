@@ -10,6 +10,7 @@
  * returns the same list, which is why live mode is still reproducible.
  */
 
+import { cellGrid, hasCapturedEvidence } from './data';
 import { clockAt } from './physics';
 import {
   allEvents, faultProgressAt, forecastOffset, liveFrameAt, scenario,
@@ -18,6 +19,14 @@ import {
 import type { DemoEvent, Severity } from './types';
 import type { Mission } from '@/store/session';
 import { MISSION, missionPhaseAt } from '@/store/session';
+
+/** The band's mean rise, formatted. Measured, never authored - see I10. */
+function hotBand(grid: typeof cellGrid): string {
+  const rises = grid.defects.map((d) => d.deltaTC);
+  if (!rises.length) return 'no measurable rise';
+  const mean = rises.reduce((a, b) => a + b, 0) / rises.length;
+  return `+${mean.toFixed(1)} °C`;
+}
 
 const ev = (
   id: string,
@@ -120,6 +129,30 @@ export function liveEvents(
         m.droneId, 'warning',
         `EVIDENCE UPLINKED — ${m.panelId}`,
         'RGB, thermal and inverter acoustic captured. Returning to pad.',
+        m.panelId));
+
+      // WHAT THE PASS FOUND, not only that it ran. The log read "RGB and thermal
+      // passes starting" and then never said what came back, so the one moment
+      // the product exists for - a physical finding a spreadsheet cannot produce
+      // - went unannounced on the biggest text on screen.
+      //
+      // Scoped, as everything about captured imagery is: a measured thermal
+      // result exists for B-17 and for no other array. Everywhere else this says
+      // what is true there, which is that the diagnosis rests on telemetry.
+      out.push(ev(`${m.id}-finding`,
+        m.startedAt + MISSION.outbound + MISSION.inspecting + 1,
+        'SURFACE SCAN', hasCapturedEvidence(m.panelId) ? 'critical' : 'info',
+        // The title has to be true of the array too. "THERMAL FINDING" over
+        // "no thermal capture is held" is the heading arguing with the body.
+        hasCapturedEvidence(m.panelId)
+          ? `THERMAL FINDING — ${m.panelId}`
+          : `INSPECTION RESULT — ${m.panelId}`,
+        hasCapturedEvidence(m.panelId)
+          ? `Thermal: ${cellGrid.defects.length} cells hot in row `
+            + `${cellGrid.defects[0]?.row ?? 2}, ${hotBand(cellGrid)} above the array `
+            + 'median, one connected cluster - the signature of a bypassed substring.'
+          : `No thermal capture is held for ${m.panelId}. The diagnosis rests on `
+            + 'per-string telemetry and the site record, and says so.',
         m.panelId));
     }
   }

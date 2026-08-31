@@ -1,5 +1,5 @@
 {
-  "note": "Surface material for the 3D modules. Photographs of panels from a public dataset, used the way a digital twin is textured from site imagery. NOT captured evidence, and never to be presented as such.",
+  "note": "Surface material for the 3D modules, used the way a digital twin is textured from site imagery. NOT captured evidence, and never to be presented as such. Each texture carries its own provenance line - they do not share one.",
   "dataset": {
     "name": "solarvision-gwljt/solar-panel-fault-detection v2",
     "source": "Roboflow Universe",
@@ -10,6 +10,8 @@
     {
       "role": "cracked",
       "url": "/textures/module-cracked.jpg",
+      "origin": "dataset",
+      "provenance": "IMG_0436_jpg.rf.eadcfb8e4fe2136b30d8a1a43bb467d1.jpg, Cracked-labelled, test split of solarvision-gwljt/solar-panel-fault-detection v2 (Roboflow Universe, CC BY 4.0)",
       "sourceImage": "IMG_0436_jpg.rf.eadcfb8e4fe2136b30d8a1a43bb467d1.jpg",
       "split": "test",
       "datasetLabel": "Cracked",
@@ -24,15 +26,17 @@
     {
       "role": "intact",
       "url": "/textures/module-intact.jpg",
-      "sourceImage": "IMG_0449_jpg.rf.e205b77c8a2632fb242b8ccbfef10f56.jpg",
-      "split": "test",
-      "datasetLabel": "Good",
+      "origin": "supplied",
+      "provenance": "assets/textures-src/module-intact-source.png - a photograph supplied for this project, used as surface material only",
+      "sourceImage": "assets/textures-src/module-intact-source.png",
+      "split": null,
+      "datasetLabel": null,
       "rotatedDeg": 0,
       "widthPx": 1024,
-      "heightPx": 640,
+      "heightPx": 516,
       "detectorOnTexture": {
-        "label": "Good",
-        "confidence": 0.7881
+        "label": "Saglam",
+        "confidence": 0.7937
       }
     }
   ]

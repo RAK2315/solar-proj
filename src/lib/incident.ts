@@ -148,6 +148,13 @@ export interface IncidentInput {
   /** The committed detection, when this array is the one it was run on. */
   detection: Detection | null;
   /**
+   * What the detector returned in THIS browser, on the frame the drone brought
+   * back from this array. Distinct from `detection`, which was measured months
+   * ago on a photograph: this one is about these pixels, and it is the only
+   * detection that exists for an array we hold no committed capture for.
+   */
+  liveDetection: { label: string; confidence: number; frames: number } | null;
+  /**
    * What is wrong and what to do about it — soiling, shading, a crack, or
    * nothing established. This is what makes the chain a TRIAGE rather than a
    * description: different causes reach different steps 3 and 5.
@@ -170,11 +177,28 @@ const round = (v: number): number => Math.round(Math.abs(v));
  * deliberate — if a step ever stops being derivable here, the product has stopped
  * being able to justify that step, and that should be hard to miss.
  */
+/**
+ * The live run, as a sentence, or the empty string.
+ *
+ * Separate from the committed detection on purpose. One was measured on a
+ * photograph before this code existed; the other ran seconds ago on pixels the
+ * aircraft brought back. Collapsing them into one claim would lose the only
+ * distinction that makes either worth quoting.
+ */
+function liveSentence(
+  live: { label: string; confidence: number; frames: number } | null,
+): string {
+  if (!live) return '';
+  return ` The detector then ran in this browser on the frame the drone returned and`
+    + ` reported ${live.label.toLowerCase()} at ${live.confidence.toFixed(2)}`
+    + `${live.frames > 1 ? `, the clearest of ${live.frames} frames` : ''}.`;
+}
+
 export function buildIncident(input: IncidentInput): Incident {
   const {
     panelId, deviationPct, referenceShortfallKW, fault,
     inspectedAt, dispatchedAt, projectedLossMWh, hoursUntilDeadline,
-    queueRank, workOrderAt, override, detection, cause,
+    queueRank, workOrderAt, override, detection, liveDetection, cause,
   } = input;
 
   // Deviating is judged at REFERENCE conditions, not at this hour. A cracked
@@ -238,8 +262,10 @@ export function buildIncident(input: IncidentInput): Incident {
           ? `A drone captured ${panelId}. The detector found ${detection.label.toLowerCase()} `
             + `at ${detection.confidence.toFixed(2)} on the committed capture, and a thermal `
             + 'capture of the same module shows a hot band across four cells in row 2.'
-          : `A drone inspected ${panelId} and returned. No imagery is held on file for `
-            + 'this array, so nothing below rests on a capture.'
+            + liveSentence(liveDetection)
+          : `A drone inspected ${panelId} and returned.${liveSentence(liveDetection)
+            || ' No imagery is held on file for this array, so nothing below rests '
+              + 'on a capture.'}`
         : flying
           ? `A drone is on its way to ${panelId}. Telemetry cannot separate dirt from `
             + 'physical damage, so the agent asked for imaging rather than guessing.'
@@ -250,13 +276,16 @@ export function buildIncident(input: IncidentInput): Incident {
               + 'telemetry and the site record already establish.'
             : `Telemetry alone cannot say WHY ${panelId} is down — soiling, shading and a `
               + 'cracked cell look alike from here. Physical verification is needed.',
-    basis: inspected && hasCapturedEvidence(panelId) ? 'measured' : 'modelled',
+    basis: inspected && (hasCapturedEvidence(panelId) || liveDetection)
+      ? 'measured' : 'modelled',
     // The provenance line has to follow the claim above it. It used to say "the
     // ambiguity is a property of the telemetry" under every array — including
     // ones where the console had just said there was NO ambiguity and no
     // inspection was needed, which read as the two halves of one step arguing.
     source: inspected && hasCapturedEvidence(panelId)
       ? 'YOLOv8n on a held-out frame, and a UAV thermal capture'
+      : inspected && liveDetection
+        ? 'YOLOv8n, run in this browser on the frame the drone returned'
       : !cause.needsDrone
         ? 'per-string monitoring and the thermal sensor, which agree'
         : 'the ambiguity is a property of the telemetry, not a judgement',

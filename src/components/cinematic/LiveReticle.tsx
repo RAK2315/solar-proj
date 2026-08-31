@@ -41,6 +41,7 @@
 import { useEffect, useRef } from 'react';
 
 import { DetectionFrame } from '@/components/console/DetectionFrame';
+import type { Detected } from '@/lib/detect';
 import { M, reticleRect, type Vec3 } from '@/lib/scene';
 import { useFlightCue } from '@/store/flightCue';
 import { useDetector, type DetectorResult, type Roi } from '@/store/detector';
@@ -105,19 +106,21 @@ function flightsOwnRun(
 }
 
 /**
- * Whether this flight's own boxes are on screen right now.
+ * This flight's own strongest live box, if one is on screen right now.
  *
- * Exported so ViewfinderNotes captions the boxes without re-deriving the rule.
- * A caption explaining a rectangle that is not there is the clutter problem
- * again, not a fix for it.
+ * Exported so the target reticle can DEFER to it. The reticle used to quote the
+ * committed 0.91 while a live box beside it read 0.86 - two confidences for one
+ * module, disagreeing, and one of them measured on a different image months
+ * earlier. Whoever actually ran on these pixels gets to state the finding.
  */
-export function useLiveBoxes(): boolean {
+export function useLiveDetection(): Detected | undefined {
   const cue = useFlightCue();
   const status = useDetector((s) => s.status);
   const last = useDetector((s) => s.last);
   const onStation = cue.active && cue.t >= M.lock && cue.t < M.thermal;
-  return onStation && status === 'ready'
-    && !!flightsOwnRun(last, cue.targetId)?.detections.length;
+  if (!onStation || status !== 'ready') return undefined;
+  const mine = flightsOwnRun(last, cue.targetId);
+  return mine?.detections.slice().sort((a, b) => b.confidence - a.confidence)[0];
 }
 
 export function LiveReticle() {

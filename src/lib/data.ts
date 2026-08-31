@@ -138,9 +138,20 @@ export const agentCache: AgentCache | null = artefacts.agent;
 export interface PanelTexture {
   role: 'cracked' | 'intact';
   url: string;
+  /** Where the pixels came from: the training dataset, or a file supplied for this. */
+  origin: 'dataset' | 'supplied';
+  /**
+   * One sentence naming the source, written by the generator.
+   *
+   * The two textures no longer share a provenance: one is a dataset image from a
+   * named split under a named licence, the other is a supplied photograph. A UI
+   * that composed the line out of `dataset.name` + `split` described both the same
+   * way, which was true of one of them.
+   */
+  provenance: string;
   sourceImage: string;
-  split: string;
-  datasetLabel: string;
+  split: string | null;
+  datasetLabel: string | null;
   rotatedDeg: number;
   widthPx: number;
   heightPx: number;

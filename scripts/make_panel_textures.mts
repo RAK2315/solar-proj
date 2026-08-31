@@ -62,13 +62,28 @@ const EVIDENCE_STEM = 'IMG_0429_jpg.rf.c611273e2120a94dc0dc6bc9220b4196';
 interface Source {
   role: 'cracked' | 'intact';
   file: string;
-  stem: string;
+  /** A dataset image, cropped to its own labelled box. */
+  stem?: string;
+  /** A file supplied for the project, used whole. Mutually exclusive with `stem`. */
+  supplied?: string;
   /** Degrees clockwise applied before writing, to land the module landscape. */
   rotate: 0 | 90;
   /** What the detector must say about the written texture for this to be honest. */
   expect: 'cracked' | 'no-cracked';
 }
 
+/**
+ * THE INTACT TEXTURE IS SUPPLIED, THE CRACKED ONE IS FROM THE DATASET, and the
+ * manifest says which is which rather than describing both the same way.
+ *
+ * The dataset's own healthy modules are photographed in a lab under warm light and
+ * come out tan with dark blotches. On a field of flat blue modules that reads as
+ * damage, which is the opposite of what a healthy texture is for: it was reported
+ * as "even the panels that should not be cracked have the cracked image". The
+ * supplied file is a clean module, straight on, in the blue the rest of the field
+ * already is. The no-Cracked rule below still gates it - the model is asked, and
+ * this script fails if it disagrees.
+ */
 const SOURCES: Source[] = [
   {
     role: 'cracked',
@@ -80,7 +95,7 @@ const SOURCES: Source[] = [
   {
     role: 'intact',
     file: 'module-intact.jpg',
-    stem: 'IMG_0449_jpg.rf.e205b77c8a2632fb242b8ccbfef10f56',
+    supplied: 'assets/textures-src/module-intact-source.png',
     rotate: 0,
     expect: 'no-cracked',
   },
@@ -186,12 +201,19 @@ for (const src of SOURCES) {
     );
   }
 
-  const label = readFileSync(`${DIR}/labels/${src.stem}.txt`, 'utf8').trim().split('\n')[0]
-    .split(/\s+/).map(Number);
-  const jpg = readFileSync(`${DIR}/images/${src.stem}.jpg`);
+  // A dataset image is cropped to its own labelled box; a supplied file is a
+  // photograph of one module already, so the whole frame is the crop.
+  const label = src.stem
+    ? readFileSync(`${DIR}/labels/${src.stem}.txt`, 'utf8').trim().split('\n')[0]
+      .split(/\s+/).map(Number)
+    : null;
+  const bytes = src.stem
+    ? readFileSync(`${DIR}/images/${src.stem}.jpg`)
+    : readFileSync(src.supplied!);
+  const mime = src.stem || src.supplied!.endsWith('.jpg') ? 'jpeg' : 'png';
   const prepared = await prepare(
-    `data:image/jpeg;base64,${jpg.toString('base64')}`,
-    [label[1], label[2], label[3], label[4]],
+    `data:image/${mime};base64,${bytes.toString('base64')}`,
+    label ? [label[1], label[2], label[3], label[4]] : [0.5, 0.5, 1, 1],
     src.rotate,
     TEXTURE_WIDTH,
   );
@@ -215,9 +237,17 @@ for (const src of SOURCES) {
   written.push({
     role: src.role,
     url: `/textures/${src.file}`,
-    sourceImage: `${src.stem}.jpg`,
-    split: SPLIT,
-    datasetLabel: CLASS_NAMES[label[0]],
+    origin: src.stem ? 'dataset' : 'supplied',
+    // One sentence naming where these pixels came from, written HERE so that no
+    // component has to compose it out of fields that may not apply.
+    provenance: src.stem
+      ? `${src.stem}.jpg, ${CLASS_NAMES[label![0]]}-labelled, ${SPLIT} split of `
+        + 'solarvision-gwljt/solar-panel-fault-detection v2 (Roboflow Universe, CC BY 4.0)'
+      : `${src.supplied} - a photograph supplied for this project, `
+        + 'used as surface material only',
+    sourceImage: src.stem ? `${src.stem}.jpg` : src.supplied!,
+    split: src.stem ? SPLIT : null,
+    datasetLabel: label ? CLASS_NAMES[label[0]] : null,
     rotatedDeg: src.rotate,
     widthPx: prepared.w,
     heightPx: prepared.h,
@@ -227,15 +257,15 @@ for (const src of SOURCES) {
   });
 
   console.log(
-    `${src.role.padEnd(8)} ${src.file.padEnd(22)} label=${CLASS_NAMES[label[0]].padEnd(8)} `
+    `${src.role.padEnd(8)} ${src.file.padEnd(22)} label=${(label ? CLASS_NAMES[label[0]] : 'supplied').padEnd(8)} `
     + `detector: ${top ? `${top.label} ${top.confidence.toFixed(3)}` : '(nothing)'}`,
   );
 }
 
 const manifest = {
-  note: 'Surface material for the 3D modules. Photographs of panels from a public '
-    + 'dataset, used the way a digital twin is textured from site imagery. NOT '
-    + 'captured evidence, and never to be presented as such.',
+  note: 'Surface material for the 3D modules, used the way a digital twin is textured '
+    + 'from site imagery. NOT captured evidence, and never to be presented as such. '
+    + 'Each texture carries its own provenance line - they do not share one.',
   dataset: {
     name: 'solarvision-gwljt/solar-panel-fault-detection v2',
     source: 'Roboflow Universe',

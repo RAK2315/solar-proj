@@ -1,454 +1,437 @@
-# SURYA AGENT — Hackathon Selection Deck (10 Slides)
+# SURYA AGENT — Selection Deck (9 slides)
 
-**Target**: CodeYourCult — Open Innovation, 5–6 Sep 2026
-**Format**: 10 slides, 1920×1080, projector-ready
-**Time**: 3–4 min presentation + 2 min demo video
-**Tone**: "Shipping the Results. Building the Cult." — show, don't tell.
+**For**: CodeYourCult — Open Innovation, 5–6 Sep 2026
+**Upload**: PDF or PPTX, hard limit 10 slides. This deck is 9.
+**Format**: 1920×1080, projector-ready.
+**Time**: about 3½ minutes of talking, plus the demo video.
 
-> **Status, 30 Aug 2026.** This deck was first written as a *plan*. The product is
-> now built — 23 phases, 508 tests, six screens, a detector that runs live in the
-> browser. Every figure below was read out of `data/`, `docs/` or a passing gate on
-> 30 Aug; none is aspirational and none is typed from memory. Where a number is
-> recomputed at runtime (the queue scores) that is said out loud.
+> **How to use this file.** Each slide below has the exact text to put on it, the
+> image to put beside that text, and notes for whoever is speaking. Every number
+> was read out of `data/`, `docs/` or a passing build gate on 31 Aug 2026. None of
+> them is aspirational.
 >
-> Image assets for every slide are in **`docs/deck-images/`**, numbered by slide.
+> **Images are screenshots and graphs only.** No slide has a picture of words on
+> it — if something is text, it is set as text so it stays sharp and editable.
+> Every file named here exists in `docs/deck-images/`.
+>
+> The brief asks for problem, solution, implementation, stack, impact and team.
+> Slides 2, 3, 7, 8 and 9 cover those in that order. **Slide 9's team block is the
+> one thing in this file that still has to be filled in by hand.**
 
 ---
 
-## SLIDE 1 — TITLE / HOOK
+## SLIDE 1 — TITLE
 
-### Visual
-- Full-bleed: `01-hero-flight.png` — the drone on station over B-17, reticle locked
-- Bottom-left: `SURYA AGENT` in IBM Plex Mono 700, 62px, `--sev-active` (#3FD4B8)
-- Bottom-right: `BHADLA SOLAR PARK · RAJASTHAN · 500 MW BLOCK` — Plex Sans Condensed 600, 13px, uppercase
+### Image
+`01-hero-flight.png`, full bleed. The drone on station over array B-17, the
+detector's own box drawn on the module it found, the live console running in the
+corner.
 
-### Content
+### Text on the slide
 ```
 SURYA AGENT
 From anomaly to action for utility-scale solar.
 
-An autonomous agent that watches a 500 MW solar block, investigates
-unexplained losses with real evidence (RGB + thermal), predicts when a
-fault becomes unrecoverable, and hands an operator a ranked repair order
-with a deadline on it.
+An agent that watches a 500 MW solar block, spots an array losing output,
+sends a drone to find out why, works out how long the site can wait,
+and hands the operator a ranked repair order — then stops and asks a person
+to approve it.
 
-Most systems tell operators something is wrong.
-SURYA tells them what happened, why it matters, what happens if they wait,
-and what to do about it — then waits for a human to say yes.
+Most monitoring tells an operator that something is wrong.
+This tells them what is wrong, why it matters, what it costs to wait,
+and what to do first.
+
+Modelled on a 500 MW block of Bhadla Solar Park, Rajasthan.
 ```
 
-### Speaker Notes
-- 15 seconds. Land the one-sentence thesis and move.
-- "A 500 MW block of Bhadla" — real location, real scale, and it pre-empts "why only 120 arrays?"
-- The human gate is not a limitation. It is the strongest claim in the product.
+### Speaker notes
+- Fifteen seconds. Say the one-line thesis and move on.
+- "A 500 MW block of Bhadla" is accurate and it heads off "why only 120 arrays?"
+- The approval step is not a limitation. It is the strongest thing on the slide.
 
 ---
 
-## SLIDE 2 — THE PROBLEM (WHY THIS MATTERS)
+## SLIDE 2 — THE PROBLEM
 
-### Visual
-- Left: `02-landing-gap.png` — the landing page's three derived stat cards
-- Right: the same three figures blown up as 52px heroes on the ironbow ramp
+### Image
+`02-landing-gap.png` — the three figures the model produces: delivered share,
+array shortfall, and energy lost per day.
 
-### Content
+### Text on the slide
 ```
-India is installing solar faster than almost anyone.
 Installed capacity is not delivered capacity.
 
-A 500 MW block at 35 °C and 890 W/m² delivers 364 MW — 73% of nameplate.
-That is physics (cell temperature 62.8 °C, γ = −0.0037 /°C), not a fault.
-It is the baseline everything recoverable sits on top of.
+At 35 °C and 890 W/m², a 500 MW block delivers 364 MW.
+That is 73% of nameplate, and it is not a fault — the cells are at 62.8 °C
+and silicon loses about 0.37% of its output per degree. It is the baseline
+that everything recoverable sits on top of.
 
-When one string drops from 36.10 kW to 15.02 kW (−58.4%):
-  SCADA sees the shortfall.
-  SCADA does not see WHICH panel, WHY, or HOW URGENT.
+Now one string drops from 36.10 kW to 15.02 kW. A 58% shortfall.
 
-So someone drives out and looks.
-Median anomaly → diagnosis: days. Every day is measurable MWh.
+  The monitoring system sees that the output fell.
+  It does not see WHICH panel, WHY, or HOW URGENT.
+
+So somebody drives out and looks. From alarm to diagnosis is measured in
+days, and every one of those days is measurable lost energy.
+
+The gap between "a string is down" and "array B-17, cracked cell in module
+B2-07, act before 14:00" is the entire product.
 ```
 
-### Speaker Notes
-- Every number here comes from **our** PVWatts/NOCT model, not a quoted statistic. Say so.
-- 364 MW, not 412: 412 would need a 4.2 °C ambient in Rajasthan at midday. The model refused to flatter us.
-- The gap between "a string is down" and "array B-17, cracked cell in module B2-07, act before 14:00" **is** the product.
+### Speaker notes
+- Every number here is produced by **our own** model of how a panel behaves — not quoted from an article. Say that out loud; it is the difference between a claim and a measurement.
+- 364 MW, not 412: 412 MW would need a 4.2 °C afternoon in Rajasthan. The model refused to flatter us and we kept its answer.
 
 ---
 
-## SLIDE 3 — THE LOOP (ONE WORKFLOW, NOT A FEATURE LIST)
+## SLIDE 3 — WHAT IT DOES, END TO END
 
-### Visual
-- `03-loop.png` — horizontal 9-step flow, ironbow connectors
-- Step 8 (HUMAN APPROVAL) in `--sev-critical` (#D94A3D) with a lock icon
+### Image
+`03-incident-chain.png` — the incident file open on B-17, showing the reasoning
+as the product itself renders it: each step badged with whether its answer is a
+measurement, a model projection, a calculation, or a person's decision.
 
-### Content
+### Text on the slide
 ```
-One continuous decision chain. Every step answers a question.
+One chain of reasoning, not a list of features. Every step answers a question,
+and every step says where its answer came from.
 
-1 TELEMETRY ANOMALY   Is something wrong?        → array drifts below what irradiance
-                                                   and cell temperature say it should do
-2 TRIAGE              What is wrong, how bad?    → INV-B −58.4%, string B-17-S3.
-                                                   Can telemetry tell soiling from damage?
-3 DISPATCH            It cannot. So act.         → DRONE 01 → B-17, real route, real flight
-4 EVIDENCE CAPTURE    Acquire what was missing   → RGB + thermal, ON STATION
-5 VISION              Where, and what?           → YOLOv8n localises the module;
-                                                   classical CV resolves the hot band to cells
-6 PROGNOSIS           What if we wait?           → 3.07 MWh at risk; deadline 14:00
-                                                   from cumulative thermal dose
-7 RANKED RECOMMENDATION  What first?             → B-17 #1 by 26.7× — a pure function
-8 HUMAN APPROVAL      Who decides?               → A person. Always. Loudest control on screen.
-9 WORK ORDER          Then what?                 → INC-B17 filed, array → SCHEDULED, queue re-ranks
+  1  Something is wrong          An array falls below what the sunlight and
+                                 the cell temperature say it should produce.
+
+  2  What is wrong, how bad      String B-17-S3 is 58.4% down. The array is
+                                 41.7% down. Can telemetry tell dirt from
+                                 damage? No — they look identical from here.
+
+  3  So go and look              Drone 01 is dispatched to B-17. Real route,
+                                 real flight, real time on station.
+
+  4  Capture what was missing    Photographs and a thermal image of the module.
+
+  5  Read the evidence           The trained detector finds the damaged module.
+                                 Image processing resolves the heat to four
+                                 individual cells in row 2.
+
+  6  What if we wait             Three days of clear sky at 38 °C keeps that
+                                 cracked cell above its safe temperature.
+                                 3.07 MWh at risk. Act before 14:00.
+
+  7  What first                  B-17 ranks first, ahead of the next job by 26×,
+                                 by a fixed formula anyone can check.
+
+  8  Who decides                 A person. Always. It is the loudest control
+                                 on the screen and nothing moves without it.
+
+  9  Then what                   Work order INC-B17 is filed, the array turns
+                                 amber, and the queue re-ranks itself.
 ```
 
-### Speaker Notes
-- Seven of the nine steps run unattended. The eighth is a human **on purpose**.
-- The drone is not the product — it is how the agent gets evidence it cannot infer from telemetry.
-- The deadline comes from a thermal-dose model, not a threshold. That is the whole difference from a dashboard.
+### Speaker notes
+- Seven of the nine steps run unattended. The eighth is a human on purpose.
+- The drone is not the product. It is how the agent gets evidence it cannot infer.
+- Step 6 is the one a threshold alarm can never do: it produces an **hour**, not a flag.
 
 ---
 
-## SLIDE 4 — WHAT IS REAL, AND HOW YOU CAN CHECK IT IN THE ROOM
+## SLIDE 4 — THE PART YOU CAN CHECK IN THE ROOM
 
-> **This is the slide that wins or loses the judging. Give it the most time.**
+> **Give this slide the most time. It is the one that wins or loses the judging.**
 
-### Visual
-- `04-detector-verify.png` — the run ledger with a live inference and its millisecond count
-- Beside it: `04-annotated.png` (`b17_rgb_annotated.jpg`) and `04-thermal.png` (`b17_thermal.png`)
+### Images
+`04-detector-verify.png` (the run ledger, showing live inferences and how many
+milliseconds each took), with `04-annotated.jpg` (the model's box on the evidence
+photograph) and `04-thermal.png` (the thermal image) beside it.
 
-### Content
+### Text on the slide
 ```
-THE DETECTOR RUNS LIVE, IN THIS BROWSER, IN FRONT OF YOU.
+THE TRAINED MODEL RUNS LIVE, IN THE BROWSER, IN FRONT OF YOU.
 
-The exported YOLOv8n runs on onnxruntime-web over the frame the drone
-captured a second ago. Press "Verify" and it re-runs the same weights over
-the committed evidence photograph — whose answer, 0.9084, was recorded in
-Colab before this UI existed. It comes back 0.91.
+The detector we trained is loaded into the page and run on the frame the
+drone captured a second earlier. There is a button marked Verify: press it
+and the same weights re-run on the committed evidence photograph, whose
+answer — 0.9084 — was written down in a Colab notebook before this
+interface existed. It comes back 0.91.
 
-That single control proves every step between pixels and box — letterbox,
-channel order, tensor layout, decode, suppression — in front of whoever
-is asking. Nothing on this panel is cached. The millisecond count is the
-measurement, and a run ledger shows each press as a new line.
+That one press proves every step between the pixels and the box. Nothing on
+that panel is cached; the millisecond count is the proof it just happened,
+and a ledger records each press as a new line.
 
-FOUR MORE CLAIMS, EACH WITH THE FILE THAT BACKS IT
+WHAT WAS ACTUALLY TRAINED, AND ON WHAT
 
-Physics is a published model
-  NREL PVWatts + NOCT cell temperature. scripts/physics.py ↔ src/lib/physics.ts,
-  golden-tested against each other. Math.random() is banned across src/.
+  YOLOv8n, fine-tuned on a public Roboflow dataset (CC BY 4.0):
+  921 images, 1,067 labelled boxes — 797 train / 82 validate / 42 test.
 
-The detector was trained, and the metric is the real one
-  YOLOv8n on Roboflow CC BY 4.0 (921 images / 1067 boxes; 797 train, 82 valid,
-  42 test). Reported PER CLASS on the held-out test split:
+  Accuracy on the held-out test split, reported per class, not averaged:
       Cracked 0.995 · Good 0.995 · Saglam 0.995 · BakimGereken 0.940
-      Dirty — UNDEFINED, it has zero test instances. Not rounded to 0.0.
-  Evidence frame is from that test split, so its 0.9084 is a genuine
-  output on an image the model never saw.
+      Dirty — undefined. It has zero test images. We do not print it as 0.
 
-The thermal band was measured, not authored
-  Classical CV over a real Raptor Maps UAV frame (MIT). Four hot cells —
-  (2,3) (2,4) (2,5) (2,6) — ΔT ≈ +2.8 °C, ONE contiguous cluster.
-  It reads lower than a thermographer would quote because it is a cell MEAN
-  under a declared 25 °C span, not a radiometric peak pixel. We say that on screen.
+  The evidence photograph comes from that held-out split, so its 0.9084 is
+  a genuine result on an image the model had never seen.
 
-The agent writes prose ABOUT numbers it was not given
-  /api/triage recomputes every fact server-side and cross-checks each numeric
-  field before returning a word. Groq openai/gpt-oss-120b. It never produces
-  a reading, and it has no say in the queue order at all.
+THE THERMAL BAND WAS MEASURED, NOT DRAWN
+
+  Image processing over a real drone thermal frame (Raptor Maps, MIT licence)
+  found four hot cells — (2,3) (2,4) (2,5) (2,6) — about 2.8 °C above the rest
+  of the panel, in one connected band.
+
+  It reads lower than a thermographer would quote because it is an average
+  across each cell under a stated temperature scale, not a peak pixel.
+  The console says so on screen rather than quietly rounding up.
 ```
 
-### Speaker Notes
-- **Do the Verify press live.** It is 300 ms and it is the most persuasive two seconds in the deck.
-- Per-class matters: quoting the five-class mean would let `Saglam` (27 boxes) drag it down and would hide that `Dirty` has no test set at all.
-- Invariant **I11** fails the build if detection confidence is exactly 0.84 — the placeholder this spec was written with. **I10** fails if anyone tunes the thermal span to a nicer ΔT.
-- If asked "did you cheat the crop?": cropping changes *which pixels* the model is asked about, never what it says. Whole frame → `Saglam 0.94`, no cracked box. Cropped to the module → `Cracked 0.92`. That is a pipeline decision, and we publish both.
+### Speaker notes
+- **Press Verify live.** It takes 300 ms and it is the most persuasive two seconds available.
+- Per-class matters: a five-class average would hide that one class has no test images at all.
+- A build check fails if the detection confidence is ever exactly 0.84 — the placeholder the original spec was written with. Another fails if anyone re-tunes the thermal scale toward a nicer number. Those checks exist to catch **us**.
+- If asked whether cropping to the module is cheating: cropping changes which pixels the model is asked about, never what it says about them. Whole frame → no cracked box. Cropped to the module → Cracked 0.92. We publish both.
 
 ---
 
-## SLIDE 5 — THE CONSOLE (LIVE AND DEMO, ONE CODEBASE)
+## SLIDE 5 — FIVE SIGNALS THAT AGREE
 
-### Visual
-- `05-site-dark.png` and `05-site-light.png` side by side, with `05-cinematic.png` inset
+### Image
+`06-matrix.png` — the 5×7 grid of the panel's own cells, with the four hot ones
+lit and the measured temperatures listed underneath.
 
-### Content
+### Text on the slide
 ```
-Two modes. One component tree. One clock.
+One reading is a number. Five independent readings that agree is a diagnosis.
 
-LIVE MODE (default — this is the product)
-• The site is EVALUATED from the physics model at any site time
-• 120 arrays across 3 zones; click any one to inspect it
-• Three seeded faults — A-31 (−9.1%), B-17 (−41.7%), C-07 (−56.6%)
-  plus operator fault injection on the Scenario screen
-• Dispatch a drone, watch the 3D flight, approve or override the work
-• Six screens behind an icon rail: Site · Drones · Missions · Repairs ·
-  Analytics · Scenario
-• Session persists across reload; light and dark both first-class
+TELEMETRY     String B-17-S3: 15.02 kW against an expected 36.10 kW — 58.4% down.
+              The array as a whole is 41.7% down, because 5 of its 7 strings are
+              affected. Two different quantities; the console never mixes them.
+              Inverter B is 58.4% down while A and C are at 0.0%.
 
-DEMO MODE (press M)
-• The 90-second scripted incident, beat-perfect, asserted by 11 beat tests
-• Console ↔ cinematic cuts at t=18 and t=74
+PHOTOGRAPH    The trained detector finds the damaged module at 0.91 confidence.
+              The box covers the whole panel, not the fracture, because every
+              training example labels whole panels. Where on the panel is the
+              thermal image's job, and we say so on screen.
 
-ARCHITECTURE
-• ONE rAF loop advances demoClock.t or session.siteSeconds. Nothing else has a timer.
-• flightCue.ts is the seam: both modes emit FlightCue { t, targetId, cracked }
-  and the 3D scene reads that, never a clock
-• Seeking backwards works, because everything visible is a pure function of t
-• The cinematic PiP renders a SECOND live <ConsoleRoot /> at scale(0.31) —
-  the two halves are provably one system, not a screenshot
+THERMAL       Four hot cells in a single connected band across row 2,
+              about 2.8 °C above the rest of the panel.
+
+PHYSICS       Cells are wired in rows. A bypassed row sitting in reverse bias
+              heats as a continuous band — exactly the shape the thermal image
+              shows. The mechanism predicted the measurement.
+
+FORECAST      72 hours of clear sky, peaking at 38.1 °C. The projected cell
+              temperature crosses the safe limit at 14:00. Waiting costs
+              3.07 MWh over those three days.
 ```
 
-### Speaker Notes
+### Speaker notes
+- The row-2 band was measured **first**, and the written specification was rewritten around it. The measurement led; the story followed. That ordering is worth stating.
+- This is why the system can produce a deadline rather than an alert. Defect + mechanism + forecast = an hour.
+
+---
+
+## SLIDE 6 — HOW IT DECIDES WHAT TO FIX FIRST
+
+### Image
+`07-repairs.png` — the repair queue, where every row prints its own arithmetic.
+
+### Text on the slide
+```
+The order of the queue is never decided by a language model.
+It is one short formula, and the screen shows its working.
+
+  score = (energy lost per day × severity weight × urgency) ÷ access cost
+
+  severity weight   critical 3.0 · warning 1.5 · active 1.0 · info 0.25
+  urgency           1 + 24 / hours until the deadline
+                    A closing deadline outweighs a bigger but more distant loss.
+
+  JOB        LOSS/DAY  SEVERITY  DEADLINE  ACCESS  URGENCY   SCORE
+  INC-B17      1.01      3.0       3.9 h     1.0     7.11     21.53   ← first
+  INC-A08      0.28      1.5        26 h     1.0     1.92      0.81
+  INC-C31      0.28      1.5        48 h     1.4     1.50      0.45
+  INC-A22      0.10      1.0        60 h     1.0     1.40      0.14
+
+  B-17 wins on all three counts: most energy bleeding away, most severe,
+  tightest deadline. The row on screen prints 1.01 × 3.00 × 7.11 ÷ 1.0 = 21.53,
+  so there is nothing left to take on trust.
+```
+
+### Speaker notes
+- This is the file to open if a judge asks how it prioritises: `src/lib/ranking.ts`.
+- In live mode these scores are recomputed as the deadline closes, so the number on screen will be higher than the table. Same formula, later hour — say it before somebody spots it.
+- A ranking that changes between two runs of the same demo is a ranking nobody can trust. This one cannot change.
+
+---
+
+## SLIDE 7 — HOW IT IS BUILT
+
+### Images
+`05-site-dark.png` and `05-site-light.png` side by side, with `05-cinematic.png`
+inset — the same product in both themes, and the drone's view of it.
+
+### Text on the slide
+```
+120 arrays. Six screens. Two modes that share one codebase.
+
+LIVE MODE — this is the product
+• The whole site is calculated from the physics model at any time of day
+• Click any of the 120 arrays to inspect it
+• Three faults are seeded — A-31 (−9.1%), B-17 (−41.7%), C-07 (−56.6%) —
+  and an operator can inject more from the Scenario screen
+• Dispatch a drone, watch the flight in 3D, approve or override the work
+• Six screens: Site · Drones · Missions · Repairs · Analytics · Scenario
+• The session survives a page reload. Light and dark are both first class.
+
+DEMO MODE — press M
+• The same components replaying a 90-second scripted incident, second by second
+
+THREE RULES THE CODE IS HELD TO
+• No number is ever invented in the browser. Random numbers are banned outright;
+  every figure on screen traces back to the physics model or a generated file.
+• There is exactly one clock. Nothing else has a timer, which is why you can
+  scrub the demo backwards and every screen is correct rather than stuck.
+• Evidence belongs to the array it was captured from. We hold real imagery for
+  one array, and no other array is allowed to display it.
+
+The picture-in-picture console inside the drone view is not a screenshot.
+It is a second live copy of the real console, running from the same clock.
+```
+
+### Speaker notes
 - Live mode is the product. Demo mode is what live mode looks like when you drive it along a fixed path.
-- Nothing is on rails. Offer a judge the mouse: pick any array, dispatch, watch, approve.
+- Nothing is on rails — offer a judge the mouse and let them pick an array.
 
 ---
 
-## SLIDE 6 — EVIDENCE FUSION (THE DIFFERENTIATOR)
+## SLIDE 8 — TECHNOLOGY, AND WHY THE NUMBERS CANNOT DRIFT
 
-### Visual
-- `06-fusion.png` — five boxes left to right, ironbow tint, actual committed values
-- `06-matrix.png` — the 5×7 anomaly matrix with the row-2 band lit
+### Image
+`08-rehearsal.png` — the Rehearsal screen. Put a fault on any array on purpose and
+the physics works out the rest; everything it produces is marked as a rehearsal.
+It is the clearest picture of "these numbers are computed, not typed".
 
-### Content
+### Text on the slide
 ```
-Five independent signals agree. That is what credibility looks like.
+WHAT IT RUNS ON
 
-TELEMETRY          String B-17-S3: 15.02 / 36.10 kW = −58.4%
-                   Array B-17: −41.7% (5 of 7 strings faulted — a different quantity,
-                   and the console never conflates the two)
-                   INV-B −58.4%  |  INV-A 0.0%  |  INV-C 0.0%
+  In the browser   Next.js 15, React 19, TypeScript
+                   React Three Fiber for the 3D site and the drone flight
+                   onnxruntime-web — the trained detector, running on the
+                     operator's own machine, no server and no GPU
+                   Tailwind, Recharts, Zustand
 
-RGB VISION         YOLOv8n (yolov8n-solar-defect), held-out test split
-                   Cracked, confidence 0.9084 — reproduced live in the browser
-                   The box is the MODULE, not the fracture: every training example
-                   labels the whole panel. Where on the module is thermal's job.
+  Before it ships  Python — the physics model that generates the telemetry
+                   Ultralytics YOLOv8n — trained once on a Colab T4
+                   Pillow and NumPy — the thermal cell extraction
 
-THERMAL            Classical CV, Raptor Maps InfraredSolarModules (MIT)
-                   4 hot cells (2,3) (2,4) (2,5) (2,6), ΔT ≈ +2.8 °C, ONE cluster
-                   Cell-mean under a declared 25 °C span, σ = 1.0
+  Hosting          Vercel. One secret, server-side only. The demo path makes
+                   zero network calls; live mode makes exactly one.
 
-PHYSICS            Substrings are wired in ROWS, so a bypassed substring sitting in
-                   reverse bias heats as a contiguous BAND — which is exactly the
-                   shape the thermal frame shows. The mechanism predicts the measurement.
+WHY THE NUMBERS CANNOT DRIFT
 
-FORECAST           72 h clear, peak ambient 38.1 °C, irradiance to 966 W/m²
-                   Projected cell temperature 67.5 °C crosses the 65 °C dose limit
-                   → act before 14:00. Projected loss 3.07 MWh / 72 h.
+  Every build runs, in order: regenerate the data files → check every file
+  against its schema and 16 stated invariants → scan the source for hardcoded
+  numbers → run 509 tests → compile.
+
+  If a headline figure moves, the BUILD fails, not the demo. Two of those
+  sixteen checks exist specifically to stop us tuning a measurement toward a
+  nicer slide.
+
+  Two more checks drive a real browser: one walks all six screens in both
+  themes and fails if any box is smaller than what is inside it, the other
+  loads the console six times and confirms it is awake. Both were made to
+  fail on a known bug before either was trusted.
 ```
 
-### Speaker Notes
-- The row-2 band was **not** invented to fit a story. It was measured first, and §8 of the spec was rewritten around it — the measurement leads and the narrative follows.
-- This is why the prognosis produces a **deadline**: defect state + degradation mechanism + forecast = a cumulative dose crossing an hour.
-- No threshold dashboard can produce that. It is the answer to "why an agent?".
+### Speaker notes
+- Vision training ran on Colab. Inference runs in the browser. There is no GPU at runtime and no model server.
+- The telemetry file was 1.6 MB and was being shipped to every visitor. Storing one base frame plus the differences brought it to 52 kB, and the packer refuses to write unless unpacking reproduces the original exactly.
 
 ---
 
-## SLIDE 7 — DETERMINISTIC RANKING (EXPLAINABLE PRIORITY)
+## SLIDE 9 — IMPACT, STATUS AND TEAM
 
-### Visual
-- `07-repairs.png` — the Repairs screen, where each row prints its own arithmetic
-- Callout: `#1 leads #2 by 26.7×`
+### Image
+`09-data.png` — the Data screen: the day's generation curve with the losses drawn
+against it, what each cause is costing, and the worst arrays on the site.
 
-### Content
+### Text on the slide
 ```
-The queue order is never LLM-decided. It is twelve lines of TypeScript.
+WHAT IT IS WORTH
 
-priorityScore(task) = (lossMWhPerDay × SEVERITY_WEIGHT × urgency) ÷ accessCost
+  On the modelled block, one cracked array is bleeding 1.01 MWh a day and
+  3.07 MWh over the three-day forecast. Finding it takes minutes here instead
+  of the days a site visit takes, and the system says which of four jobs the
+  crew should be sent to first.
 
-SEVERITY_WEIGHT   critical 3.0 · warning 1.5 · active 1.0 · info 0.25
-urgency           = 1 + 24 / hoursUntilDeadline   (hyperbolic — a tightening
-                    deadline outweighs a bigger but more distant loss)
+  Scale is the point: the reasoning is identical for 120 arrays or 12,000.
+  Nothing in it depends on a person reading a chart.
 
-TASK       LOSS/DAY  SEVERITY  DEADLINE  ACCESS  URGENCY   SCORE
-INC-B17      1.01      3.0       3.9 h     1.0     7.11     21.53   ← #1
-INC-A08      0.28      1.5        26 h     1.0     1.92      0.81
-INC-C31      0.28      1.5        48 h     1.4     1.50      0.45
-INC-A22      0.10      1.0        60 h     1.0     1.40      0.14
+WHAT IS BUILT — all of this works today
+  ✅ 120 arrays, three faults, operator fault injection
+  ✅ Six screens, both themes, session survives reload
+  ✅ Dispatch → 3D flight → capture → detection → approval → work order
+  ✅ The trained detector runs live in the browser and reproduces its own
+     committed result
+  ✅ A queue ranked by a fixed formula, with the arithmetic printed on screen
+  ✅ 509 tests and five build gates
 
-B-17 wins on all three factors: most energy bleeding, critical severity,
-tightest deadline. The screen shows the arithmetic INSIDE each row —
-1.01 × 3.00 × 7.11 ÷ 1.0 = 21.53 — so there is nothing left to explain.
-```
+WHAT IS NOT — said out loud, because volunteering it is what makes the rest
+believable
+  ◻ Two of the 120 arrays carry photographed module surfaces; the rest share
+    one material
+  ◻ The site map zooms but does not pan
+  ◻ Inference speed has only been measured through a software renderer so far
 
-### Speaker Notes
-- This is the file you open when a judge asks how it prioritises: `src/lib/ranking.ts`.
-- The table above is the committed demo queue. **In live mode the scores are recomputed** as the deadline closes, so the footer will read a higher urgency and score than this — same function, later hour. Say that before someone spots it.
-- Invariant **I13**: B-17 must rank #1 by ≥1.5×. It currently leads by 26.7×.
-- An LLM ranking that changes between two runs of the same demo is a ranking nobody can trust. That is why this one cannot.
+TEAM
+  <FILL IN: name — role — one line each>
 
----
-
-## SLIDE 8 — BUILD GATES (THE NUMBERS CANNOT DRIFT)
-
-### Visual
-- `08-gates.png` — pipeline: `scripts/*.py` → JSON → validate:data → check:literals → 508 tests → build
-- Red FAIL badge on any gate stops the deploy
-
-### Content
-```
-prebuild = sync:artefacts → pack:telemetry → validate:data → check:literals
-           → 508 tests → next build
-
-validate:data          Parses every JSON against Zod (src/lib/types.ts is the sole
-                       schema owner) and asserts 16 invariants, I1–I16:
-                         I1  91 telemetry frames, monotonic t
-                         I3  INV-B deviation −58.4% ±0.05
-                         I4  B-17 array deviation −41.71% ±0.05
-                         I6  Farm output 364 MW ±1
-                         I7  Projected 72 h loss 3.07 MWh ±0.05
-                         I9  actBefore 14:00 — the agent matches the forecast
-                         I10 Cell grid: 4 cells, 1 cluster, ΔT within the measured band
-                         I11 Detection confidence ≠ 0.84 (the spec's placeholder)
-                         I12 Triage requiresPhysicalVerification = true
-                         I13 Queue #1 = INC-B17, margin ≥ 1.5×
-                       It PRINTS every headline number on each run.
-
-check:literals         Greps src/ for hardcoded demo numbers and fails the build.
-                       This is why the landing page cannot state a figure the
-                       model does not produce.
-
-508 tests / 31 files   Pure functions, integration, and beat-by-beat assertions
-                       on the 90 seconds. They assert VALUES, never headings.
-
-check:layout           jsdom has no layout, so a box smaller than its contents
-                       renders identically to one that fits and every unit test
-                       stays green. This walks six screens in both themes and
-                       fails on any non-scrolling overflow. It was falsified
-                       before it was trusted.
-
-check:live             Loads the real console in a real browser and presses a
-                       real key. 6/6 awake.
+  Repository: github.com/RAK2315/solar-proj
 ```
 
-### Speaker Notes
-- A drifted number fails the **build**, not the demo. That is the whole design.
-- The invariants are tripwires against ourselves — I10 and I11 exist to stop us tuning a measurement toward a nicer slide.
-- `check:layout` was written after the same class of bug shipped twice. Both gates were falsified (made to fail on the known-bad input) before being trusted.
-
----
-
-## SLIDE 9 — TECH STACK (SHIPPABLE, NOT VAPOURWARE)
-
-### Visual
-- Two columns: RUNTIME (browser) vs BUILD-TIME (Python / Colab), green ticks on deployed items
-
-### Content
-```
-RUNTIME (Vercel)
-• Next.js 15 App Router + React 19 + TypeScript strict
-• @react-three/fiber 9 + drei 10 + three 0.180 (the React 19 pairing — v8 does not work)
-• onnxruntime-web — the trained detector, executing in the operator's browser
-• Zustand — demo clock, live session, flight cue, detector, triage
-• Tailwind v4 + IBM Plex in three roles + the ironbow ramp as CSS variables
-• recharts · framer-motion · lucide-react · zod
-
-BUILD-TIME (Python 3.10, scripts/ only — never at runtime)
-• numpy / pandas — telemetry generation from the PV model
-• ultralytics YOLOv8n — fine-tuned on a Colab T4
-• PIL + numpy — thermal hotspot extraction
-• matplotlib — ironbow thermal rendering
-
-SHIPPED DETAIL WORTH ONE LINE
-• telemetry.json is 1.6 MB and was going into the client bundle. A pack format
-  stores the base once plus per-frame deltas: 1617 kB → 52 kB (3.2%), and it
-  refuses to write unless unpacking reproduces the original BYTE FOR BYTE.
-
-DEPLOYED
-• Vercel static build; all /data, /models and /textures committed
-• One env var: GROQ_API_KEY, server-side only
-• Demo path makes ZERO network calls. Live mode adds exactly one: /api/triage.
-```
-
-### Speaker Notes
-- No database, no auth, no accounts. There is no persistence requirement — a work order writes to Zustand and the session survives reload.
-- Vision **training** ran on Colab; **inference** runs in the browser. No GPU at runtime.
-
----
-
-## SLIDE 10 — WHAT IS BUILT, WHAT IS NOT, AND THE ASK
-
-### Visual
-- Large: `SHIP THE PRODUCT. BUILD THE CULT.`
-- QR to `github.com/RAK2315/solar-proj`
-- Three judge questions with one-line answers
-
-### Content
-```
-This is not a concept. 23 phases, 508 tests, six screens, one trained model
-that runs in front of you.
-
-BUILT AND WORKING
-✅ Live mode — 120 arrays, three faults, operator fault injection
-✅ Six screens behind a working rail; light and dark; session persists
-✅ Drone dispatch → 3D flight → on-station capture → detection → approval
-✅ The detector runs LIVE in the browser and reproduces its committed 0.91
-✅ Deterministic ranking with the arithmetic printed inside each row
-✅ Runtime agent triage, cross-checked server-side before a word is returned
-✅ Five gates, sixteen invariants, and two of them written to catch US
-
-HONEST ABOUT WHAT IS NOT
-◻ Two of 120 arrays carry photographed module textures — deliberately, so the
-  difference is visible. The instanced field shares one material.
-◻ The map zooms but does not pan.
-◻ Inference time has been measured only through a software rasteriser. The
-  console prints the real figure; we will read it on the demo machine.
-
-JUDGE QUESTIONS WE ARE READY FOR
-"Is any of this real?"            → Press Verify. Then open scripts/physics.py.
-"Why an agent, not a dashboard?"  → Prognosis. Defect + mechanism + forecast = a
-                                     deadline. No threshold produces an hour.
-"Would you let it run unsupervised?" → No. That is what the approval gate is for.
-"Did the LLM make up these numbers?" → It cannot. It is handed an array id; the
-                                     route recomputes the facts and cross-checks
-                                     every field before returning.
-
-REPO: github.com/RAK2315/solar-proj
-```
-
-### Speaker Notes
+### Speaker notes
 - End on the thesis: "From anomaly to action."
-- The honest-about-what-is-not block is not a weakness. Volunteering the limits is what makes the rest of the deck believable — and it pre-empts the one question that would otherwise land badly.
+- The "what is not" block is not a weakness. Volunteering the limits is what makes everything above it credible, and it pre-empts the one question that would otherwise land badly.
+- **The team block must be filled in before this is submitted.** The brief asks for it explicitly.
 
 ---
 
-## IMAGE / ASSET CHECKLIST
+## IMAGE CHECKLIST
 
-All assets live in **`docs/deck-images/`**, numbered by slide. Regenerate the
-console captures with `npm run demo` running, then `node scripts/shoot.mjs 1920 1080`.
+Every image below is a real screenshot or a real graph. There are no pictures of
+text, and nothing on this list still needs drawing.
 
-| Slide | File | Source |
-|-------|------|--------|
-| 1 | `01-hero-flight.png` | Cinematic, drone on station over B-17 |
-| 2 | `02-landing-gap.png` | The landing page's three derived stat cards |
-| 3 | `03-loop.png` | **To draw** — 9-step flow. Excalidraw/Figma, ironbow connectors |
-| 4 | `04-detector-verify.png` | The run ledger mid-verify |
-| 4 | `04-annotated.png` | `data/evidence/b17_rgb_annotated.jpg` — the real box |
-| 4 | `04-thermal.png` | `data/evidence/b17_thermal.png` — ironbow render |
-| 4 | `04-training-curves.png` | `docs/training/training_curves.png` |
-| 5 | `05-site-dark.png` · `05-site-light.png` | Site screen, both themes |
-| 5 | `05-cinematic.png` | Cinematic with the PiP console visible |
-| 6 | `06-fusion.png` | **To draw** — five signal boxes, left to right |
-| 6 | `06-matrix.png` | The incident file's 5×7 anomaly matrix |
-| 7 | `07-repairs.png` | Repairs screen, arithmetic visible in each row |
-| 8 | `08-gates.png` | **To draw** — pipeline diagram, or paste `validate:data` output |
-| 9 | — | Text only |
-| 10 | `10-qr.png` | `qrenco.de/github.com/RAK2315/solar-proj` |
+| Slide | File | What it is |
+|-------|------|------------|
+| 1 | `01-hero-flight.png` | Drone on station over B-17, detector box drawn, PiP console running |
+| 2 | `02-landing-gap.png` | The three derived figures on the landing page |
+| 3 | `03-incident-chain.png` | The incident file's reasoning chain, each step badged with its basis |
+| 4 | `04-detector-verify.png` | The run ledger with live inferences and their timings |
+| 4 | `04-annotated.jpg` | The detector's box on the committed evidence photograph |
+| 4 | `04-thermal.png` | The thermal image of the same module |
+| 4 | `04-training-curves.png` | Training run metrics, if a fourth image is wanted |
+| 5 | `06-matrix.png` | The 5×7 cell grid with the row-2 band lit |
+| 6 | `07-repairs.png` | Repair queue with the arithmetic in each row |
+| 7 | `05-site-dark.png` · `05-site-light.png` · `05-cinematic.png` | The console in both themes, and the drone's view |
+| 8 | `08-rehearsal.png` | The Rehearsal screen — inject a fault, the physics follows |
+| 9 | `09-data.png` | The Data screen — day curve, loss by cause, worst arrays |
 
-Three diagrams still need drawing: slides 3, 6 and 8. Everything else is captured.
+Spare, if a slide needs a fourth image: `02-landing-hero.png`,
+`04-evidence-rgb.jpg`, `06-dossier-after-flight.png`.
+`04-texture-cracked.jpg` is the photograph used as module surface material in the
+3D scene — it is **not** evidence, so say so if it is ever shown.
 
 ---
 
-## SPEAKER TIMING — 3 MINUTES 45
+## SPEAKER TIMING — 3 MINUTES 30
 
 | Time | Slide | Beat |
 |------|-------|------|
-| 0:00–0:15 | 1 | Thesis. "Most systems tell you something is wrong. SURYA tells you what, why, what if, and what to do — then waits for yes." |
-| 0:15–0:45 | 2 | Problem. 364 MW delivered of 500. Diagnosis takes days. Every day is MWh. |
-| 0:45–1:15 | 3 | The loop. Nine steps, one decision chain. The drone is evidence acquisition. |
-| 1:15–2:00 | 4 | **What is real — press Verify live.** Longest beat on the deck. Earn it. |
-| 2:00–2:25 | 5 | The console. Live and demo, one clock, PiP proves unity. Offer them the mouse. |
-| 2:25–2:55 | 6 | Evidence fusion. Five signals agree, and the mechanism predicted the measurement. |
-| 2:55–3:15 | 7 | Ranking. Twelve lines, deterministic, 26.7× margin, arithmetic on screen. |
-| 3:15–3:30 | 8 | Gates. Numbers cannot drift — the build fails before the demo does. |
-| 3:30–3:40 | 9 | Stack. Shippable. Zero network calls in the demo path. |
-| 3:40–3:45 | 10 | Ask. Built, not proposed. |
+| 0:00–0:15 | 1 | Thesis. What it does in one sentence. |
+| 0:15–0:45 | 2 | The problem. 364 delivered of 500, and diagnosis takes days. |
+| 0:45–1:15 | 3 | The chain, end to end. The drone is how it gets evidence. |
+| 1:15–2:00 | 4 | **What is real — press Verify live.** The longest beat. Earn it. |
+| 2:00–2:25 | 5 | Five signals agree, and the mechanism predicted the measurement. |
+| 2:25–2:50 | 6 | Ranking. One formula, 26× margin, arithmetic on screen. |
+| 2:50–3:10 | 7 | The console. Offer them the mouse. |
+| 3:10–3:20 | 8 | Stack and gates. A drifted number fails the build, not the demo. |
+| 3:20–3:30 | 9 | Impact, status, team. Built, not proposed. |
 
 ---
 
@@ -463,6 +446,5 @@ Three diagrams still need drawing: slides 3, 6 and 8. Everything else is capture
 - Demo script: 90 seconds exactly, the beats in `CLAUDE.md` §2.
 - Live walkthrough, ~60 s: click an array, dispatch, watch the flight, press Verify,
   approve the work order, show the queue re-rank.
-- Voiceover: terse and operator-facing. "B-17 critical. 15.02 against an expected
-  36.10 kW. Dispatching DRONE 01."
-- No music. Let the typewriter and the feed carry it.
+- Set `GROQ_API_KEY` before recording, or the agent panel will honestly report that
+  it is unavailable — which is correct behaviour and a bad look on camera.

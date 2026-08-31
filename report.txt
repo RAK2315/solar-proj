@@ -2103,3 +2103,100 @@
    vitest                509 passed / 31 files   (was 508 / 31)
    check:layout          clean  + canvas fills 100% of its box at 1512x900
    check:live            6/6 awake
+
+================================================================================
+ PHASE 25 - FOUR MORE THINGS FOUND BY LOOKING, AND A NINE-SLIDE DECK
+ 31 Aug 2026
+================================================================================
+
+ 1. THE HEALTHY MODULE LOOKED BROKEN
+
+    Reported as "even the panels that should not be cracked have the cracked
+    image". They did not: `photoFor()` has always gated the cracked texture on
+    hasCrackMechanism(). The intact texture was the problem. The dataset's own
+    Good-labelled modules are lab photographs under warm light - tan, with dark
+    blotches - and on a field of flat blue modules that reads as damage.
+    Confirmed by flying to A-08, a SOILED array: the reticle correctly said
+    "-11.3 % vs expected" and the strip correctly said "intact", over a module
+    that looked wrecked.
+
+    FIX: the intact texture is now a supplied photograph of a clean module,
+    straight on, in the blue the rest of the field already is. It goes through
+    the same gate everything else does - the detector is asked about the written
+    file and the script fails if it comes back Cracked. It returns Saglam 0.794.
+
+    THE CRACKED TEXTURE DID NOT CHANGE, and the second supplied image is why.
+    Scored with our own weights it returns BakimGereken 0.94 and no Cracked box
+    at any crop, so `crackedOnly()` would filter it to nothing and every live
+    inspection would find nothing at all. The committed texture returns Cracked
+    0.911. Choosing the better-looking image would have silently disabled the
+    strongest thing in the product.
+
+    PROVENANCE FOLLOWED. The two textures no longer share a source, so they no
+    longer share a provenance line: `panel_textures.json` carries `origin` and a
+    per-texture `provenance` sentence written by the generator, and the UI prints
+    that instead of composing "{dataset} ({split} split)" over both - which was
+    true of one of them.
+
+ 2. THE RETICLE QUOTED A DIFFERENT NUMBER TO THE ONE BESIDE IT
+
+    The target reticle's tab read "B-17 - B2-07 - cracked 0.91 - from the
+    committed capture, not this frame" while the live detector's own box, six
+    inches away, read Cracked 0.86. Both true, both labelled, and together they
+    put two disagreeing confidences for one module on screen.
+
+    FIX: whoever ran on THESE pixels states the finding. `useLiveDetection()` is
+    exported from LiveReticle, and when it returns a box the tab drops to
+    identity and telemetry - "B-17 - B2-07 - -41.7 % vs expected". With no live
+    box the committed quote returns, correctly labelled, contradicting nothing.
+
+ 3. THE VIEWFINDER NOTES STRIP CAME BACK OUT
+
+    Phase 24 merged four overlapping notes into one strip. The owner's answer was
+    that the strip was not wanted either. The surface-provenance disclosure has
+    not been lost - it lives in the incident file under SHOW WORKINGS, where the
+    frame it describes is on screen next to it. The viewfinder is now the
+    picture, the reticle, the log, the PiP and the pill.
+
+ 4. THE LOG NEVER SAID WHAT THE PASS FOUND
+
+    "DRONE 01 on station. RGB and thermal passes starting." and then nothing.
+    The one moment the product exists for went unannounced on the largest text
+    on screen.
+
+    FIX: a finding event at the end of the pass. For B-17 it reads the committed
+    cell grid - "4 cells hot in row 2, +2.8 C above the array median, one
+    connected cluster". For every other array it says no thermal capture is held
+    and the diagnosis rests on telemetry, and its TITLE changes to match, because
+    "THERMAL FINDING" over "no thermal capture is held" is a heading arguing with
+    its own body.
+
+    AND THE LIVE RUN REACHED THE REASONING CHAIN. "What was checked" quoted only
+    the committed detection, measured months ago on a photograph. It now also
+    reports what the detector returned in this browser on the frame the drone
+    brought back, and how many frames the pass chose from. For an array with no
+    committed capture that live run is the ONLY detection there is, so it also
+    upgrades that step's basis from `modelled` to `measured`.
+
+ 5. THE DECK IS NINE SLIDES
+
+    The submission form caps at ten and rejected the first attempt. Rewritten to
+    nine, in plain language, structured to the brief's own list: problem,
+    solution, implementation, stack, impact, team. No slide is a picture of
+    words. Three diagrams that had been marked "to draw" are gone, replaced by
+    screenshots of the product doing the thing the diagram would have described.
+    The team block is the one field left blank on purpose.
+
+    Every image re-captured after the changes above: 01 hero, 02 landing gap,
+    03 the reasoning chain, 04 the run ledger, 05 site both themes + cinematic,
+    06 the matrix, 07 repairs, 08 rehearsal, 09 data.
+
+ GATES AT THE END OF PHASE 25
+   tsc --noEmit          clean
+   eslint src/           clean
+   validate:data         PASS  I1..I16
+   check:literals        clean
+   vitest                509 passed / 31 files
+   check:layout          clean  + canvas fills 100% of its box at 1512x900
+   check:live            6/6 awake
+   next build            clean
