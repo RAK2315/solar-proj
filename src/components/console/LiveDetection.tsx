@@ -102,7 +102,19 @@ export function LiveDetection() {
   const injected = useSession((s) => s.injected);
   const photographedCrack = hasCrackMechanism(panelId, injected);
   const surface = panelTexture(photographedCrack ? 'cracked' : 'intact');
-  const result = last && last.panelId === panelId ? last : fromFlight;
+  // THE PASS KEEPS ITS BEST FRAME, SO THE PANEL SHOULD SHOW IT. `last` is
+  // whatever ran most recently, and the last sample of an orbit is often the
+  // worst one - the panel reported 0.27 from run 6 while run 3 of the same pass
+  // had returned 0.89 and was already filed. `better()` in the store picked the
+  // clearest frame and then nothing read it.
+  //
+  // An OPERATOR run still wins, because a person pressing Verify or re-running on
+  // the frame must see their own result. A flight sample does not: the pass has
+  // already chosen between them.
+  const mine = last && last.panelId === panelId ? last : undefined;
+  const fromOperator = mine && !mine.source.startsWith("the drone's camera")
+    ? mine : undefined;
+  const result = fromOperator ?? fromFlight ?? mine;
 
   // IS THE CAMERA ACTUALLY LOOKING AT ANYTHING? The button grabs the 3D canvas at
   // the instant it is pressed, and outside an inspection the camera sits at its
@@ -175,7 +187,7 @@ export function LiveDetection() {
         title={cameraOnPanel
           ? 'Capture what the drone is seeing and run the detector on it'
           : result
-            ? 'Run the detector again on the frame below — same pixels, live inference'
+            ? 'Run the detector again on the frame below: same pixels, live inference'
             : 'Nothing captured yet. Dispatch a drone; the detector runs during the pass.'}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -201,7 +213,7 @@ export function LiveDetection() {
           right problem. */}
       {!cameraOnPanel && !result && (
         <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
-          dispatch a drone — the detector runs itself during the inspection pass,
+          dispatch a drone; the detector runs itself during the inspection pass,
           and what it found is kept here
         </span>
       )}
@@ -210,8 +222,8 @@ export function LiveDetection() {
           The committed detection is a recorded fact: `Cracked` at 0.9084, from a
           Colab run months ago on a held-out image. This runs the SAME weights
           through this browser's own pipeline on that same photograph. If the two
-          agree, every step between the pixels and the box — the letterbox, the
-          channel order, the tensor layout, the decode, the suppression — is
+          agree, every step between the pixels and the box, the letterbox, the
+          channel order, the tensor layout, the decode, the suppression, is
           verified in front of whoever is asking, against a number that was
           written down before the code existed. If they disagree, the fault is
           here and not in the model, and it should be loud. */}
@@ -235,7 +247,7 @@ export function LiveDetection() {
         >
           <BadgeCheck size={13} strokeWidth={2} aria-hidden />
           <span className="t-h2">
-            Verify — reproduce the committed {committed.confidence.toFixed(2)}
+            Verify: reproduce the committed {committed.confidence.toFixed(2)}
           </span>
         </button>
       )}
@@ -250,7 +262,7 @@ export function LiveDetection() {
         <div style={{ display: 'grid', gap: 2 }}>
           {busy && (
             <span className="t-micro" style={{ color: 'var(--sev-active)' }}>
-              run {runs + 1} — the network is executing…
+              run {runs + 1} · the network is executing…
             </span>
           )}
           {log.map((line) => (
@@ -278,7 +290,7 @@ export function LiveDetection() {
               were the same image above three different answers. */}
           {log.length > 1 && log[0].frameHash === log[1].frameHash && (
             <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
-              same pixels as the run above it — the same answer is the point
+              same pixels as the run above it, and the same answer is the point
             </span>
           )}
         </div>
@@ -293,9 +305,9 @@ export function LiveDetection() {
         <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           run {result.run} of {result.source}
           {result === fromFlight && frames > 1
-            ? ` — the clearest of ${frames} frames the drone took on this pass`
+            ? `, the clearest of ${frames} frames the drone took on this pass`
             : ''}
-          {result === fromFlight && frames <= 1 ? ' — captured on the pass' : ''}
+          {result === fromFlight && frames <= 1 ? ', captured on the pass' : ''}
         </span>
       )}
 
@@ -313,7 +325,7 @@ export function LiveDetection() {
         <p className="t-prose" style={{
           color: 'var(--sev-warning-ink)', margin: 0, fontSize: 12, lineHeight: 1.5,
         }}>
-          The detector loaded but the run failed — {reason}. Nothing is drawn; the
+          The detector loaded but the run failed: {reason}. Nothing is drawn; the
           committed capture above is unaffected.
         </p>
       )}
@@ -333,12 +345,12 @@ export function LiveDetection() {
           <strong style={{ color: 'var(--sev-active)' }}>
             {result.detections.map((d) => d.confidence.toFixed(2)).join(', ')}
           </strong>
-          . Computed in this browser in {result.elapsedMs} ms — nothing here was cached.
+          . Computed in this browser in {result.elapsedMs} ms; nothing here was cached.
           <span className="t-micro" style={{
             color: 'var(--text-secondary)', display: 'block', marginTop: 4,
           }}>
             The box covers the whole module because that is what the model was
-            taught to draw — every training example labels the panel, not the
+            taught to draw: every training example labels the panel, not the
             fracture. It answers &ldquo;is this module cracked&rdquo;. Where on the
             module is the thermal grid&rsquo;s job.
           </span>
@@ -364,7 +376,7 @@ export function LiveDetection() {
           the box is reported. */}
       {/* Only where a drone actually flew: `CrackedPanel` textures the FLIGHT
           TARGET, so claiming photographed modules for an array that was never
-          inspected describes a panel that carries no photograph — the array-
+          inspected describes a panel that carries no photograph, the array-
           scoping mistake CLAUDE.md §0 rule 5 calls this project's most repeated. */}
       {surface && result && fromFlight && (
         <p className="t-prose" style={{
@@ -375,7 +387,7 @@ export function LiveDetection() {
               ? 'Two modules of this array are textured with photographs of real panels'
               : 'A module of this array is textured with a photograph of a real intact panel'}
           </strong>{' '}
-          {photographedCrack ? '— one cracked, one intact — ' : ''}because the
+          {photographedCrack ? '(one cracked, one intact) ' : ''}because the
           detector was trained on photographs and returns nothing on a flat-shaded
           render. That is surface material, the way a digital twin is textured from
           site imagery; it is not a camera frame, and any box above is still the
@@ -390,7 +402,7 @@ export function LiveDetection() {
       )}
 
       <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
-        the exported network, executed on the WebAssembly runtime in this browser —
+        the exported network, executed on the WebAssembly runtime in this browser:
         same weights as the committed run, different runtime
       </span>
     </div>

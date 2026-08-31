@@ -72,6 +72,6 @@ export function inrWithBasis(mwh: number, tariffPerKWh: number): {
 } {
   return {
     amount: formatINR(inrForMWh(mwh, tariffPerKWh)),
-    basis: `at ₹${tariffPerKWh.toFixed(2)}/kWh — an assumption, not a sourced tariff`,
+    basis: `at ₹${tariffPerKWh.toFixed(2)}/kWh, an assumption, not a sourced tariff`,
   };
 }

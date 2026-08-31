@@ -72,7 +72,7 @@ describe('playing 0 → 90, every beat fires at its second', () => {
     cellDefects: 'R2 · C3',
     outlook: '72H CLEAR',
     deadline: 'ACT BEFORE 14:00',
-    gate: 'APPROVE — CREATE WORK ORDER',
+    gate: 'APPROVE · CREATE WORK ORDER',
     b17Queued: 'INC-B17',
   });
 

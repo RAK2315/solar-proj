@@ -69,7 +69,7 @@ describe('the rail navigates', () => {
   it('pins itself to the map in demo mode, and says why', () => {
     useSession.setState({ mode: 'demo', module: 'site' });
     render(<ConsoleRoot />);
-    const repairs = screen.getByRole('button', { name: /Repairs — unavailable/ });
+    const repairs = screen.getByRole('button', { name: /Repairs, unavailable/ });
     expect((repairs as HTMLButtonElement).disabled).toBe(true);
   });
 

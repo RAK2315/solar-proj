@@ -91,20 +91,20 @@ export function StatusChips() {
         </span>
         {/* The mechanism, when the site record actually holds one. Named rather than
             inferred from the shape of the shortfall. */}
-        {fault?.mechanism ? <> — {fault.mechanism.toLowerCase()}</> : null}
+        {fault?.mechanism ? <>, {fault.mechanism.toLowerCase()}</> : null}
         {fault?.injected && (
           <span style={{ color: 'var(--sev-warning-ink)' }}> · injected by operator</span>
         )}
         {'. '}
         {/* A deadline only exists if something is actually degrading, and only in
             the units the calculation behind it supports. A healthy array gets no
-            hour at all — printing one would be the clearest possible sign that this
+            hour at all, printing one would be the clearest possible sign that this
             block is decoration rather than a readout. */}
         {critical && doseComputed ? (
           <>
             Act before{' '}
             <span className="t-data-em" style={{ color: ink }}>{forecast.actBefore}</span>
-            {' '}— cell temperature crosses the crack-propagation threshold at that hour.
+            {': '}cell temperature crosses the crack-propagation threshold at that hour.
           </>
         ) : critical && ownDeadlineH !== undefined ? (
           <>
@@ -138,7 +138,7 @@ export function StatusChips() {
 
       {override && (
         <span className="t-micro" style={{ color: 'var(--sev-warning-ink)' }}>
-          OVERRIDDEN by operator — {override.reason}
+          OVERRIDDEN by operator, {override.reason}
         </span>
       )}
     </div>

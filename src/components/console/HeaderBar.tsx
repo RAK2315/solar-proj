@@ -85,7 +85,7 @@ export function HeaderBar() {
         <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
 
         {/* Three daily maxima off the forecast curve. The forecast is offsets from
-            now, not calendar days, so the columns are labelled as offsets — a
+            now, not calendar days, so the columns are labelled as offsets, a
             weekday here would be a name nobody generated. */}
         <div style={{ display: 'flex' }}>
           {highs.map((h, i) => (
@@ -113,7 +113,7 @@ export function HeaderBar() {
         <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
 
         {/* Site time is a CONTROL, not a readout. Without it the console walks into
-            the night at 60x and there is no way back — see TimeControl. */}
+            the night at 60x and there is no way back, see TimeControl. */}
         <TimeControl />
 
         <span style={{ width: 1, height: 32, background: 'var(--line-hairline)' }} />
@@ -121,7 +121,7 @@ export function HeaderBar() {
         {/* SHOW WORKINGS. Every grey provenance line on the console is behind this,
             off by default. The claim stays on screen; the receipt is one click
             away. It is a control rather than a preference because the moment it
-            matters is a specific one — somebody asking "how do you know that?" —
+            matters is a specific one, somebody asking "how do you know that?" —
             and it should be answerable in a second. */}
         <button
           type="button"
@@ -172,12 +172,12 @@ export function HeaderBar() {
               : { background: 'var(--sev-warning)' }}
         >
           {!hydrated
-            ? '○ NOT READY — RELOAD'
+            ? '○ NOT READY · RELOAD'
             : live ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
         </span>
 
         {/* Which world you are looking at, and the control that changes it. A live
-            console and a recording of one must never be confusable — see the note
+            console and a recording of one must never be confusable, see the note
             in store/session.ts. */}
         <button
           type="button"

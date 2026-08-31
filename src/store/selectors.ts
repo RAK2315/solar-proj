@@ -456,7 +456,7 @@ export const useApproved = (): boolean => useDemoClock((s) => s.approved);
 const PILL: Array<[number, (id: string, zone: string) => string]> = [
   [BEAT.dispatch, () => 'ANOMALY DETECTED'],
   [BEAT.transit, (_id, zone) => `FLYING TO ZONE ${zone}`],
-  [BEAT.targetLock, (id) => `TARGET LOCK — ${id}`],
+  [BEAT.targetLock, (id) => `TARGET LOCK, ${id}`],
   [BEAT.rgbScan, (id) => `INSPECTING ${id}`],
   [BEAT.thermalScan, () => 'THERMAL SCAN'],
   [BEAT.thermalDone, () => 'SURYA ANALYZING'],
@@ -684,12 +684,14 @@ export function useAllFeedEvents(): DemoEvent[] {
   const missions = useSession((s) => s.missions);
   const injected = useSession((s) => s.injected);
   const demoEvents = useVisibleEvents();
+  const workOrders = useSession((s) => s.workOrders);
 
   return useMemo(
     () => (mode === 'demo'
       ? demoEvents
-      : liveEvents(siteSeconds, missions, injected)),
-    [mode, demoEvents, siteSeconds, missions, injected],
+      : liveEvents(siteSeconds, missions, injected,
+        new Set(workOrders.map((w) => w.panelId)))),
+    [mode, demoEvents, siteSeconds, missions, injected, workOrders],
   );
 }
 

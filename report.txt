@@ -2261,3 +2261,74 @@
    PiP                   renders light while the console is light
    reticle tab           "B-17 - B2-07 - RGB + thermal pass - -41.7 % vs expected"
    array panel           vignette present, both themes
+
+================================================================================
+ PHASE 27 - FIVE SMALL ONES
+ 31 Aug 2026
+================================================================================
+
+ 1. THE DETECTOR PANEL SHOWED THE PASS ITS LAST FRAME, NOT ITS BEST
+
+    Reported: "it shows run 6 at 0.27 - why not the highest score, it was 0.89 at
+    one point". The store already keeps the clearest frame; `better()` has picked
+    between candidates since Phase 21. Nothing read it. `result` was
+    `last ?? fromFlight`, and the last sample of an orbit is often the worst one.
+
+    FIX: an OPERATOR run still wins, because a person pressing Verify has to see
+    their own result. A flight sample does not - the pass has already chosen.
+    Measured after: a sortie logging five runs shows 0.72 with the panel and the
+    reasoning chain agreeing on "the clearest of 5 frames".
+
+ 2. THE CAPTURED-EVIDENCE PARAGRAPH IS A CAPTION
+
+    Four lines of prose under the thumbnails, reported as irrelevant there. The
+    fact is not: the RGB frame is a ground-level dataset photograph and calling it
+    drone imagery would be the one unforced error in a panel built on declared
+    provenance. So it moved into the caption under the frame it describes -
+    "VIS - Cracked 0.91 - training-set photo, not a drone frame". Provenance
+    nobody reads is not provenance either.
+
+ 3. THE REASONING CHAIN READS AT A READABLE SIZE
+
+    It is the left half of the dossier and it IS the argument. Step labels 11px ->
+    13px, body 13px -> 15px, the ruled-out list 10px -> 13px in the mono face.
+
+ 4. NO EM DASHES IN ANYTHING THE OPERATOR READS
+
+    120 of them across 38 files. Titles and labels take a middot, prose takes a
+    comma, a colon or a semicolon depending on what the dash was doing; about
+    fifteen were rewritten by hand where the mechanical answer read badly. Six
+    tests asserted the old strings and were updated with them. The forecast
+    summary lives in DATA, so the generator changed and the artefact with it.
+
+    Comments keep theirs. Nobody reads those on a projector.
+
+ 5. AN APPROVED ARRAY STOPS SHOUTING IN THE FEED
+
+    Four red cards about B-17 stayed at the top of the rail after approving B-17,
+    which makes the approval look like it did nothing. An alarm is a request for a
+    decision; once the decision is made it is answered. `liveEvents` now takes the
+    set of arrays with work orders and collapses each one's events to a single
+    SCHEDULED line, so the thread ends where a reader can see it end rather than
+    simply vanishing. Every other array is untouched.
+
+    ASKED AND NOT BUILT: "when it is fixed, does it clear the green box on the
+    grid?" No. There is no completion step in the product - approving sets the
+    array to `scheduled` and it stays there for the session. Recorded in
+    docs/backlog.md rather than invented on the way past.
+
+ GATES
+   tsc --noEmit          clean
+   eslint src/           clean
+   validate:data         PASS  I1..I16
+   check:literals        clean
+   vitest                512 passed / 31 files   (was 508; +4 new)
+   check:layout          clean  + canvas fills 100% of its box
+   check:live            6/6 awake
+   next build            clean
+
+ VERIFIED IN THE BROWSER AFTER A REAL SORTIE
+   detector panel        0.72, the clearest of 5 frames
+   dossier text          0 em dashes
+   evidence caption      "training-set photo, not a drone frame"
+   feed after approval   SCHEDULED - B-17 present, OUTPUT DEVIATION - B-17 gone

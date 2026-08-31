@@ -31,7 +31,7 @@ const plexSans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'SURYA AGENT — Bhadla Solar Park',
+  title: 'SURYA AGENT · Bhadla Solar Park',
   description:
     'Autonomous inspection and triage console for utility-scale solar. ' +
     'Telemetry anomaly to deadlined work order in 90 seconds, gated on a human.',

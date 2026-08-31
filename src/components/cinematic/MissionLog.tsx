@@ -42,7 +42,7 @@ export function MissionLog() {
         paddingBottom: 'var(--sp-3)', borderBottom: '1px solid var(--line-hairline)',
       }}>
         <span className="t-h1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.14em' }}>
-          SURYA AGENT — mission log
+          SURYA AGENT · mission log
         </span>
         <span className="t-h1" style={{ color: 'var(--sev-critical)' }}>
           ● LIVE

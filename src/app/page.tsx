@@ -42,7 +42,7 @@ import {
 } from './numbers';
 
 export const metadata: Metadata = {
-  title: 'SURYA AGENT — installed capacity is not delivered capacity',
+  title: 'SURYA AGENT · installed capacity is not delivered capacity',
   description:
     'An autonomous inspection and triage agent for utility-scale solar. It finds the '
     + 'array that is underperforming, sends a drone to prove why, and hands the '
@@ -239,7 +239,7 @@ export default function Landing() {
             fontSize: 18, lineHeight: 1.6,
           }}>
             India is putting up solar faster than almost anyone. The harder problem is
-            keeping what is already standing at its rated output — a park is built
+            keeping what is already standing at its rated output, a park is built
             once and then quietly loses megawatt-hours to soiling, cracked cells and
             dead bypass diodes for the next twenty-five years. SURYA is the agent that
             finds those losses, sends a drone to prove what is causing them, and hands
@@ -289,7 +289,7 @@ export default function Landing() {
       <Section
         id="gap"
         eyebrow="The gap, in this build's own numbers"
-        title="A 500 MW block, modelled honestly, is delivering under three-quarters of its nameplate — and that is before anything is broken."
+        title="A 500 MW block, modelled honestly, is delivering under three-quarters of its nameplate, and that is before anything is broken."
         lede={`Every figure on this page is evaluated from the same PV performance model the console runs on, at ${wm2(IRRADIANCE)} and ${degC(AMBIENT_C, 0)} ambient. None of them is typed in as text; the build fails if one ever is.`}
       >
         <div style={{
@@ -300,7 +300,7 @@ export default function Landing() {
             value={num(DELIVERED_SHARE_PCT, 0)}
             unit="%"
             colour="var(--sev-active)"
-            note={`${num(OUTPUT_MW, 0)} MW out of ${num(NAMEPLATE_MW, 0)} MW, because the cells are at ${degC(CELL_TEMP_C)} and silicon loses power as it heats. That is physics, not a fault — and it is the baseline everything recoverable sits on top of.`}
+            note={`${num(OUTPUT_MW, 0)} MW out of ${num(NAMEPLATE_MW, 0)} MW, because the cells are at ${degC(CELL_TEMP_C)} and silicon loses power as it heats. That is physics, not a fault, and it is the baseline everything recoverable sits on top of.`}
           />
           <Stat
             label="One faulted array"
@@ -314,7 +314,7 @@ export default function Landing() {
             value={num(DAILY_LOSS_MWH, 2)}
             unit="MWh"
             colour="var(--sev-warning-ink)"
-            note={`${kW(SHORTFALL_KW, 1)} of shortfall integrated across the day's irradiance curve — ${MWh(LOSS_72H_MWH)} over the 72 hours before anyone would otherwise have noticed. From one array, of 120.`}
+            note={`${kW(SHORTFALL_KW, 1)} of shortfall integrated across the day's irradiance curve, ${MWh(LOSS_72H_MWH)} over the 72 hours before anyone would otherwise have noticed. From one array, of 120.`}
           />
         </div>
 
@@ -322,7 +322,7 @@ export default function Landing() {
           color: 'var(--text-secondary)', maxWidth: '78ch', margin: 0,
         }}>
           SCADA will tell you that string is down. It will not tell you{' '}
-          <em>which panel</em>, <em>why</em>, or <em>how urgent</em> — soiling and a
+          <em>which panel</em>, <em>why</em>, or <em>how urgent</em>: soiling and a
           cracked cell produce nearly the same signature at the inverter, and the two
           have completely different answers. Somebody drives out and looks. The median
           time from anomaly to diagnosis is measured in days, and every one of those
@@ -347,7 +347,7 @@ export default function Landing() {
           />
           <Step
             n={2} Icon={Sparkles} title="Triage"
-            body="The agent is given the array's identity and nothing else; the route recomputes every figure server-side and cross-checks the model's prose against them before a word is returned. It decides what is wrong, how bad, and — the load-bearing judgement — whether telemetry alone can distinguish soiling from physical damage."
+            body="The agent is given the array's identity and nothing else; the route recomputes every figure server-side and cross-checks the model's prose against them before a word is returned. It decides what is wrong, how bad, and the load-bearing judgement: whether telemetry alone can distinguish soiling from physical damage."
           />
           <Step
             n={3} Icon={Crosshair} title="Dispatch"
@@ -355,11 +355,11 @@ export default function Landing() {
           />
           <Step
             n={4} Icon={ScanLine} title="Evidence capture"
-            body="RGB, thermal and acoustic, on station. The captured frames belong to the array they were taken over and to no other — an array with no imagery on file is told so plainly rather than shown somebody else's."
+            body="RGB, thermal and acoustic, on station. The captured frames belong to the array they were taken over and to no other; an array with no imagery on file is told so plainly rather than shown somebody else's."
           />
           <Step
             n={5} Icon={Radar} title="Vision"
-            body="A YOLOv8n detector, fine-tuned on labelled solar imagery, localises the surface defect. A classical CV pass over the thermal frame resolves the hot band to individual cells in a 5×7 grid — the signature element of the console, and a physical map of a physical object."
+            body="A YOLOv8n detector, fine-tuned on labelled solar imagery, localises the surface defect. A classical CV pass over the thermal frame resolves the hot band to individual cells in a 5×7 grid, the signature element of the console, and a physical map of a physical object."
           />
           <Step
             n={6} Icon={Gauge} title="Prognosis"
@@ -367,7 +367,7 @@ export default function Landing() {
           />
           <Step
             n={7} Icon={Wrench} title="Ranked recommendation"
-            body="The queue order is a pure function — loss × severity × urgency ÷ access cost — never decided by a model, because a ranking that changes between two runs of the same demo is a ranking nobody can trust. The four inputs are shown next to the score they produce."
+            body="The queue order is a pure function (loss × severity × urgency ÷ access cost), never decided by a model, because a ranking that changes between two runs of the same demo is a ranking nobody can trust. The four inputs are shown next to the score they produce."
           />
           <Step
             n={8} Icon={ShieldCheck} gate title="Human approval gate"
@@ -399,19 +399,19 @@ export default function Landing() {
             title="The detector was trained, and the metric is the real one"
             body={
               CRACKED_AP50 !== null && DETECTION_CONFIDENCE !== null
-                ? `YOLOv8n fine-tuned on a CC BY 4.0 Roboflow dataset. Cracked scores AP@50 ${CRACKED_AP50.toFixed(3)} on the ${DETECTOR_SPLIT} split, and the evidence frame in the console is drawn from that split — so the ${DETECTION_CONFIDENCE.toFixed(4)} confidence it displays is a genuine output on an image the model never saw. Reported per class, never rounded up, and one class is undefined rather than zero because it has no test instances.`
+                ? `YOLOv8n fine-tuned on a CC BY 4.0 Roboflow dataset. Cracked scores AP@50 ${CRACKED_AP50.toFixed(3)} on the ${DETECTOR_SPLIT} split, and the evidence frame in the console is drawn from that split, so the ${DETECTION_CONFIDENCE.toFixed(4)} confidence it displays is a genuine output on an image the model never saw. Reported per class, never rounded up, and one class is undefined rather than zero because it has no test instances.`
                 : 'YOLOv8n fine-tuned on a CC BY 4.0 Roboflow dataset, with per-class AP@50 reported on the held-out test split.'
             }
             source="models/defect_yolov8n.pt · docs/dataset-provenance.md"
           />
           <Claim
             title="The thermal band was measured, not authored"
-            body="The four hot cells and their ΔT come out of a classical CV pass over a real UAV thermal frame from the Raptor Maps InfraredSolarModules set. The value reads lower than a thermographer would quote because it is a cell mean under a declared 8-bit scaling rather than a radiometric peak pixel — which the console says on screen, next to the grid. An invariant fails the build if anyone tunes the scaling to reach a nicer number."
+            body="The four hot cells and their ΔT come out of a classical CV pass over a real UAV thermal frame from the Raptor Maps InfraredSolarModules set. The value reads lower than a thermographer would quote because it is a cell mean under a declared 8-bit scaling rather than a radiometric peak pixel, which the console says on screen, next to the grid. An invariant fails the build if anyone tunes the scaling to reach a nicer number."
             source="scripts/thermal_hotspot.py · data/evidence/b17_cellgrid.json"
           />
           <Claim
             title="The agent writes prose about numbers it was not given"
-            body="Every figure on screen comes from the generator or the model; the LLM is handed an array identity, and the route recomputes the facts and cross-checks each numeric field before returning anything. It writes the reasoning, never the readings — and the queue ordering it has no say in at all."
+            body="Every figure on screen comes from the generator or the model; the LLM is handed an array identity, and the route recomputes the facts and cross-checks each numeric field before returning anything. It writes the reasoning, never the readings, and it has no say in the queue ordering at all."
             source="src/app/api/triage/route.ts · src/lib/ranking.ts"
           />
         </div>
@@ -426,7 +426,7 @@ export default function Landing() {
           color: 'var(--text-secondary)', maxWidth: '78ch', margin: 0, fontSize: 16,
         }}>
           A rule engine tells you a string is down. It cannot tell you when that string
-          becomes unrecoverable, because that answer needs three things combined — the
+          becomes unrecoverable, because that answer needs three things combined: the
           confirmed defect state, the mechanism by which it propagates, and the weather
           for the next three days. Put those together and you get{' '}
           <span className="t-data-em" style={{ color: 'var(--sev-warning-ink)' }}>

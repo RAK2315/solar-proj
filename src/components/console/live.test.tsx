@@ -239,7 +239,7 @@ describe('the console refuses to claim what has not happened', () => {
   });
 
   it('withholds the approval gate until there is evidence to approve', () => {
-    expect(at(0, 'B-17')).not.toContain('APPROVE — CREATE WORK ORDER');
+    expect(at(0, 'B-17')).not.toContain('APPROVE · CREATE WORK ORDER');
   });
 
   it('reveals findings and arms the gate once the inspection completes', () => {
@@ -248,7 +248,7 @@ describe('the console refuses to claim what has not happened', () => {
     const text = at(done, 'B-17');
     // The evidence moved into the dossier; the rail offers it and arms the gate.
     expect(text).toContain('Open inspection dossier');
-    expect(text).toContain('APPROVE — CREATE WORK ORDER');
+    expect(text).toContain('APPROVE · CREATE WORK ORDER');
     expect(withDossier(done, 'B-17')).toContain('Anomaly matrix');
   });
 });
@@ -378,7 +378,7 @@ describe('the human gate still gates', () => {
     useSession.getState().dispatch('A-03');
     useSession.setState({ siteSeconds: MISSION_TOTAL, selectedPanelId: 'A-03' });
     render(<ConsoleRoot />);
-    fireEvent.click(screen.getByText(/APPROVE — CREATE WORK ORDER/));
+    fireEvent.click(screen.getByText(/APPROVE · CREATE WORK ORDER/));
 
     const { workOrders } = useSession.getState();
     expect(workOrders).toHaveLength(1);
@@ -422,6 +422,29 @@ describe('the feed reports what happened, not a script', () => {
     expect(at(FAULT_AT + 120)).toContain('B-17 is');
     cleanup();
     expect(at(FAULT_AT + 120)).toContain('below expected');
+  });
+
+  /**
+   * An alarm is a request for a decision. Once the decision is made it is
+   * answered, and four red cards about B-17 still at the top of the rail make
+   * the approval look like it did nothing.
+   */
+  it('drops an array’s alarms once a work order is raised for it', () => {
+    const before = at(FAULT_AT + 600);
+    expect(before).toContain('OUTPUT DEVIATION');
+    cleanup();
+
+    useSession.getState().createWorkOrder('B-17', 'approved in a test');
+    const after = at(FAULT_AT + 600);
+    expect(after).toContain('SCHEDULED');
+    expect(after).not.toContain('OUTPUT DEVIATION · B-17');
+    expect(after).not.toContain('CRITICAL SHORTFALL · B-17');
+  });
+
+  it('leaves every OTHER array’s alarms alone', () => {
+    useSession.getState().createWorkOrder('B-17', 'approved in a test');
+    // C-07 faults later than B-17 and has no order on it.
+    expect(at(160 * 60)).toContain('C-07');
   });
 });
 

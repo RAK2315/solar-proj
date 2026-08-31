@@ -395,7 +395,7 @@ export const useDetector = create<DetectorState>((set, get) => ({
       set({
         run: 'failed',
         reason: err instanceof Error
-          ? `could not read the camera frame — ${err.message}`
+          ? `could not read the camera frame, ${err.message}`
           : 'could not read the camera frame',
       });
       return;

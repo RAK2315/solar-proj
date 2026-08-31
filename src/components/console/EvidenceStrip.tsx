@@ -63,8 +63,16 @@ export function EvidenceStrip() {
       label: 'RGB',
       // The confidence is whatever the model returned. Never rounded up, and
       // invariant I11 rejects the spec's placeholder 0.84 by name.
+      // WHAT THIS FRAME ACTUALLY IS, in the caption rather than in a paragraph
+      // under it. The detection is real and the model never saw the image, but
+      // the source dataset is ground-level photography, so this is a panel on a
+      // floor and not an aerial capture of Bhadla. Presenting it as drone imagery
+      // would be the one unforced error in a panel built on declared provenance.
+      // It was four lines of prose and it is now six words, because provenance
+      // nobody reads is not provenance either.
       caption: detection
-        ? `VIS · ${detection.label} ${confidence(detection.confidence)}`
+        ? `VIS · ${detection.label} ${confidence(detection.confidence)} · `
+          + 'training-set photo, not a drone frame'
         : undefined,
     },
   ].filter(Boolean) as Array<{ src: string; label: string; caption?: string }>;
@@ -80,32 +88,6 @@ export function EvidenceStrip() {
         }}>
           {thumbs.map((t) => <Thumb key={t.label} {...t} />)}
         </div>
-      )}
-
-      {/* WHAT THE RGB FRAME ACTUALLY IS. The detection is real, on an image the
-          model never saw — but the source dataset is ground-level photography, so
-          the frame is a panel on a floor with the photographer's shoes in it, not
-          an aerial capture of Bhadla. Presenting it as drone imagery would be the
-          one unforced error in an evidence panel built entirely around declared
-          provenance, and it is the first thing anyone will notice. Say it first. */}
-      {/* Promoted out of t-micro. This paragraph is the most important sentence in
-          the evidence panel — it is the project declining to overclaim, in the one
-          place where overclaiming would be easiest — and at 11 px on a projector
-          nobody was reading it, which made the honesty invisible and therefore
-          worthless. Provenance that cannot be read is not provenance. */}
-      {(evidence.rgb || evidence.rgbAnnotated) && detection && (
-        <p className="t-prose" style={{
-          color: 'var(--text-secondary)', margin: 0, fontSize: 12, lineHeight: 1.5,
-        }}>
-          <strong style={{ color: 'var(--text-primary)' }}>
-            This photo came from the training dataset, not from our drone.
-          </strong>{' '}
-          It is a ground-level shot of a panel, held back from training so the model
-          had never seen it. The box is the model&rsquo;s own output on it, and it was{' '}
-          {Math.round(detection.confidence * 100)}% sure — {confidence(detection.confidence)}
-          {' '}as returned. The thermal frame beside it is a real UAV capture; the cell
-          grid below is measured from it.
-        </p>
       )}
 
       {evidence.audio && (

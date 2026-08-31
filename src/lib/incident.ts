@@ -274,7 +274,7 @@ export function buildIncident(input: IncidentInput): Incident {
           : !cause.needsDrone
             ? `No inspection needed. ${cause.says} Imaging would confirm what the `
               + 'telemetry and the site record already establish.'
-            : `Telemetry alone cannot say WHY ${panelId} is down — soiling, shading and a `
+            : `Telemetry alone cannot say WHY ${panelId} is down: soiling, shading and a `
               + 'cracked cell look alike from here. Physical verification is needed.',
     basis: inspected && (hasCapturedEvidence(panelId) || liveDetection)
       ? 'measured' : 'modelled',
@@ -357,11 +357,12 @@ export function buildIncident(input: IncidentInput): Incident {
           ? `It is #1 of the site's open work by loss, severity and how little time is left.`
           : `${panelId} is #${queueRank} in the queue; higher-ranked work is costing more per hour.`)
       : deviating
-        ? `${cause.action} It cannot be ranked against the rest — no deadline or access `
-          + 'cost is on file for this array — so it is reported rather than dropped.'
+        ? `${cause.action} It cannot be ranked against the rest, because no `
+          + 'deadline or access cost is on file for this array, so it is reported '
+          + 'rather than dropped.'
         : undefined,
     basis: 'derived',
-    source: 'priorityScore() — loss × severity × urgency ÷ access. A pure function, shown on the Repairs screen.',
+    source: 'priorityScore(): loss × severity × urgency ÷ access. A pure function, shown on the Repairs screen.',
     at: openedAt ?? undefined,
   });
 
@@ -373,12 +374,12 @@ export function buildIncident(input: IncidentInput): Incident {
     says: workOrderAt !== null
       ? `Work order raised at ${at(workOrderAt)}. A crew is assigned to ${panelId}.`
       : override
-        ? `Declined at ${at(override.at)} — ${override.reason}. No work order was raised.`
+        ? `Declined at ${at(override.at)}: ${override.reason}. No work order was raised.`
         : deviating
           ? 'Waiting for an operator. Nothing is scheduled until a person approves it.'
           : undefined,
     basis: 'operator',
-    source: 'the approval gate — the agent raises no work order on its own',
+    source: 'the approval gate: the agent raises no work order on its own',
     at: workOrderAt ?? override?.at ?? undefined,
   });
 

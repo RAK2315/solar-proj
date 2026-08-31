@@ -134,7 +134,7 @@ export function TimeControl() {
         className="btn-reset t-micro"
         onClick={() => setSiteSeconds(0)}
         aria-label="Return the site clock to the start of the scenario"
-        title="Back to the start of the day — missions and work orders are kept"
+        title="Back to the start of the day, missions and work orders are kept"
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
           padding: '6px var(--sp-3)',

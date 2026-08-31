@@ -157,7 +157,7 @@ export function Dossier() {
         <div className="dossier-body">
           {/* THE ARGUMENT, down the left. A reader who has never seen this product
               needs to know what is being claimed and on what basis before they are
-              shown a thermal grid — otherwise the grid is a pretty rectangle. It
+              shown a thermal grid, otherwise the grid is a pretty rectangle. It
               was a full-width band above the material, which on a laptop pushed
               the captured frames below the fold: the operator had to scroll to
               reach the photograph the drone was sent for. */}
@@ -179,7 +179,7 @@ export function Dossier() {
             {/* THE DETECTOR, RUN HERE. Not gated on captured evidence: it takes
                 the drone's CURRENT camera frame out of the 3D scene, so it works
                 for any array the aircraft is looking at. What it must never do is
-                draw a box it did not get from the model — see LiveDetection. */}
+                draw a box it did not get from the model, see LiveDetection. */}
             <Section title="Run the detector now" note="live, in this browser">
               <LiveDetection />
             </Section>
@@ -191,7 +191,7 @@ export function Dossier() {
             )}
 
             {/* One sentence where the imagery would have been. Absent means absent
-                — no placeholder grid, no skeleton, no greyed-out frames. */}
+               , no placeholder grid, no skeleton, no greyed-out frames. */}
             {!captured && (
               <Section title="Captured evidence">
                 <p className="t-prose" style={{

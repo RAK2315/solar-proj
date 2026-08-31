@@ -59,6 +59,19 @@ export function liveEvents(
   siteSeconds: number,
   missions: Mission[],
   injected: readonly ScenarioEvent[] = [],
+  /**
+   * Arrays an operator has already raised a work order on.
+   *
+   * Their alarms leave the feed. An alarm is a request for a decision, and once
+   * the decision is made it is answered: the array reads SCHEDULED on the map,
+   * the order is on the Repairs screen, and the footer counts it. Leaving four
+   * red cards about B-17 at the top of the rail after approving B-17 makes the
+   * feed look like the approval did nothing.
+   *
+   * One line replaces them, so the thread ends where a reader can see it end
+   * rather than simply vanishing.
+   */
+  scheduled: ReadonlySet<string> = new Set(),
 ): DemoEvent[] {
   const out: DemoEvent[] = [];
 
@@ -90,7 +103,7 @@ export function liveEvents(
 
     if (siteSeconds >= crossedWarning) {
       out.push(ev(`live-${event.id}-warn`, crossedWarning, source, 'warning',
-        `OUTPUT DEVIATION — ${event.panelId}`,
+        `OUTPUT DEVIATION · ${event.panelId}`,
         `${event.panelId} is ${Math.abs(reading.deviationPct).toFixed(1)}% below expected `
         + `at ${frame.irradiance.toFixed(0)} W/m².${provenance}`,
         event.panelId));
@@ -101,7 +114,7 @@ export function liveEvents(
     // asserting a severity the physics never produced.
     if (siteSeconds >= crossedCritical && progress > 0.4 && reading.status === 'critical') {
       out.push(ev(`live-${event.id}-crit`, crossedCritical, source, 'critical',
-        `CRITICAL SHORTFALL — ${event.panelId}`,
+        `CRITICAL SHORTFALL · ${event.panelId}`,
         'Telemetry cannot separate soiling from physical damage. '
         + 'Physical verification required.',
         event.panelId));
@@ -112,13 +125,13 @@ export function liveEvents(
   for (const m of missions) {
     const phase = missionPhaseAt(m, siteSeconds);
     out.push(ev(`${m.id}-dispatch`, m.startedAt, m.droneId, 'active',
-      `${m.droneId} DISPATCHED — ${m.panelId}`,
+      `${m.droneId} DISPATCHED, ${m.panelId}`,
       `Operator dispatched ${m.droneId} to ${m.panelId}. Battery 88%.`,
       m.panelId));
 
     if (phase === 'inspecting' || phase === 'returning' || phase === 'complete') {
       out.push(ev(`${m.id}-lock`, m.startedAt + MISSION.outbound, m.droneId, 'active',
-        `TARGET LOCK — ${m.panelId}`,
+        `TARGET LOCK · ${m.panelId}`,
         `${m.droneId} on station. RGB and thermal passes starting.`,
         m.panelId));
     }
@@ -127,7 +140,7 @@ export function liveEvents(
       out.push(ev(`${m.id}-evidence`,
         m.startedAt + MISSION.outbound + MISSION.inspecting,
         m.droneId, 'warning',
-        `EVIDENCE UPLINKED — ${m.panelId}`,
+        `EVIDENCE UPLINKED · ${m.panelId}`,
         'RGB, thermal and inverter acoustic captured. Returning to pad.',
         m.panelId));
 
@@ -145,8 +158,8 @@ export function liveEvents(
         // The title has to be true of the array too. "THERMAL FINDING" over
         // "no thermal capture is held" is the heading arguing with the body.
         hasCapturedEvidence(m.panelId)
-          ? `THERMAL FINDING — ${m.panelId}`
-          : `INSPECTION RESULT — ${m.panelId}`,
+          ? `THERMAL FINDING · ${m.panelId}`
+          : `INSPECTION RESULT · ${m.panelId}`,
         hasCapturedEvidence(m.panelId)
           ? `Thermal: ${cellGrid.defects.length} cells hot in row `
             + `${cellGrid.defects[0]?.row ?? 2}, ${hotBand(cellGrid)} above the array `
@@ -157,11 +170,21 @@ export function liveEvents(
     }
   }
 
-  // No work orders. Approving one is the operator's own decision, already on
-  // screen in three places — the footer counts them, the array turns SCHEDULED,
-  // Repairs lists them. This feed is for what happened TO the site.
+  // The approved arrays, collapsed to one line each. The events themselves are
+  // dropped below; this is what is left of the thread.
+  for (const panelId of scheduled) {
+    out.push(ev(`scheduled-${panelId}`, siteSeconds, `PANEL ${panelId}`, 'info',
+      `SCHEDULED · ${panelId}`,
+      `An operator approved the work on ${panelId}. Its alarms are answered and `
+      + 'have left this feed; the job is on the Repairs screen.',
+      panelId));
+  }
 
   return out
     .filter((e) => e.t <= siteSeconds)
+    // An array with a work order keeps only its SCHEDULED line.
+    .filter((e) => !e.linkedPanelId
+      || !scheduled.has(e.linkedPanelId)
+      || e.id.startsWith('scheduled-'))
     .sort((a, b) => b.t - a.t);
 }

@@ -92,14 +92,14 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
           AGENT UNAVAILABLE
         </span>
         <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
-          No reasoning for {panelId}. Everything else on this screen is unaffected —
+          No reasoning for {panelId}. Everything else on this screen is unaffected:
           the readings come from the site model, not from the agent.
         </span>
         <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           {entry.reason}
         </span>
         {/* Without this, one flaky moment made an array's agent unavailable until
-            it was deselected and reselected — a recovery nobody finds under
+            it was deselected and reselected, a recovery nobody finds under
             pressure, and the exact situation a venue's wifi creates. */}
         <button
           type="button"

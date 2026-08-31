@@ -139,7 +139,7 @@ export const useTriage = create<TriageState>((set, get) => ({
               status: 'unavailable',
               condition,
               reason: limited
-                ? 'Rate limited by the model provider — the site clock is running '
+                ? 'Rate limited by the model provider, the site clock is running '
                   + 'fast, so statuses are changing faster than the agent can be '
                   + 'asked about them. Slow the clock or press TRY AGAIN.'
                 : json?.reason ?? `agent returned ${res.status}`,
@@ -172,7 +172,7 @@ export const useTriage = create<TriageState>((set, get) => ({
             status: 'unavailable',
             condition,
             reason: timedOut
-              ? `No answer within ${AGENT_TIMEOUT_MS / 1000}s — the network is up but the agent is not responding.`
+              ? `No answer within ${AGENT_TIMEOUT_MS / 1000}s, the network is up but the agent is not responding.`
               : err instanceof Error ? err.message : 'network unreachable',
           },
         },

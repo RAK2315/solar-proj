@@ -129,7 +129,7 @@ describe('t = 80 — recommendation (§2 row 10)', () => {
 
   it('arms the human gate but has not fired it', () => {
     const text = textAt(80);
-    expect(text).toContain('APPROVE — CREATE WORK ORDER');
+    expect(text).toContain('APPROVE · CREATE WORK ORDER');
     expect(text).not.toContain('WORK ORDER #INC-B17 CREATED');
   });
 

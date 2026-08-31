@@ -34,7 +34,7 @@ import {
 const CAUSE_LABEL: Record<string, string> = {
   crack: 'inspect + replace module',
   soiling: 'wash crew',
-  shading: 'no repair — geometry',
+  shading: 'no repair, geometry',
   unexplained: 'inspect',
   none: '—',
 };
@@ -179,7 +179,7 @@ export function DayPlan({ plan, savedByOneMoreCrew, tariff, lossPerDayMWh }: {
           <strong style={{ color: 'var(--sev-critical-ink)' }}>
             {plan.slipping.length} of {plan.jobs.length} jobs
           </strong>{' '}
-          finish after their deadline — {plan.slipping.map((j) => j.panelId).join(', ')}. They
+          finish after their deadline, {plan.slipping.map((j) => j.panelId).join(', ')}. They
           are not late because they are unimportant; they are late because higher-ranked work
           has both crews.
           {savedByOneMoreCrew > 0 && (
@@ -227,7 +227,7 @@ export function DayPlan({ plan, savedByOneMoreCrew, tariff, lossPerDayMWh }: {
           on site: module replacement {hours(REPAIR_HOURS.crack)} · wash {hours(REPAIR_HOURS.soiling)}
         </span>
         <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
-          declared site facts, not derived — change them and the plan changes
+          declared site facts, not derived; change them and the plan changes
         </span>
       </div>
     </div>

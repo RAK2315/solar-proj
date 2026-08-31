@@ -67,7 +67,7 @@ export function RepairQueueBar() {
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>·</span>
       <span className="t-data" style={{ color: 'var(--text-primary)' }}>
         {pending} {mode === 'live'
-          ? `approved${pending === 0 ? ' — nothing dispatched yet' : ''}`
+          ? `approved${pending === 0 ? ', nothing dispatched yet' : ''}`
           : (pending === 1 ? 'task' : 'tasks')}
       </span>
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>·</span>
@@ -101,7 +101,7 @@ export function RepairQueueBar() {
         disabled={mode === 'demo'}
         onClick={() => setModule('repairs')}
         aria-label={mode === 'demo'
-          ? 'View queue — unavailable while the scripted demo is playing'
+          ? 'View queue, unavailable while the scripted demo is playing'
           : 'View the repair queue'}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,

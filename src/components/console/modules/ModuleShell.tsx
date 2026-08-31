@@ -75,7 +75,7 @@ export function ModuleShell({ title, subtitle, purpose, action, children }: {
           and painted straight over the block beneath. Two blocks with very
           different content came out identical heights, which is the tell.
 
-          A flex column has no row-sizing step to get wrong — each child takes its
+          A flex column has no row-sizing step to get wrong, each child takes its
           content height and the next one starts below it. `flex-shrink: 0` is the
           load-bearing half: without it an overflowing column squeezes its
           children instead of scrolling, which is the same bug wearing a hat. */}

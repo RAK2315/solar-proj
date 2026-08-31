@@ -68,7 +68,7 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
           as a bug: an operator clicks through four arrays, sees the same curve, and
           concludes it is stuck. It is the site's weather. Say that on the chart. */}
       <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-        Site ambient forecast — the same curve for every array.
+        Site ambient forecast, the same curve for every array.
         {showRisk
           ? ` Risk, deadline and projected loss below are computed for ${panelId}.`
           : ` Projected loss below is computed for ${panelId}.`}
@@ -144,7 +144,7 @@ export function ForecastBand({ showRisk = true }: { showRisk?: boolean }) {
           <>
             <span style={{ color: 'var(--text-secondary)' }}>Projected loss</span>
             <span className="t-data-em" style={{ color: 'var(--text-secondary)' }}>
-              none — {panelId} is not deviating
+              none · {panelId} is not deviating
             </span>
           </>
         )}

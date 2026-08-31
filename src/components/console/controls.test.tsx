@@ -89,16 +89,16 @@ describe('OVERRIDE — the other half of the gate', () => {
   it('records the operator’s decision with its reason', () => {
     inspected();
     const select = screen.getByLabelText(/Override/);
-    fireEvent.change(select, { target: { value: 'accepted risk — scheduled at next outage' } });
+    fireEvent.change(select, { target: { value: 'accepted risk, scheduled at next outage' } });
 
     const [o] = useSession.getState().overrides;
     expect(o.panelId).toBe('A-03');
-    expect(o.reason).toBe('accepted risk — scheduled at next outage');
+    expect(o.reason).toBe('accepted risk, scheduled at next outage');
   });
 
   it('says so on screen, and can be undone', () => {
     inspected();
-    useSession.getState().overrideRecommendation('A-03', 'false positive — array inspected manually');
+    useSession.getState().overrideRecommendation('A-03', 'false positive, array inspected manually');
     cleanup();
     const { container } = render(<ConsoleRoot />);
 
@@ -109,7 +109,7 @@ describe('OVERRIDE — the other half of the gate', () => {
 
   it('raises no work order — declining is not approving', () => {
     inspected();
-    useSession.getState().overrideRecommendation('A-03', 'deferred — crew already on site next cycle');
+    useSession.getState().overrideRecommendation('A-03', 'deferred, crew already on site next cycle');
     expect(useSession.getState().workOrders).toHaveLength(0);
   });
 });
@@ -119,7 +119,7 @@ describe('QUEUED is a status, not a control', () => {
     inspected();
     expect(document.body.textContent).toContain('NOT QUEUED');
 
-    fireEvent.click(screen.getByRole('button', { name: /APPROVE — CREATE WORK ORDER/ }));
+    fireEvent.click(screen.getByRole('button', { name: /APPROVE · CREATE WORK ORDER/ }));
     expect(document.body.textContent).toContain('✓ QUEUED');
   });
 });
@@ -135,7 +135,7 @@ describe('VIEW QUEUE → goes to the queue', () => {
     useSession.setState({ mode: 'demo' });
     useDemoClock.setState({ t: 80 });
     render(<ConsoleRoot />);
-    const btn = screen.getByRole('button', { name: /View queue — unavailable/ });
+    const btn = screen.getByRole('button', { name: /View queue, unavailable/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 });

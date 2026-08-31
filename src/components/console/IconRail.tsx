@@ -63,7 +63,7 @@ export function IconRail() {
             className="btn-reset"
             aria-current={active ? 'page' : undefined}
             aria-label={disabled
-              ? `${label} — unavailable while the scripted demo is playing`
+              ? `${label}, unavailable while the scripted demo is playing`
               : label}
             disabled={disabled}
             onClick={() => setModule(id)}

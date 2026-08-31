@@ -217,7 +217,7 @@ def build_forecast() -> dict:
         'points': points,
         'peakAmbientC': round(peak, 1),
         'clearHours': P.FORECAST_HOURS,
-        'summary': '72H CLEAR — DELAY IS COSTLY',
+        'summary': '72H CLEAR · DELAY IS COSTLY',
         'projected72hLossMWh': round(loss_kwh / 1000.0, 2),
         'actBefore': act_before,
     }, loss_kwh

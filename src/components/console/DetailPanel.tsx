@@ -213,14 +213,14 @@ export function DetailPanel() {
             )}
 
             {/* CLOSE. The panel is a box that opens on a question and should shut
-                when the question is answered — without it the only way back to a
+                when the question is answered, without it the only way back to a
                 clear map was to reload. `Esc` does the same thing.
 
                 In the row rather than pinned to the corner: absolutely positioned
                 it sat straight on top of the status chip, and "CRITICAL" and the
                 close control rendered as one unreadable smear.
 
-                Live mode only — the scripted demo needs the panel up for its beats
+                Live mode only, the scripted demo needs the panel up for its beats
                 and has no operator to close it. */}
             {mode === 'live' && (
               <button
@@ -281,15 +281,15 @@ export function DetailPanel() {
 
         {/* ── 2. ASSESSMENT ────────────────────────────────────────────────── */}
         {/* The rail carries the TRIAGE verdict and nothing deeper. §2 has that card
-            streaming into the console at t=10, so it cannot simply move out — but
+            streaming into the console at t=10, so it cannot simply move out, but
             three stacked prose stages in a 448px column were a third of the density
             problem on their own. Prognosis and recommendation are read in the
             dossier, where there is room for them. */}
         {/* THE HEADING IS DELIBERATELY MODEST. "Agent assessment" put the language
             model's box where the reader's eye lands and let it stand for the whole
             system, which is backwards: the physics computes, the model narrates.
-            Naming it for what it does — and stating in the note that it explains
-            figures it was handed rather than producing them — is both more honest
+            Naming it for what it does, and stating in the note that it explains
+            figures it was handed rather than producing them, is both more honest
             and, in front of somebody deciding whether to believe any of this,
             considerably more persuasive. */}
         {mode === 'demo' && agent && triaged && (
@@ -321,8 +321,8 @@ export function DetailPanel() {
 
             {/* THE CONTROL IS NO LONGER GATED ON IMAGERY. The dossier used to be
                 the imagery viewer, so opening it without a capture would have been
-                opening an empty box. It is the INCIDENT FILE now — the evidence
-                chain inside it is derivable for all 120 arrays — and gating the
+                opening an empty box. It is the INCIDENT FILE now, the evidence
+                chain inside it is derivable for all 120 arrays, and gating the
                 product's central argument on the one array that happens to have a
                 photograph would have hidden it from 119 of them.
 
@@ -356,12 +356,12 @@ export function DetailPanel() {
 
             {/* An array we hold no imagery for gets one sentence at the point where
                 the imagery would have been, rather than a header explaining an
-                absence. Absent means absent — never a placeholder, never a skeleton. */}
+                absence. Absent means absent, never a placeholder, never a skeleton. */}
             {thermal && !captured && (
               <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
                 No cell-level capture on file for {panelId}. The committed imagery in
                 this build covers B-17 only, so there is nothing measured to localise
-                here — the telemetry and the assessment above are computed for{' '}
+                here, the telemetry and the assessment above are computed for{' '}
                 {panelId} specifically and are unaffected.
               </p>
             )}
@@ -376,7 +376,7 @@ export function DetailPanel() {
 
         {/* ── 4. OUTLOOK ───────────────────────────────────────────────────── */}
         {/* The weather is the site's, so the band is shown for any array. The RISK
-            badge and the deadline are NOT the site's — they are the prognosis for
+            badge and the deadline are NOT the site's, they are the prognosis for
             the cracked cell, computed from its own thermal dose. */}
         {prognosed && (
           <Group title="Outlook" note="72 h forecast · cost of waiting">

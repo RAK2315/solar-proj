@@ -42,7 +42,7 @@ export function viewAt(t: number): DemoView {
 export interface DemoClockState {
   t: number;
   playing: boolean;
-  speed: number;               // 0.5 | 1 | 2 — rehearsal only
+  speed: number;               // 0.5 | 1 | 2, rehearsal only
   approved: boolean;           // the human gate at t≈84
 
   /**

@@ -20,7 +20,7 @@ export function StatusPill() {
         display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
         background: 'color-mix(in srgb, var(--surface-panel) 92%, transparent)',
         border: '1px solid var(--line-hairline)',
-        borderRadius: 999,          // the ONE rounded thing in the app — it is a pill
+        borderRadius: 999,          // the ONE rounded thing in the app, it is a pill
         padding: 'var(--sp-3) var(--sp-5)',
       }}
     >

@@ -96,7 +96,9 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 'var(--sp-2)',
         }}>
-          <span className="t-h2" style={{ color: quiet ? 'var(--text-secondary)' : colour }}>
+          {/* t-h1 rather than t-h2. This column IS the argument, and at 11px
+              beside a 13px body it read as a caption on the paragraph under it. */}
+          <span className="t-h1" style={{ color: quiet ? 'var(--text-secondary)' : colour }}>
             {step.label}
           </span>
           {!quiet && <BasisBadge step={step} />}
@@ -105,7 +107,7 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
         {/* Absent means absent. A pending step is a label and a dim marker. */}
         {step.says && (
           <p className="t-prose" style={{
-            color: 'var(--text-primary)', margin: 0, fontSize: 13, lineHeight: 1.5,
+            color: 'var(--text-primary)', margin: 0, fontSize: 15, lineHeight: 1.55,
           }}>
             {step.says}
           </p>
@@ -115,7 +117,7 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
             reasoning and they were invisible: a console that only ever states its
             conclusion is asking to be trusted, while one that shows what it
             considered and discarded is showing its work. This is also the only
-            place the site GEOMETRY reaches the argument — row shading is ruled in
+            place the site GEOMETRY reaches the argument, row shading is ruled in
             or out by the sun's height against the row pitch and tilt, which is a
             question a flat map cannot answer. */}
         {step.ruledOut && step.ruledOut.length > 0 && (
@@ -126,9 +128,9 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
             {step.ruledOut.map((r) => (
               <li
                 key={r.cause}
-                className="t-micro"
+                className="t-data"
                 style={{
-                  color: 'var(--text-secondary)',
+                  color: 'var(--text-secondary)', fontSize: 13,
                   display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6,
                   alignItems: 'baseline',
                 }}
@@ -136,7 +138,7 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
                 <span style={{ color: 'var(--text-muted)' }} aria-hidden>✕</span>
                 <span>
                   <span style={{ color: 'var(--text-primary)' }}>{r.cause}</span>
-                  {' — '}
+                  {': '}
                   {r.because}
                 </span>
               </li>
@@ -148,7 +150,10 @@ function Step({ step, last }: { step: ChainStep; last: boolean }) {
             than take the console's word. This is the sentence that turns a
             dashboard into evidence. */}
         {step.says && step.source && (
-          <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
+          <span
+            className="t-micro workings"
+            style={{ color: 'var(--text-secondary)', fontSize: 12 }}
+          >
             {step.source}
           </span>
         )}

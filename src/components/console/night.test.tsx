@@ -54,7 +54,7 @@ describe('the console knows the difference between fine and unobservable', () =>
 
   it('withholds the deviation rather than printing 0.0 % of nothing', () => {
     const night = text(NIGHT, 'C-29');
-    expect(night).toContain('No generation — after sunset');
+    expect(night).toContain('No generation · after sunset');
     expect(night).not.toContain('Array deviation');
     expect(night).not.toContain('0.00 kW');
   });
@@ -62,7 +62,7 @@ describe('the console knows the difference between fine and unobservable', () =>
   it('shows all of it again once the sun is up', () => {
     const noon = text(NOON, 'C-29');
     expect(noon).toContain('Array deviation');
-    expect(noon).not.toContain('No generation — after sunset');
+    expect(noon).not.toContain('No generation · after sunset');
   });
 
   it('does not call a cracked array healthy just because it is dark', () => {
@@ -82,7 +82,7 @@ describe('projected loss belongs to the array it was computed for', () => {
     // array has to be inspected before the claim can be made at all.
     useSession.getState().dispatch('C-29');
     const out = text(MISSION_TOTAL + 60, 'C-29');
-    expect(out).toContain('none — C-29 is not deviating');
+    expect(out).toContain('none · C-29 is not deviating');
     expect(out).not.toContain('3.07 MWh');
   });
 

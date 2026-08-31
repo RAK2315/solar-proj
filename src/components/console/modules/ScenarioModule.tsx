@@ -93,7 +93,7 @@ export function ScenarioModule() {
               padding: 'var(--sp-3) var(--sp-4)',
             }}
           >
-            SEED A SPREAD — 3 FAULTS
+            SEED A SPREAD · 3 FAULTS
           </button>
           {injected.length > 0 && (
         <button
@@ -111,7 +111,7 @@ export function ScenarioModule() {
         </>
       )}
     >
-      <Block title="Inject a fault" note="writes a scenario event — never a reading">
+      <Block title="Inject a fault" note="writes a scenario event, never a reading">
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1.6fr auto',
           gap: 'var(--sp-3)', alignItems: 'end',
@@ -129,7 +129,7 @@ export function ScenarioModule() {
             >
               {allPanels.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.id}{taken.has(p.id) ? ' — injected' : ''}
+                  {p.id}{taken.has(p.id) ? ', injected' : ''}
                 </option>
               ))}
             </select>
@@ -138,7 +138,7 @@ export function ScenarioModule() {
           {/* SOMEWHERE ELSE. The picker defaults to the selected array, so
               pressing INJECT a few times in a row put every fault on the same
               handful and the site stopped looking like a site. This walks the
-              whole block on a coprime stride — deterministic, so the third press
+              whole block on a coprime stride, deterministic, so the third press
               always lands where the third press landed, and reproducible for a
               judge who re-runs the demo, but far enough each step that it reads
               as arbitrary. `Math.random()` is banned here for exactly that
@@ -207,7 +207,7 @@ export function ScenarioModule() {
         {alreadyFaulted && (
           <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
             {panelId} already carries a fault or soiling from the committed site record.
-            One fault per array — the site&rsquo;s own history is not overwritable from a form.
+            One fault per array, the site&rsquo;s own history is not overwritable from a form.
           </p>
         )}
       </Block>
@@ -250,7 +250,7 @@ export function ScenarioModule() {
         )}
       </Block>
 
-      <Block title="Committed scenario" wide note="data/scenario.json — not editable here">
+      <Block title="Committed scenario" wide note="data/scenario.json, not editable here">
         <Table head={['array', 'status now', 'output', 'expected', 'deviation']}>
           {allPanels
             .filter((p) => (frame.panels[p.id]?.status ?? 'healthy') !== 'healthy')

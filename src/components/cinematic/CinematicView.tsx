@@ -50,7 +50,7 @@ export function CinematicView() {
       <PanelLabels />
       <TargetReticle />
       {/* The detector, run over the drone's own camera while it is on station.
-          Renders nothing at all until an ONNX export exists — see LiveReticle. */}
+          Renders nothing at all until an ONNX export exists, see LiveReticle. */}
       <LiveReticle />
       {/* Live mode only: the scripted demo runs on its own clock and a speed
           control there would be a second answer to "what time is it". */}

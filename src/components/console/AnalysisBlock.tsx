@@ -41,8 +41,8 @@ function Hero({ label, value, unit, colour, note, plain }: {
     <div style={{ display: 'grid', gap: 'var(--sp-2)', minWidth: 0, color: colour }}>
       <span className="t-label" style={{ color: 'var(--text-secondary)' }}>{label}</span>
       {/* The unit is NESTED, with the separating space inside it, so the rendered
-          text is still "−41.7 %" — one string an operator (and the acceptance test)
-          reads as a quantity — while the glyphs take two different sizes. Two
+          text is still "−41.7 %", one string an operator (and the acceptance test)
+          reads as a quantity, while the glyphs take two different sizes. Two
           sibling spans with a flex gap would drop the space from the text. */}
       <span className="t-kpi" style={{ color: 'currentColor' }}>
         {value}
@@ -133,11 +133,11 @@ export function AnalysisBlock() {
       {/* After sunset actual and expected are both zero, the deviation formula
           floors to 0.0 %, and every array on the site reads clean. Printing those
           rows anyway is how a console tells an operator that a cracked array is
-          fine — so at night the deviation is declared unobservable instead. */}
+          fine, so at night the deviation is declared unobservable instead. */}
       {dark ? (
         <div className="keyed" style={{ color: 'var(--sev-warning)' }}>
           <span className="t-h2" style={{ color: 'var(--sev-warning-ink)' }}>
-            No generation — after sunset
+            No generation · after sunset
           </span>
           <p className="t-prose" style={{
             color: 'var(--text-secondary)', margin: 0, fontSize: 12, lineHeight: 1.5,

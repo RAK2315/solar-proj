@@ -76,7 +76,7 @@ export function TargetReticle() {
   // pixels: the live box states it in the frame, and the incident file states
   // the committed one beside the photograph it was measured on. The tab's job
   // is to say WHAT the camera is pointing at and HOW FAR OFF it is running.
-  const label = `${cue.targetId}${cue.cracked ? ' · B2-07' : ''} — `
+  const label = `${cue.targetId}${cue.cracked ? ' · B2-07' : ''} · `
     + `RGB + thermal pass · ${pct(reading?.deviationPct ?? 0)} vs expected`;
 
   return (

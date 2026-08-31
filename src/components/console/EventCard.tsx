@@ -79,7 +79,7 @@ export function EventCard({ event }: { event: DemoEvent }) {
       transition={{ duration: 0.12, ease: 'easeOut' }}
       role={linked ? 'button' : undefined}
       tabIndex={linked ? 0 : undefined}
-      aria-label={linked ? `Inspect ${linked} — ${event.title}` : undefined}
+      aria-label={linked ? `Inspect ${linked}, ${event.title}` : undefined}
       onClick={linked ? () => selectPanel(linked) : undefined}
       onKeyDown={linked
         ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPanel(linked); } }

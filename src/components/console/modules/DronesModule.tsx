@@ -240,7 +240,7 @@ export function DronesModule() {
           paddingLeft: '1.1em', listStyle: 'disc', margin: 0,
         }}>
           <li>Two aircraft on site. A third dispatch is refused rather than queued.</li>
-          <li>One mission per array — a second drone to the same target is an operator
+          <li>One mission per array, a second drone to the same target is an operator
             slip, not a capability.</li>
           <li>
             An inspection is {mins(MISSION_TOTAL)} minutes of site time:{' '}

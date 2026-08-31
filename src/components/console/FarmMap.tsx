@@ -101,7 +101,7 @@ function PanelCell({
           fill="none" stroke="var(--text-primary)" strokeWidth={1.5}
         />
       )}
-      <title>{`${panel.id} — ${status}`}</title>
+      <title>{`${panel.id} · ${status}`}</title>
     </g>
   );
 }
@@ -275,7 +275,7 @@ export function FarmMap() {
             {farm.tilt}° / {farm.azimuth}° · {mode === 'live' ? frame.clock : 'REPLAY'}
           </span>
           {/* The five module screens each say what they are FOR. This one did not,
-              and it is the screen everybody meets first — the identity line above
+              and it is the screen everybody meets first, the identity line above
               says where the site is, which is not the same as saying what you are
               looking at or what to do with it.
 
@@ -370,7 +370,7 @@ export function FarmMap() {
         ))}
 
         {/* LIVE routes: one per airborne mission, drawn to the array the operator
-            actually dispatched to. Same geometry as the scripted route — the demo
+            actually dispatched to. Same geometry as the scripted route, the demo
             is just the case where the target happens to be B-17. */}
         {mode === 'live' && missions.map((m, i) => {
           const r = routeTo(m.panelId, i);

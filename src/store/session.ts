@@ -88,32 +88,32 @@ export interface Override {
 /** The mechanisms an operator can inject. Each maps to a physics configuration. */
 export const INJECTABLE = {
   'crack-early': {
-    label: 'Hairline crack — 2 strings',
+    label: 'Hairline crack, 2 strings',
     faultedStrings: 2,
     terminalMismatch: 0.68,
     rampMinutes: 4,
     mechanism: 'early hairline crack, two strings bypassed',
   },
   'crack-established': {
-    label: 'Established crack — 5 strings',
+    label: 'Established crack, 5 strings',
     faultedStrings: 5,
     terminalMismatch: 0.416,
     rampMinutes: 3,
     mechanism: 'cracked cell driving its bypass diode into conduction',
   },
   'crack-advanced': {
-    label: 'Advanced crack — 6 strings',
+    label: 'Advanced crack, 6 strings',
     faultedStrings: 6,
     terminalMismatch: 0.34,
     rampMinutes: 6,
     mechanism: 'advanced crack propagation, six strings bypassed',
   },
   'string-outage': {
-    label: 'String outage — 1 string open',
+    label: 'String outage, 1 string open',
     faultedStrings: 1,
     terminalMismatch: 0.0,
     rampMinutes: 1,
-    mechanism: 'string disconnected at the combiner — open circuit',
+    mechanism: 'string disconnected at the combiner, open circuit',
   },
 } as const;
 

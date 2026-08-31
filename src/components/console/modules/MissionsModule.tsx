@@ -127,7 +127,7 @@ export function MissionsModule() {
     <ModuleShell
       title="Missions"
       purpose={`
-        Every inspection flown this session, and what came back — the record that
+        Every inspection flown this session, and what came back, the record that
         shows the agent acted rather than just reported.
       `}
       subtitle={`${flown} flown // ${airborne} in progress // every dispatch this session, and what came back // site clock ${frame.clock}`}
@@ -173,7 +173,7 @@ export function MissionsModule() {
           </Empty>
         ) : rows.length === 0 ? (
           <Empty>
-            Every mission this session has landed. {flown} in the log — clear the
+            Every mission this session has landed. {flown} in the log, clear the
             filter to read them.
           </Empty>
         ) : (
@@ -220,7 +220,7 @@ export function MissionsModule() {
         <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
           {([
             ['Outbound transit', MISSION.outbound],
-            ['On station — RGB, thermal, acoustic', MISSION.inspecting],
+            ['On station, RGB, thermal, acoustic', MISSION.inspecting],
             ['Return to pad', MISSION.returning],
           ] as const).map(([label, seconds]) => (
             <div key={label} style={{
@@ -243,7 +243,7 @@ export function MissionsModule() {
           ))}
         </div>
         <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          Evidence becomes available at the end of the on-station leg — that is the
+          Evidence becomes available at the end of the on-station leg, that is the
           moment the approval gate arms, and it is why an array cannot be approved
           before it has actually been looked at.
         </p>

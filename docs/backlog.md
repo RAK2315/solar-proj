@@ -329,6 +329,20 @@ Also noticed, not a code bug: **the agent reads AGENT UNAVAILABLE locally** beca
 `GROQ_API_KEY` is unset on this machine. The panel degrades correctly and says so.
 It is already a standing operator item below.
 
+## 6f. Asked for, not built
+
+- [ ] **A repair has no completion step.** Approving work sets the array to
+  `scheduled` and it stays there for the rest of the session: nothing marks a job
+  done, so the teal box on the map never clears and the queue never shrinks by
+  completion, only by approval. Asked directly on 31 Aug ("when it is fixed, does
+  it clear the green box on the grid?") and the honest answer is no. It wants a
+  `completeWorkOrder(panelId)` on the session, a control on the Repairs screen,
+  and a decision about what the array's status becomes - `healthy` is a claim the
+  physics would immediately contradict while the scenario fault is still running,
+  so the fault itself has to be retired with it.
+
+---
+
 ---
 
 ## 7. Deliberately out of scope

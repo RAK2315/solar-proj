@@ -268,7 +268,7 @@ export function diagnose(input: CauseInput): Cause {
       says: `${panelId} is down evenly across every string with no thermal rise. That is the `
         + 'signature of dirt: less light reaching the cells, so less power and less heat.',
       // THE REFUSAL. An agent that always sends the drone has decided nothing.
-      action: `Book the wash crew for ${panelId}. Do not fly a drone — imaging a dirty `
+      action: `Book the wash crew for ${panelId}. Do not fly a drone; imaging a dirty `
         + 'panel confirms it is dirty, which the telemetry already established.',
       needsDrone: false,
       ruledOut: [
@@ -281,7 +281,7 @@ export function diagnose(input: CauseInput): Cause {
   if (shadingPossible) {
     return {
       id: 'shading',
-      label: 'Row shading — geometry, not a fault',
+      label: 'Row shading: geometry, not a fault',
       says: `${panelId} is losing output to the row in front of it. At this hour the sun is `
         + `below ${shadingLimitDeg().toFixed(1)}°, which is where ${ROW_PITCH_M} m of row pitch `
         + `at ${farm.tilt}° tilt stops clearing the row behind.`,

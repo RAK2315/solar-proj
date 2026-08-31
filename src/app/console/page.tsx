@@ -46,7 +46,7 @@ export default function Page() {
         CENTRED BY ABSOLUTE POSITION, not by grid or flex alignment. An item WIDER
         than its container is the case those get wrong: `place-items: center` left
         the 1920 px box at x=0, the transform then scaled it about its own middle,
-        and the console started 204 px in and ran off the right edge — which is
+        and the console started 204 px in and ran off the right edge, which is
         very nearly the bug this was meant to fix. Half the container, minus half
         the element, is arithmetic that does not care whether it overflows. */}
     <div style={{

@@ -108,6 +108,40 @@ describe('a repeat run is visible as a repeat run', () => {
   });
 });
 
+describe('the panel shows the pass its best frame, not its last', () => {
+  /**
+   * A sortie runs the detector several times as the camera orbits, and the last
+   * sample is often the worst: the panel reported 0.27 from run 6 while run 3 of
+   * the same pass had returned 0.89 and was already filed by `better()`.
+   */
+  it('prefers the filed capture over a weaker later sample from the same pass', () => {
+    useDetector.setState({
+      runs: 6,
+      byPanel: { 'B-17': result({ run: 3, detections: [box(0.89)], panelId: 'B-17',
+        source: "the drone's camera over B-17" }) },
+      last: result({ run: 6, detections: [box(0.27)], panelId: 'B-17',
+        source: "the drone's camera over B-17" }),
+    });
+    const text = textOf();
+    expect(text).toContain('0.89');
+    expect(text).not.toContain('0.27');
+  });
+
+  // But a person pressing a button must see their own run, whatever it says.
+  it('still shows an operator run that found less than the pass did', () => {
+    useDetector.setState({
+      runs: 7,
+      byPanel: { 'B-17': result({ run: 3, detections: [box(0.89)], panelId: 'B-17',
+        source: "the drone's camera over B-17" }) },
+      last: result({ run: 7, detections: [box(0.31)], panelId: 'B-17',
+        source: 'the committed evidence photograph' }),
+    });
+    const text = textOf();
+    expect(text).toContain('0.31');
+    expect(text).toContain('the committed evidence photograph');
+  });
+});
+
 describe('the panel shows the run the operator last asked for', () => {
   it('prefers a run about this array over the flight capture it replaces', () => {
     useDetector.setState({

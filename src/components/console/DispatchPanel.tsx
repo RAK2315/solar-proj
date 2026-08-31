@@ -45,7 +45,7 @@ export function DispatchPanel() {
     return (
       <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
         <span className="t-data" style={{ color: 'var(--panel-scheduled)' }}>
-          ✓ {panelId} inspected — drone completed both passes
+          ✓ {panelId} inspected, drone completed both passes
         </span>
         {/* This line used to read "evidence captured" for every array, and then sat
             directly above a paragraph explaining that no capture exists. Two
@@ -55,7 +55,7 @@ export function DispatchPanel() {
         <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
           {captured
             ? 'Cell-level findings below are from that inspection.'
-            : `No committed imagery for ${panelId} in this build — see below.`}
+            : `No committed imagery for ${panelId} in this build; see below.`}
         </span>
       </div>
     );
@@ -114,7 +114,7 @@ export function DispatchPanel() {
     <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <p className="t-data" style={{ color: 'var(--text-secondary)', margin: 0 }}>
         {status === 'healthy'
-          ? `${panelId} is within tolerance. Telemetry cannot rule out early soiling or a hairline crack — only imaging can.`
+          ? `${panelId} is within tolerance. Telemetry cannot rule out early soiling or a hairline crack, only imaging can.`
           : wantsDrone
             ? `${panelId} is deviating and telemetry cannot say which module. Imaging can.`
             : cause.action}

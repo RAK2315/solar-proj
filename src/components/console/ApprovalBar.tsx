@@ -23,9 +23,9 @@ import { useSession } from '@/store/session';
 
 /** Why an operator declines. Fixed reasons, so the record is queryable later. */
 const OVERRIDE_REASONS = [
-  'deferred — crew already on site next cycle',
-  'false positive — array inspected manually',
-  'accepted risk — scheduled at next outage',
+  'deferred, crew already on site next cycle',
+  'false positive, array inspected manually',
+  'accepted risk, scheduled at next outage',
 ] as const;
 
 export function ApprovalBar() {
@@ -96,7 +96,7 @@ export function ApprovalBar() {
         {approved
           ? <CheckCircle2 size={17} strokeWidth={2.25} aria-hidden />
           : <ShieldCheck size={17} strokeWidth={2.25} aria-hidden />}
-        {approved ? `✓ WORK ORDER #${ref} CREATED` : `APPROVE — CREATE WORK ORDER → ${mode === 'live' ? panelId : ''}`}
+        {approved ? `✓ WORK ORDER #${ref} CREATED` : `APPROVE · CREATE WORK ORDER → ${mode === 'live' ? panelId : ''}`}
       </button>
 
       {/* These three were spans off the reference screenshot: they looked like
@@ -138,7 +138,7 @@ export function ApprovalBar() {
               background: 'var(--surface-high)', color: 'var(--text-secondary)',
             }}
           >
-            <span className="sr-only">Override — decline with a reason</span>
+            <span className="sr-only">Override: decline with a reason</span>
             <select
               className="btn-reset t-h2"
               value=""
@@ -171,7 +171,7 @@ export function ApprovalBar() {
         </span>
         <span className="t-micro" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
           {override
-            ? `Declined by operator — ${override.reason}.`
+            ? `Declined by operator: ${override.reason}.`
             : approved
               ? `${mode === 'demo' ? 'B-17' : panelId} scheduled. Autonomous up to this point; a person authorised the work.`
               : 'Nothing enters the work queue without operator approval.'}

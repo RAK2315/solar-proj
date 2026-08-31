@@ -100,7 +100,7 @@ export function RepairsModule() {
       title="Repairs"
       purpose={`
         What to fix first, and what taking them in that order does to the afternoon.
-        The order is arithmetic, not a model's opinion — every row below is the sum
+        The order is arithmetic, not a model's opinion, every row below is the sum
         that produced its own score, written out.
       `}
       subtitle={`${tasks.length} open // ${orders.length} approved // ranked by a pure function, not by a model // site clock ${frame.clock}`}
@@ -132,9 +132,9 @@ export function RepairsModule() {
         }}>
           {[
             ['LOSS', 'MWh this array fails to generate per day, from the model at the current site time'],
-            ['WEIGHT', 'how serious the fault is — critical 3.0, warning 1.5, active 1.0'],
+            ['WEIGHT', 'how serious the fault is, critical 3.0, warning 1.5, active 1.0'],
             ['URGENCY', '1 + 24 ÷ hours left, so a tightening deadline outweighs a bigger but distant loss'],
-            ['ACCESS', 'how hard the array is to reach — 1.0 is normal, higher is worse'],
+            ['ACCESS', 'how hard the array is to reach, 1.0 is normal, higher is worse'],
           ].map(([word, meaning]) => (
             <span key={word} style={{ display: 'grid', gap: 2 }}>
               <span className="t-label" style={{ color: 'var(--text-primary)' }}>{word}</span>
@@ -239,7 +239,7 @@ export function RepairsModule() {
       {/* THE PLAN, under the list that produced it.
           The ranked list says which job matters most, which an operator already
           suspected. The plan says what taking them in that order actually does to
-          the afternoon — and that is the part they cannot work out themselves.
+          the afternoon, and that is the part they cannot work out themselves.
           It used to come first, and a Gantt chart is the wrong thing to meet on a
           screen called Repairs before you have seen what is being repaired. */}
       {tasks.length > 0 && (
@@ -281,7 +281,7 @@ export function RepairsModule() {
               <span className="t-micro" style={{ color: 'var(--text-secondary)' }}> /kWh</span>
             </span>
             <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
-              we have no sourced tariff for this block — set your own and every rupee
+              we have no sourced tariff for this block, set your own and every rupee
               figure above moves
             </span>
           </label>

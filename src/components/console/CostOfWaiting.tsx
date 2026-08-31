@@ -52,7 +52,7 @@ function Bar({ outcome, worst, selected, onSelect }: {
       type="button"
       className="btn-reset"
       onClick={onSelect}
-      aria-label={`Repair ${outcome.label.toLowerCase()} — ${MWh(outcome.lostMWh)} lost`}
+      aria-label={`Repair ${outcome.label.toLowerCase()}, ${MWh(outcome.lostMWh)} lost`}
       aria-pressed={selected}
       style={{
         display: 'grid', gridTemplateColumns: '86px 1fr auto', alignItems: 'center',
@@ -121,7 +121,7 @@ export function CostOfWaiting({ outcomes, hoursUntilDeadline }: {
       }}>
         {selected.id === now.id ? (
           <>
-            Fixing it now still costs {MWh(selected.lostMWh)} — the energy already gone
+            Fixing it now still costs {MWh(selected.lostMWh)}, the energy already gone
             while a crew gets there.
           </>
         ) : (
@@ -146,7 +146,7 @@ export function CostOfWaiting({ outcomes, hoursUntilDeadline }: {
 
       <span className="t-micro" style={{ color: 'var(--text-secondary)' }}>
         {hoursUntilDeadline !== null && Number.isFinite(hoursUntilDeadline)
-          ? `Deadline in ${hours(hoursUntilDeadline)} — computed from cumulative thermal dose, `
+          ? `Deadline in ${hours(hoursUntilDeadline)}, computed from cumulative thermal dose, `
             + 'not looked up. Red is loss after the diode fails, a declared mechanism.'
           : 'No propagation deadline for this array; waiting costs more, linearly.'}
       </span>

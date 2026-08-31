@@ -128,7 +128,7 @@ export function AnalyticsModule() {
     <ModuleShell
       title="Analytics"
       purpose={`
-        The whole site across a day, and where the losses come from — worked out
+        The whole site across a day, and where the losses come from, worked out
         from the physics model as you look at it, so this screen and the map cannot
         disagree.
       `}
@@ -163,7 +163,7 @@ export function AnalyticsModule() {
           <ResponsiveContainer width="100%" height="100%">
             {/* ComposedChart, not AreaChart. An `AreaChart` renders only its Area
                 children: the dashed line and the NOW marker were in the markup,
-                in the DOM tree, and drawn nowhere — verified by querying the SVG,
+                in the DOM tree, and drawn nowhere, verified by querying the SVG,
                 which held zero line curves and zero reference lines. */}
             <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs>
@@ -175,7 +175,7 @@ export function AnalyticsModule() {
               <CartesianGrid stroke="var(--line-hairline)" vertical={false} />
               {/* A NUMERIC time axis, not a categorical one. Categories were the
                   hour labels, and a curve spanning a full day starts and ends at
-                  the same clock time — so "10:00" appeared twice in the domain,
+                  the same clock time, so "10:00" appeared twice in the domain,
                   the band scale could not resolve it, and the NOW marker was
                   discarded without a word. Verified by querying the SVG: no
                   reference-line layer at all. */}
@@ -245,7 +245,7 @@ export function AnalyticsModule() {
         </div>
         <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
           Left of NOW is the site as it ran. Right of NOW is the model&rsquo;s
-          projection under the committed forecast — clear sky, no cloud, the faults
+          projection under the committed forecast, clear sky, no cloud, the faults
           left unrepaired. Approving work moves the curve. The dashed red line is
           what the faults are costing, in kW on the right-hand scale: it integrates
           to {num(lostMWh, 2)} MWh across the day. It has its own axis because at
@@ -340,7 +340,7 @@ export function AnalyticsModule() {
         </Table>
         <p className="t-micro" style={{ color: 'var(--text-secondary)', margin: 0 }}>
           The share of the block&rsquo;s day lost to faults is{' '}
-          {pctPlain((lostMWh / Math.max(deliveredMWh, 1)) * 100, 3)} — small, because
+          {pctPlain((lostMWh / Math.max(deliveredMWh, 1)) * 100, 3)}, small, because
           120 monitored arrays are roughly 30 MW of a 500 MW block. Fleet health is a
           severity roll-up rather than an energy ratio for exactly that reason: an
           energy ratio would read 99.5% while an array burned.
@@ -356,7 +356,7 @@ export function AnalyticsModule() {
           with cell temperature from the NOCT model. γ = −0.0037 /°C, NOCT = 45 °C,
           η_inv = 0.98. Those coefficients live in one file and are mirrored between
           Python and TypeScript by a test that recomputes the entire committed
-          telemetry series from the browser code — so this screen and the generated
+          telemetry series from the browser code, so this screen and the generated
           data cannot disagree.
         </p>
       </Block>
