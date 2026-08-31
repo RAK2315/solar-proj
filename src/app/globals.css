@@ -362,10 +362,15 @@ body {
   grid-area: 1 / 1 / -1 / -1;
   position: absolute;
   left: 50%;
-  top: calc(var(--header-h) + var(--kpi-h));
+  /* IT COVERS THE KPI STRIP, and that is the trade that stops it scrolling.
+     Measured on B-17 at 1920x1080: the body was 187px taller than its box, and
+     the strip is 140px of it. While an operator is reading one array, the
+     site-wide KPI row is the least relevant thing on screen and it is one Esc
+     away. The header stays, because that is where the clock and the theme are. */
+  top: var(--header-h);
   transform: translateX(-50%);
   width: min(1520px, calc(100% - var(--rail-icons) - var(--sp-6)));
-  max-height: calc(100% - var(--header-h) - var(--kpi-h) - var(--footer-h) - var(--sp-6));
+  max-height: calc(100% - var(--header-h) - var(--footer-h) - var(--sp-5));
   z-index: 20;
   border: 1px solid var(--line-focus);
   box-shadow: 0 28px 70px -18px rgb(0 0 0 / 72%);
@@ -394,14 +399,19 @@ body {
 .console-root.rail-over:not(.rail-closed)::after {
   content: '';
   position: absolute;
-  inset: calc(var(--header-h) + var(--kpi-h)) 0 var(--footer-h) var(--rail-icons);
+  inset: var(--header-h) 0 var(--footer-h) var(--rail-icons);
   pointer-events: none;
   z-index: 19;
+  /* BLACK, not `--surface-void`. Reading the theme's own ground meant the light
+     theme vignetted in near-white, which lightens the corners instead of sinking
+     them - a glow, not a vignette, and it did nothing to lift the white card off
+     the white map. A vignette is a shadow in both themes; only the strength
+     changes, because a dark ground needs less of it to read. */
   background: radial-gradient(
     ellipse 62% 58% at 50% 46%,
     transparent 0%,
-    color-mix(in srgb, var(--surface-void) 34%, transparent) 62%,
-    color-mix(in srgb, var(--surface-void) 74%, transparent) 100%
+    rgb(0 0 0 / 22%) 62%,
+    rgb(0 0 0 / 52%) 100%
   );
   animation: vignette-in 150ms ease-out;
 }
@@ -416,21 +426,27 @@ body {
    row-sizing step to get wrong. `320px` puts three abreast in the wide card and
    one in a narrow window. */
 .console-root.rail-over .area-right .rail-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: var(--sp-4);
+  /* COLUMNS THAT PACK, NOT A FLEX LINE THAT STRETCHES.
+     A wrapping flex row is as tall as its tallest item, and after a sortie the
+     Outlook block is 580px while its three neighbours are 330 - so the row took
+     580 and wasted a quarter of the panel on empty boxes. Multi-column flows each
+     block into the shortest column instead, which is what makes the content pack.
+     Measured on B-17 after a completed sortie: 1204px of content became 966. */
+  display: block;
+  column-width: 340px;
+  column-gap: var(--sp-4);
 }
 .console-root.rail-over .area-right .rail-body > * {
-  /* 380px is a BASIS, not a width: the flex line grows each block to fill the
-     row. In the 1520px card that lands three abreast at about 470px each, which
-     is the width these blocks were originally drawn for as a docked rail, and it
-     is what stops the panel scrolling. A narrower window takes two, then one. */
-  flex: 1 1 380px;
-  min-width: 0;
+  break-inside: avoid;
+  margin-bottom: var(--sp-4);
 }
-/* The verdict and the gate are the two things that must never share a line. */
-.console-root.rail-over .area-right .rail-body > .rail-wide { flex: 1 1 100%; }
+/* The verdict is the headline and spans the lot. The gate is not in here at all:
+   ApprovalBar is a sibling of the scroll area, so it is always visible however
+   much this scrolls. */
+.console-root.rail-over .area-right .rail-body > .rail-wide {
+  column-span: all;
+}
+
 /* Closed: gone from the DOM's reach entirely rather than slid off-screen, so
    nothing inside it is focusable or readable by a screen reader while hidden.
    `!important` because DetailPanel sets `display: grid` inline, and an inline
@@ -844,6 +860,16 @@ body {
      two that need attention. */
   --panel-healthy: #b9c6dc;
   --panel-scheduled: #0f766e;
+}
+
+/* On a dark ground the vignette has less work to do and more room to overdo it. */
+:root:not([data-theme='light']) .console-root.rail-over:not(.rail-closed)::after {
+  background: radial-gradient(
+    ellipse 62% 58% at 50% 46%,
+    transparent 0%,
+    rgb(0 0 0 / 30%) 62%,
+    rgb(0 0 0 / 68%) 100%
+  );
 }
 
 /* The scrim behind the dossier is a dark wash on dark; on light it has to be a

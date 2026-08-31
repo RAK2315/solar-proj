@@ -212,7 +212,15 @@ export function AnalysisBlock() {
         </>
       )}
 
-      <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+      {/* Two abreast where there is room. Each of these is a label and a short
+          value, and stretching five of them across a 1464px card put a hand's
+          width of nothing between the two halves of every line while pushing the
+          approval gate off the bottom of the panel. `auto-fit` collapses to one
+          column in a narrow window without a media query. */}
+      <div style={{
+        display: 'grid', gap: 'var(--sp-2) var(--sp-6)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+      }}>
         {dark && <Row label="Cell temperature" value={degC(reading.cellTempC)} />}
         {dark && <Row label="Irradiance" value={wm2(weather.irradiance)} />}
         <Row label="Ambient" value={degC(weather.ambientC)} />

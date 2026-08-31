@@ -2398,3 +2398,72 @@
    check:layout          clean  + canvas fills 100% of its box
    check:live            6/6 awake
    next build            clean
+
+================================================================================
+ PHASE 29 - THE PANEL STOPS SCROLLING, AND THE VIGNETTE IS A SHADOW
+ 31 Aug 2026
+================================================================================
+
+ 1. A WRAPPING FLEX ROW IS AS TALL AS ITS TALLEST ITEM
+
+    Phase 28 turned the panel into columns and it still scrolled. The reason was
+    not the number of columns. Measured on B-17 after a completed sortie:
+
+      Array deviation   338px, full width
+      Peer strings      170px  ) all four stretched to 580px, because
+      Why the system    228px  ) a flex line takes the height of its
+      Inspection        240px  ) tallest item and Outlook is 580
+      Outlook           580px  )
+      Decision          255px
+      total            1204px of content in a 641px box
+
+    Three of those four blocks were sitting in boxes more than twice their own
+    height. A quarter of the panel was empty space inside stretched containers.
+
+    FIX: multi-column, not flex. `column-width: 340px` flows each block into the
+    shortest column and packs them; `break-inside: avoid` keeps a block whole
+    where it fits, and `column-span: all` keeps the headline figures across the
+    top. Measured after, same sortie: over 0. Before a sortie: over 0.
+
+    The approval gate was never at risk either way - ApprovalBar is a sibling of
+    the scroll area, not a child, so it is pinned to the card and visible however
+    much the body scrolls.
+
+ 2. THE VIGNETTE WAS WHITE ON A WHITE THEME
+
+    It read `--surface-void`, which is the theme's own ground: near-black on
+    dark, near-white on light. So the light theme vignetted in white - a glow,
+    which lightens the corners instead of sinking them and did nothing at all to
+    lift a white card off a white map. It is black in both themes now; only the
+    strength changes, because a dark ground needs less of it.
+
+ 3. THE CARD TAKES THE KPI STRIP'S BAND
+
+    140px of the 187px overflow measured in Phase 28. While an operator is
+    reading one array, the site-wide KPI row is the least relevant thing on
+    screen and it is one Esc away. The header stays: that is where the clock,
+    the theme and the workings toggle are.
+
+ 4. THE SECONDARY READINGS PAIR UP
+
+    Ambient, inverter and last-serviced ran the full 1464px with a hand's width
+    of nothing between label and value. `repeat(auto-fit, minmax(240px, 1fr))`,
+    so they collapse back to one column in a narrow window with no media query.
+
+ A NOTE ON THE HARNESS, because it cost time: `npm run demo` wipes .next before
+ it builds, and a build interrupted partway leaves no build at all. Starting
+ `next start` over a half-written .next serves HTML that references chunks which
+ do not exist, and the page renders as unstyled serif text - which looks exactly
+ like a CSS bug and is not one. serve.mjs's header says this; it is worth
+ believing. Kill the port, wipe .next, build, then serve.
+
+ GATES
+   tsc, eslint, validate:data, check:literals   clean
+   vitest                512 passed / 31 files
+   check:layout          clean  + canvas fills 100% of its box
+   check:live            6/6 awake
+   next build            clean
+
+ MEASURED, B-17 AT 1920x1080
+   before a sortie       body overflow 0
+   after a sortie        body overflow 0, approval gate present

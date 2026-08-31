@@ -400,6 +400,10 @@ export function DetailPanel() {
         )}
 
         {/* ── 5. DECISION ──────────────────────────────────────────────────── */}
+        {/* This is the timeline behind the gate, not the gate: ApprovalBar is a
+            sibling of the scroll area and is always visible whatever this does.
+            It was filling a row of its own only because it was last on the line
+            and flex-grow stretched it; a narrower basis lets it share one. */}
         {triaged && (
           <Group title="Decision" note="nothing is queued without an operator">
             {recommended && agent && captured && (
