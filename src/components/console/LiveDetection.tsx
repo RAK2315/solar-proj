@@ -271,8 +271,12 @@ export function LiveDetection() {
           ))}
           {/* Two runs on the same pixels is not a bug being demonstrated. It is
               the measurement being repeatable, which is the property that
-              separates a measurement from a picture of one. */}
-          {log.length > 1 && log[0].source === log[1].source && (
+              separates a measurement from a picture of one.
+
+              Compared by FRAME, not by source string: a pass fires several runs
+              under one label while the camera moves, and this used to claim they
+              were the same image above three different answers. */}
+          {log.length > 1 && log[0].frameHash === log[1].frameHash && (
             <span className="t-micro" style={{ color: 'var(--text-muted)' }}>
               same pixels as the run above it — the same answer is the point
             </span>

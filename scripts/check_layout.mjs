@@ -159,6 +159,45 @@ for (const o of (await measure(TOLERANCE)).overflow) {
   faults.push(`incident file  OVERFLOW +${o.over}px  ${o.el}`);
 }
 
+/**
+ * THE 3D CANVAS AGAINST THE BOX IT IS IN.
+ *
+ * Not an overflow — an UNDERFLOW, and the only one that matters. R3F measures its
+ * container with getBoundingClientRect(), which returns POST-transform pixels, so
+ * under the console's fit-to-window scale it sized the canvas to `scale x 1920`
+ * and the wrapper shrank it again: at 1512x900 the scene covered 62% of the frame
+ * and the rest was black. Every screenshot harness runs at 1920x1080, where the
+ * scale is 1 and the fault is invisible. This runs at whatever viewport it was
+ * given, which is the point.
+ */
+await press('Site');
+await page.waitForTimeout(500);
+await press('Array B-17');
+await page.waitForTimeout(800);
+await press('DISPATCH DRONE', 'FLY ANYWAY');
+await page.waitForTimeout(9000);
+
+const canvas = await page.evaluate(() => {
+  const c = document.querySelector('canvas');
+  if (!c) return null;
+  const cr = c.getBoundingClientRect();
+  const pr = c.parentElement.getBoundingClientRect();
+  return {
+    coverage: (cr.width * cr.height) / (pr.width * pr.height),
+    canvas: [Math.round(cr.width), Math.round(cr.height)],
+    container: [Math.round(pr.width), Math.round(pr.height)],
+  };
+});
+
+if (!canvas) {
+  faults.push('cinematic  the 3D canvas is not in the document after a dispatch');
+} else if (canvas.coverage < 0.98) {
+  faults.push(
+    `cinematic  CANVAS UNDERFLOW ${Math.round(canvas.coverage * 100)}% of its box  `
+    + `canvas ${canvas.canvas.join('x')} in container ${canvas.container.join('x')}`,
+  );
+}
+
 await browser.close();
 
 for (const e of errors) console.log(`  ${e}`);
@@ -167,4 +206,7 @@ if (faults.length || errors.length) {
   for (const f of faults) console.log(`  ${f}`);
   process.exit(1);
 }
-console.log('\ncheck:layout — every box fits what is inside it, both themes, six screens.\n');
+console.log(`
+check:layout — every box fits what is inside it, both themes, six screens.`);
+console.log(`  the 3D canvas fills ${Math.round((canvas?.coverage ?? 0) * 100)}% of its box at ${W}x${H} — ${canvas?.canvas.join('x')} in ${canvas?.container.join('x')}
+`);

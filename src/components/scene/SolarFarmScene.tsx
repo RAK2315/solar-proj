@@ -41,6 +41,11 @@ export default function SolarFarmScene() {
         preserveDrawingBuffer: true,
       }}
       camera={{ fov: 65, near: 0.5, far: 600, position: [-70, 8, 90] }}
+      /* offsetWidth/offsetHeight, not getBoundingClientRect. The shell is CSS-scaled
+         to the window, so the rect returns POST-transform pixels: R3F sized the
+         canvas to scale x 1920 and the wrapper shrank it again, leaving the scene
+         in the top-left fraction and the rest black on any window but 1920x1080. */
+      resize={{ offsetSize: true }}
       style={{ position: 'absolute', inset: 0 }}
     >
       <SceneEnvironment />

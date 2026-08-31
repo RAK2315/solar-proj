@@ -114,6 +114,32 @@ export interface RunLine {
   /** How many detections came back. Zero is a result. */
   found: number;
   source: string;
+  /**
+   * Fingerprint of the exact pixels this run saw.
+   *
+   * The ledger's "same pixels as the run above it" caption used to compare the
+   * SOURCE STRING, which is a label, not the image. An inspection pass fires
+   * several runs carrying the identical string while the camera orbits, so the
+   * caption sat above `2 found / 1 found / nothing found` claiming they were the
+   * same frame. The varying counts are correct — legibility depends on the angle
+   * — and the caption was the lie. Comparing the encoded frame instead makes it
+   * true whenever it appears.
+   */
+  frameHash: string;
+}
+
+/**
+ * FNV-1a over the encoded frame. Not cryptographic: this only has to separate
+ * two images, and holding four full data URLs to compare them would cost
+ * megabytes to answer a yes/no question.
+ */
+function frameHash(dataUrl: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < dataUrl.length; i += 1) {
+    h ^= dataUrl.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
 }
 
 /** How many runs the ledger keeps. Enough to show a re-run; not a log file. */
@@ -459,6 +485,7 @@ export const useDetector = create<DetectorState>((set, get) => ({
             elapsedMs,
             found: result.detections.length,
             source,
+            frameHash: frameHash(frame),
           },
           ...state.log,
         ].slice(0, LEDGER),

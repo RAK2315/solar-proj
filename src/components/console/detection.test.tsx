@@ -54,8 +54,8 @@ describe('a repeat run is visible as a repeat run', () => {
     useDetector.setState({
       runs: 2,
       log: [
-        { run: 2, at: Date.now(), elapsedMs: 298, found: 0, source: 'the captured frame for B-17, run again' },
-        { run: 1, at: Date.now(), elapsedMs: 520, found: 0, source: "the drone's camera over B-17" },
+        { run: 2, at: Date.now(), elapsedMs: 298, found: 0, source: 'the captured frame for B-17, run again', frameHash: 'aaa' },
+        { run: 1, at: Date.now(), elapsedMs: 520, found: 0, source: "the drone's camera over B-17", frameHash: 'bbb' },
       ],
       last: result({ run: 2, elapsedMs: 298, panelId: 'B-17' }),
     });
@@ -71,18 +71,33 @@ describe('a repeat run is visible as a repeat run', () => {
     useDetector.setState({
       runs: 2,
       log: [
-        { run: 2, at: Date.now(), elapsedMs: 298, found: 0, source },
-        { run: 1, at: Date.now(), elapsedMs: 305, found: 0, source },
+        { run: 2, at: Date.now(), elapsedMs: 298, found: 0, source, frameHash: 'same' },
+        { run: 1, at: Date.now(), elapsedMs: 305, found: 0, source, frameHash: 'same' },
       ],
       last: result({ run: 2, panelId: 'B-17' }),
     });
     expect(textOf()).toContain('same pixels as the run above it');
   });
 
+  // The pass fires several runs under one label while the camera orbits, and the
+  // caption used to compare that label. It sat above three different answers.
+  it('does not claim the same pixels when only the label matches', () => {
+    const source = "the drone's camera over B-17";
+    useDetector.setState({
+      runs: 2,
+      log: [
+        { run: 2, at: Date.now(), elapsedMs: 232, found: 0, source, frameHash: 'later' },
+        { run: 1, at: Date.now(), elapsedMs: 232, found: 2, source, frameHash: 'earlier' },
+      ],
+      last: result({ run: 2, panelId: 'B-17' }),
+    });
+    expect(textOf()).not.toContain('same pixels as the run above it');
+  });
+
   it('shows the ledger above the frame, not below it', () => {
     useDetector.setState({
       runs: 1,
-      log: [{ run: 1, at: Date.now(), elapsedMs: 298, found: 0, source: 'a frame' }],
+      log: [{ run: 1, at: Date.now(), elapsedMs: 298, found: 0, source: 'a frame', frameHash: 'a' }],
       last: result({ panelId: 'B-17' }),
     });
     render(<LiveDetection />);

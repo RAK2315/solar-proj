@@ -255,12 +255,13 @@ It found two things immediately that 345 pure-function tests could not.
   file go on saying the surface is a photograph. The claim is not wired to whether
   the image actually loaded.
 
-## 6e. Found by looking at it, 30 Aug 2026 — all reproduced and measured
+## 6e. Found by looking at it, 30 Aug 2026 — ALL FOUR FIXED 31 Aug 2026
 
-Three reports from the owner plus one thing found while chasing them. None is
-fixed; all are presentation-layer, and none touches physics, data or the agent.
+Three reports from the owner plus one thing found while chasing them. All four were
+presentation-layer; none touched physics, data or the agent. Each entry keeps its
+original measurement and adds what the fix measures now.
 
-- [ ] **The 3D canvas is sized to `scale` of its container, so the cinematic scene
+- [x] **The 3D canvas is sized to `scale` of its container, so the cinematic scene
   fills only part of the frame on any window smaller than 1920x1080.** Measured
   during a real sortie at 1512x900: the container is 1920x1080 untransformed, and
   the canvas CSS box comes out 1512x850 — exactly the `useFitToWindow` factor,
@@ -273,7 +274,15 @@ fixed; all are presentation-layer, and none touches physics, data or the agent.
   true }}` on `<Canvas>` — `offsetWidth` ignores transforms — but measure it, do not
   assume it. **This is the highest-value fix on the list.**
 
-- [ ] **`useFitToWindow` caps the scale at 1, so zooming out gives a small console
+  **FIXED.** `resize={{ offsetSize: true }}` on the `<Canvas>`; `react-use-measure`
+  then takes width and height from `offsetWidth`/`offsetHeight`, which ignore
+  transforms. Measured after, during a real sortie: the canvas fills 100% of its
+  container at 1512x900, 1920x1080 and 2560x1450 — it was 62% at 1512x900.
+  `check:layout` now measures the canvas against its box and fails below 98%, so it
+  cannot come back unnoticed: the pre-fix geometry, 1190.7x669.8 in 1512x850.5,
+  scores 62%.
+
+- [x] **`useFitToWindow` caps the scale at 1, so zooming out gives a small console
   island in a large dark bezel.** Measured at a 2560x1450 viewport: scale 1, a
   ~320px bezel each side. The cap was written to stop 52px type becoming 78px on a
   4K monitor, which is right for a monitor and wrong for browser zoom — zooming out
@@ -281,7 +290,11 @@ fixed; all are presentation-layer, and none touches physics, data or the agent.
   Letting it scale above 1:1 makes the console zoom-invariant, which is what a
   fitted fixed-size design should be.
 
-- [ ] **The run ledger's "same pixels" caption is wrong during a flight.** It
+  **FIXED.** The `1` came out of the `Math.min`. Measured after: scale 1.33333 at a
+  2560x1450 viewport, exactly `min(2560/1920, 1450/1080)`, and unchanged at 0.7875
+  and 1 for the two smaller viewports.
+
+- [x] **The run ledger's "same pixels" caption is wrong during a flight.** It
   decides two runs share pixels by comparing their SOURCE STRING
   (`log[0].source === log[1].source`). An inspection pass fires several runs with
   the identical string `the drone's camera over B-17` while the camera ORBITS, so
@@ -292,13 +305,25 @@ fixed; all are presentation-layer, and none touches physics, data or the agent.
   the defect. It has to compare the frame, not its label. (The caption is correct
   in its other case, two Verify runs on the committed photograph.)
 
-- [ ] **Four explanatory notes land in one band in the cinematic.** Measured
+  **FIXED.** `RunLine` now carries a `frameHash` — FNV-1a over the encoded frame —
+  and the caption compares that instead. Measured after: a flight pass logging
+  `1 found / nothing found / 2 found / 1 found` shows no caption; two Verify runs on
+  the committed photograph show it. Both branches have unit tests.
+
+- [x] **Four explanatory notes land in one band in the cinematic.** Measured
   y-positions at 1512x900: 687 "the box is the module, not the crack" (LiveReticle),
   710 the target reticle's label tab, 791 "The module surface here is a photograph"
   (SurfaceProvenance), 828 the flight-speed control. Each was added in a different
   phase to answer a different fair objection and none knew about the others. They
   overlap each other and the PiP. Individually defensible, collectively unreadable
   — this wants one provenance strip, not four.
+
+  **FIXED.** The two DISCLOSURES merged into one `ViewfinderNotes` strip. The
+  reticle's tab stayed where it was, because it is spatially bound to the module it
+  names; the speed control moved above the status pill, because it is a control and
+  not a note. Measured after, in shell coordinates: strip 653..1267, PiP ends at
+  627, speed control 1525..1888 sitting above the pill at 1001..1048. Nothing
+  overlaps anything.
 
 Also noticed, not a code bug: **the agent reads AGENT UNAVAILABLE locally** because
 `GROQ_API_KEY` is unset on this machine. The panel degrades correctly and says so.

@@ -1989,3 +1989,117 @@
    pass over B-17        4 frames, all found, best kept at 0.90
    re-run on that frame  1 found
    verify                1 detection at 0.91 — the committed figure, reproduced
+
+================================================================================
+ PHASE 24 - FOUR PRESENTATION-LAYER BUGS, ALL MEASURED BEFORE AND AFTER
+ 31 Aug 2026
+================================================================================
+
+ Three reported by the owner on 30 Aug, one found while chasing them, all four
+ recorded in docs/backlog.md 6e with their pre-fix measurements. Nothing here
+ touches physics, data, the agent or the ranking.
+
+ 1. THE 3D CANVAS WAS SIZED TO `scale` OF ITS CONTAINER
+
+    R3F measures its container with getBoundingClientRect(), which returns
+    POST-transform pixels. The console is a fixed 1920x1080 shell that
+    useFitToWindow CSS-scales into the window, so R3F sized the canvas to
+    scale x 1920 and the wrapper then scaled it a SECOND time. The scene
+    rendered into the top-left `scale` fraction and the rest of the frame was
+    black.
+
+    Measured before, during a real sortie at 1512x900:
+      container   1920 x 1080 untransformed
+      canvas      1512 x 850   - exactly the 0.7875 fit factor
+      coverage    62% of the frame by area
+
+    At 1920x1080 the scale is 1 and it is correct, which is why every
+    screenshot harness in this project has missed it for four phases. On a
+    1366x768 projector roughly half the cinematic would have been black.
+
+    FIX: resize={{ offsetSize: true }} on the <Canvas>. react-use-measure then
+    reads offsetWidth/offsetHeight, which ignore transforms.
+
+    Measured after, same sortie: 100% coverage at 1512x900, 1920x1080 and
+    2560x1450.
+
+    AND A GATE FOR IT. check:layout now dispatches a drone and measures the
+    canvas against its own container, failing below 98%. It reports the figure
+    on every run whether it passes or not - a gate that cannot say what it
+    measured is the failure mode this script's own header warns about. At the
+    pre-fix geometry it scores 62% and fails.
+
+ 2. useFitToWindow CAPPED THE SCALE AT 1
+
+    The cap was written to stop 52px type becoming 78px on a 4K monitor. That
+    is right for a monitor and wrong for browser zoom, which is what people
+    actually do: zooming out enlarges the CSS viewport and shrinks the device
+    pixel ratio by the same factor, so a capped fit answers a zoom-out by
+    drawing the console PHYSICALLY SMALLER inside a growing bezel. Measured
+    before at 2560x1450: scale 1, a ~320px black bezel each side.
+
+    FIX: the 1 came out of the Math.min. Measured after: 1.33333 at 2560x1450,
+    exactly min(2560/1920, 1450/1080). The console is now zoom-invariant.
+
+ 3. THE RUN LEDGER CLAIMED "SAME PIXELS" ON DIFFERENT FRAMES
+
+    The caption decided two runs shared pixels by comparing their SOURCE
+    STRING. An inspection pass fires several runs under the identical string
+    "the drone's camera over B-17" while the camera ORBITS, so the ledger
+    printed "same pixels as the run above it - the same answer is the point"
+    directly above 2 found / 1 found / 1 found / nothing found.
+
+    The varying counts were correct and expected: legibility depends on the
+    angle, which is why the pass keeps its best frame. The CAPTION was the
+    defect. It was right in its other case - two Verify runs on the committed
+    photograph - which is how it survived.
+
+    FIX: RunLine carries a frameHash, FNV-1a over the encoded frame, and the
+    caption compares that. Not the full data URL: holding four of those to
+    answer a yes/no question costs megabytes.
+
+    Measured after, in the browser:
+      flight pass    1 found / nothing found / 2 found / 1 found - no caption
+      two Verifies   1 found / 1 found on identical pixels      - caption shown
+    Both branches now have unit tests; the second is new.
+
+ 4. FOUR EXPLANATORY NOTES LANDED IN ONE BAND
+
+    Measured before at 1512x900, y positions 687 / 710 / 791 / 828: the
+    detector's "the box is the module", the reticle's label tab, the
+    surface-provenance line, and the flight-speed control. Each was added in a
+    different phase to answer a different fair objection and none of them knew
+    about the others. Individually defensible, collectively unreadable.
+
+    FIX, by what each thing IS rather than where it sat:
+      the two DISCLOSURES   merged into one ViewfinderNotes strip, bottom
+                            centre, in the gap the PiP and the pill leave
+      the reticle's tab     stayed - it is spatially bound to the module
+      the speed control     moved above the status pill - it is a control
+
+    ViewfinderNotes gates its detector line on the same predicate LiveReticle
+    draws by, exported as useLiveBoxes(), so a caption cannot outlive the boxes
+    it explains. SurfaceProvenance.tsx is gone; its content is the strip's
+    first line.
+
+    Measured after, in shell coordinates:
+      notes strip    653..1267   (PiP ends at 627)
+      speed control  1525..1888, y 961..996
+      status pill    1668..1888, y 1001..1048
+    Nothing overlaps anything.
+
+ ALSO: THE EXPORTED DETECTOR IS NOW COMMITTED
+
+    public/models/*.onnx was gitignored on the reasoning that this machine
+    cannot generate the 11.7 MB binary and every clone would carry it. Still
+    true, and now outweighed: the site is deployed, and a deployed build has no
+    other source for the weights. Without them the console says "Detector not
+    loaded" and the browser-side detection is absent from the thing people
+    actually visit.
+
+ GATES AT THE END OF PHASE 24
+   tsc --noEmit          clean
+   eslint src/           clean
+   vitest                509 passed / 31 files   (was 508 / 31)
+   check:layout          clean  + canvas fills 100% of its box at 1512x900
+   check:live            6/6 awake

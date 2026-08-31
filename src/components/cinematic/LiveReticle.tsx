@@ -43,7 +43,7 @@ import { useEffect, useRef } from 'react';
 import { DetectionFrame } from '@/components/console/DetectionFrame';
 import { M, reticleRect, type Vec3 } from '@/lib/scene';
 import { useFlightCue } from '@/store/flightCue';
-import { useDetector, type Roi } from '@/store/detector';
+import { useDetector, type DetectorResult, type Roi } from '@/store/detector';
 
 /** How far apart two live passes may be, in scene seconds. */
 const SAMPLE_EVERY_SCENE_SECONDS = 2.5;
@@ -84,6 +84,40 @@ export function moduleRoi(t: number, target: Vec3): Roi | undefined {
     w: Math.min(1 - x, r.width + padX * 2),
     h: Math.min(1 - y, r.height + padY * 2),
   };
+}
+
+/**
+ * The run that belongs to THIS flight, or nothing.
+ *
+ * `last` is whatever ran most recently anywhere — including the operator pressing
+ * "reproduce the committed 0.91" while the aircraft is on station, which carries
+ * no ROI and would be drawn across the whole viewfinder as though the model had
+ * found a crack in the scene. That is a box the model did not produce from these
+ * pixels, which is the one thing this file exists not to do.
+ */
+function flightsOwnRun(
+  last: DetectorResult | undefined,
+  targetId: string,
+): DetectorResult | undefined {
+  return last && last.panelId === targetId && last.roi
+    && last.source.startsWith("the drone's camera")
+    ? last : undefined;
+}
+
+/**
+ * Whether this flight's own boxes are on screen right now.
+ *
+ * Exported so ViewfinderNotes captions the boxes without re-deriving the rule.
+ * A caption explaining a rectangle that is not there is the clutter problem
+ * again, not a fix for it.
+ */
+export function useLiveBoxes(): boolean {
+  const cue = useFlightCue();
+  const status = useDetector((s) => s.status);
+  const last = useDetector((s) => s.last);
+  const onStation = cue.active && cue.t >= M.lock && cue.t < M.thermal;
+  return onStation && status === 'ready'
+    && !!flightsOwnRun(last, cue.targetId)?.detections.length;
 }
 
 export function LiveReticle() {
@@ -144,17 +178,7 @@ export function LiveReticle() {
     if (onStation) beginPass(cue.targetId);
   }, [onStation, cue.targetId, beginPass]);
 
-  // ONLY THIS FLIGHT'S OWN RUN. `last` is whatever ran most recently anywhere —
-  // including the operator pressing "reproduce the committed 0.91" while the
-  // aircraft is on station, which carries no ROI and would therefore be drawn
-  // across the whole viewfinder as though the model had found a crack in the
-  // scene. That is a box the model did not produce from these pixels, which is
-  // the one thing this file exists not to do.
-  const mine = last
-    && last.panelId === cue.targetId
-    && last.roi
-    && last.source.startsWith("the drone's camera")
-    ? last : undefined;
+  const mine = flightsOwnRun(last, cue.targetId);
 
   if (!onStation || status !== 'ready' || !mine?.detections.length) return null;
 
@@ -173,23 +197,6 @@ export function LiveReticle() {
       pointerEvents: 'none',
       zIndex: 6,
     }}>
-      {/* WHAT THE BOX MEANS. The dataset labels the WHOLE MODULE as `Cracked` —
-          median box area is 30% of the image — so the model is a module
-          classifier with a localiser attached, not a crack finder. A box that
-          hugs the panel is it working. Saying so matters: an unexplained
-          rectangle reads as "the crack is here", which is a claim this model
-          cannot make. Where on the module is the thermal grid's job. */}
-      <span
-        className="t-micro"
-        style={{
-          position: 'absolute', left: 0, bottom: -20, whiteSpace: 'nowrap',
-          color: 'var(--text-secondary)',
-          textShadow: '0 1px 3px rgba(0,0,0,0.9)',
-        }}
-      >
-        the box is the module, not the crack — this model labels modules
-      </span>
-
       {/* The boxes only — the live scene underneath IS the image. The mapping from
           the model's pixels to the screen is DetectionFrame's job, and it needs
           the frame's own size to do it: dividing by the window, as this did at

@@ -454,11 +454,10 @@ Three diagrams still need drawing: slides 3, 6 and 8. Everything else is capture
 
 ## RECORDING NOTES (FOR THE DEMO VIDEO)
 
-- **Record at exactly 1920×1080.** Not negotiable, and not only for sharpness: below
-  the design size the whole console is CSS-scaled to fit, and at the time of writing
-  the 3D canvas mis-sizes itself under that transform — the cinematic scene fills only
-  the top-left fraction of the frame. At 1920×1080 the scale is 1 and it is correct.
-  (Open bug; see the 30 Aug session notes.)
+- **Record at 1920×1080 if you can, but the console no longer depends on it.**
+  Below the design size the whole thing is CSS-scaled to fit and above it, it scales
+  up; the 3D canvas now fills its frame at every viewport (`check:layout` measures it).
+  1920×1080 is still the sharpest capture, since nothing is being resampled.
 - Use `npm run demo` — a production build served on :3000. **Never `npm run dev`**:
   measured dead on 1 load in 10, because the unminified scene chunk truncates.
 - Demo script: 90 seconds exactly, the beats in `CLAUDE.md` §2.

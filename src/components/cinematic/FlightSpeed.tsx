@@ -41,8 +41,9 @@ export function FlightSpeed() {
   return (
     <div
       style={{
-        position: 'absolute', bottom: 'var(--sp-5)', left: '50%',
-        transform: 'translateX(-50%)',
+        // Above the status pill, not in the centre band. This is a CONTROL, and
+        // it was sitting in the row of explanatory notes, overlapping them.
+        position: 'absolute', bottom: 84, right: 32,
         display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
         background: 'color-mix(in srgb, var(--surface-panel) 92%, transparent)',
         border: '1px solid var(--line-active)',

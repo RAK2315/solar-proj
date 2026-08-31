@@ -32,11 +32,12 @@ export const SHELL_W = 1920;
 export const SHELL_H = 1080;
 
 /**
- * How much to scale the console so it fits, never above 1:1.
+ * How much to scale the console so it fills the window, in either direction.
  *
- * Capped at 1 because scaling a 1920-wide design UP on a 4K monitor makes 52 px
- * type into 78 px type, which reads as a mistake rather than as a bigger console.
- * Below 1:1 it shrinks to fit, which is the case that was broken.
+ * The cap at 1 came off deliberately. Zooming out enlarges the CSS viewport and
+ * shrinks the device pixel ratio by the same factor, so a capped fit answers a
+ * zoom-out by drawing the console PHYSICALLY smaller inside a growing bezel.
+ * Scaling past 1:1 cancels that exactly, which is what a fitted design should do.
  */
 export function useFitToWindow(): number {
   // 1 on the server and on the first client render, so the markup the server sent
@@ -49,7 +50,6 @@ export function useFitToWindow(): number {
       const next = Math.min(
         window.innerWidth / SHELL_W,
         window.innerHeight / SHELL_H,
-        1,
       );
       // Guard against a zero-height window (a background tab in some browsers),
       // which would otherwise collapse the console to nothing and leave it there.
