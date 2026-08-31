@@ -2332,3 +2332,69 @@
    dossier text          0 em dashes
    evidence caption      "training-set photo, not a drone frame"
    feed after approval   SCHEDULED - B-17 present, OUTPUT DEVIATION - B-17 gone
+
+================================================================================
+ PHASE 28 - THE ARRAY PANEL, AND AN AGENT THAT RECOVERS
+ 31 Aug 2026
+================================================================================
+
+ 1. THE PANEL'S COLUMN LAYOUT HAD NEVER RUN
+
+    Reported as "why not make it larger and divide it in 2 sides so we do not
+    have to scroll". The wrapping-column layout was written when the wide card
+    was built and it has never once applied: DetailPanel set `display: 'grid'`
+    INLINE on the same element, and an inline style beats a class however
+    specific the selector. globals.css even carries a comment saying exactly that
+    about a different rule three lines below, which is how it survived.
+
+    So every block rendered full width in one tall scrolling column, and the
+    stylesheet described a layout nobody had ever seen.
+
+    FIX: layout belongs to the stylesheet. The inline `display`, `gap` and
+    `alignContent` are gone. The grid was documented as a fallback for "the
+    demo's docked rail", which does not exist - ConsoleRoot sets `rail-over`
+    unconditionally.
+
+    Card 1180px -> 1520px, and the flex basis 320px -> 380px, which lands three
+    blocks abreast at about 477px each. That is the width these blocks were
+    originally drawn for as a 448px docked rail, so nothing is squeezed.
+
+    Measured, B-17 at 1920x1080:
+      before   one column, every block 1464px wide, scrollHeight over by ~1000px
+      after    477px x 3, over by 187px - the approval gate is the only thing
+               still below the fold, and it stays full width because the verdict
+               and the gate must never share a line.
+
+ 2. THE PANEL ARRIVES INSTEAD OF APPEARING
+
+    150ms rise-and-fade on open, and the vignette fades up with it rather than
+    snapping on a frame earlier. The keyframe carries `translateX(-50%)` through
+    every frame, because that is what centres the card - drop it and the panel
+    flies in from the right edge. No spring, no overshoot; the reduced-motion
+    rule zeroes it globally.
+
+ 3. A TRANSIENT AGENT FAILURE NOW HEALS ITSELF
+
+    "AGENT UNAVAILABLE ... failing sometimes." A rate limit and a bad key were
+    the same outcome to this store: `unavailable`, recorded against the array's
+    condition, and then never asked again. Groq's free tier counts per minute and
+    the site clock flips array statuses several times a second at 600x, so a
+    burst of 429s was routine, and each one stuck until somebody found TRY AGAIN.
+
+    FIX: an entry records `attemptedAt` and whether the failure is `retriable`. A
+    429, a 5xx, a timeout or a dead socket are transient and the next `request`
+    after six seconds asks again. A 400 or a 401 is not, and stays put rather
+    than hammering a provider with a request that cannot succeed. The panel says
+    "It will ask again shortly" when it will, because a panel that recovers
+    silently reads as broken for the six seconds before it does.
+
+    NOT A SECOND CLOCK. Nothing counts down. `request` compares two timestamps
+    when it is called anyway - the same shape as the `condition` check beside it.
+    CLAUDE.md rule 3 bans timers that DRIVE state.
+
+ GATES
+   tsc, eslint, validate:data, check:literals   clean
+   vitest                512 passed / 31 files
+   check:layout          clean  + canvas fills 100% of its box
+   check:live            6/6 awake
+   next build            clean

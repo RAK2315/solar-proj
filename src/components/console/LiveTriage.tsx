@@ -94,6 +94,10 @@ export function LiveTriage({ compact = false }: { compact?: boolean }) {
         <span className="t-data" style={{ color: 'var(--text-secondary)' }}>
           No reasoning for {panelId}. Everything else on this screen is unaffected:
           the readings come from the site model, not from the agent.
+          {/* SAY THAT IT WILL FIX ITSELF, when it will. A rate limit and a stall
+              both clear on their own now, and a panel that does not say so reads
+              as broken for the six seconds before it recovers. */}
+          {entry.retriable && ' It will ask again shortly.'}
         </span>
         <span className="t-micro workings" style={{ color: 'var(--text-secondary)' }}>
           {entry.reason}

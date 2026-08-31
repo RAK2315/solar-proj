@@ -247,13 +247,14 @@ export function DetailPanel() {
         {triaged && <StatusChips />}
       </header>
 
-      {/* `rail-body` is what makes this wrap into columns inside the wide card —
-          see globals.css. The grid fallback here is what the demo's docked rail
-          still uses, where the column IS the right shape. */}
-      <div className="scroll-y rail-body" style={{
-        padding: 'var(--sp-4)', display: 'grid', gap: 'var(--sp-4)',
-        alignContent: 'start',
-      }}>
+      {/* `rail-body` lays this out in two columns - see globals.css.
+          IT NEVER DID. This carried `display: 'grid'` inline, and an inline style
+          beats a class however specific the selector, so the flex-wrap rule has
+          been dead since the wide card was built and every block rendered full
+          width in one tall scrolling column. The grid was described as a fallback
+          for "the demo's docked rail", which no longer exists: ConsoleRoot sets
+          `rail-over` unconditionally. Layout belongs to the stylesheet. */}
+      <div className="scroll-y rail-body" style={{ padding: 'var(--sp-4)' }}>
         {!triaged && (
           <p className="t-prose" style={{ color: 'var(--text-secondary)', margin: 0 }}>
             {mode === 'live'

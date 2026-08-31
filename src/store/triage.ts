@@ -56,7 +56,34 @@ export interface TriageEntry {
    * array does not survive that array becoming faulted — see the header.
    */
   condition?: string;
+  /**
+   * Wall clock of the last attempt, and whether asking again could help.
+   *
+   * A RATE LIMIT AND A BAD KEY ARE NOT THE SAME FAILURE, and treating them the
+   * same is why the panel read AGENT UNAVAILABLE at random. Groq's free tier
+   * counts per minute and the site clock flips array statuses several times a
+   * second at 600x, so a burst of 429s was routine - and each one stuck until an
+   * operator noticed the TRY AGAIN button, which under a projector nobody does.
+   *
+   * A 429, a 5xx, a timeout or a dead socket are all transient: the next ask may
+   * well work. A 400 or a 401 will not, so those stay put rather than hammering
+   * the provider with a request that cannot succeed.
+   *
+   * NOT A SECOND CLOCK. Nothing counts down. `request` compares two timestamps
+   * when it is called anyway, which is the same shape as the `condition` check
+   * beside it - see CLAUDE.md rule 3, which bans timers that DRIVE state.
+   */
+  attemptedAt?: number;
+  retriable?: boolean;
 }
+
+/**
+ * How long a transient failure is left alone before the next ask is allowed.
+ *
+ * Long enough that a per-minute rate limit has room to recover, short enough that
+ * an operator reading the panel sees it fix itself rather than giving up on it.
+ */
+const RETRY_AFTER_MS = 6000;
 
 interface TriageState {
   byPanel: Record<string, TriageEntry>;
@@ -100,7 +127,11 @@ export const useTriage = create<TriageState>((set, get) => ({
     // One request per array PER CONDITION. Already loading, already answered,
     // already known to be unavailable — all mean do not ask again, unless the
     // thing being judged has changed underneath the answer.
-    if (existing && existing.status !== 'idle' && existing.condition === condition) return;
+    const staleFailure = existing?.status === 'unavailable'
+      && existing.retriable
+      && Date.now() - (existing.attemptedAt ?? 0) >= RETRY_AFTER_MS;
+    if (existing && existing.status !== 'idle'
+      && existing.condition === condition && !staleFailure) return;
 
     set((s) => ({ byPanel: { ...s.byPanel, [panelId]: { status: 'loading', condition } } }));
 
@@ -138,6 +169,10 @@ export const useTriage = create<TriageState>((set, get) => ({
             [panelId]: {
               status: 'unavailable',
               condition,
+              attemptedAt: Date.now(),
+              // A 400 or a 401 will fail again for the same reason. Everything
+              // else might not.
+              retriable: limited || res.status >= 500,
               reason: limited
                 ? 'Rate limited by the model provider, the site clock is running '
                   + 'fast, so statuses are changing faster than the agent can be '
@@ -171,6 +206,9 @@ export const useTriage = create<TriageState>((set, get) => ({
           [panelId]: {
             status: 'unavailable',
             condition,
+            attemptedAt: Date.now(),
+            // A stall or a dead socket is a moment, not a verdict.
+            retriable: true,
             reason: timedOut
               ? `No answer within ${AGENT_TIMEOUT_MS / 1000}s, the network is up but the agent is not responding.`
               : err instanceof Error ? err.message : 'network unreachable',

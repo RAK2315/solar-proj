@@ -364,12 +364,23 @@ body {
   left: 50%;
   top: calc(var(--header-h) + var(--kpi-h));
   transform: translateX(-50%);
-  width: min(1180px, calc(100% - var(--rail-icons) - var(--sp-6)));
+  width: min(1520px, calc(100% - var(--rail-icons) - var(--sp-6)));
   max-height: calc(100% - var(--header-h) - var(--kpi-h) - var(--footer-h) - var(--sp-6));
   z-index: 20;
   border: 1px solid var(--line-focus);
   box-shadow: 0 28px 70px -18px rgb(0 0 0 / 72%);
   margin-top: var(--sp-4);
+  animation: panel-open 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Restrained and mechanical, per the design rules: a short rise and a fade, no
+   spring and no overshoot. The X translate is carried through every frame
+   because it is what centres the card - drop it and the panel flies in from the
+   right edge instead of lifting into place. `prefers-reduced-motion` zeroes the
+   duration globally, so there is nothing to opt out of here. */
+@keyframes panel-open {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
 /* A VIGNETTE UNDER THE OPEN PANEL.
@@ -392,6 +403,12 @@ body {
     color-mix(in srgb, var(--surface-void) 34%, transparent) 62%,
     color-mix(in srgb, var(--surface-void) 74%, transparent) 100%
   );
+  animation: vignette-in 150ms ease-out;
+}
+
+@keyframes vignette-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* The body wraps into columns for the same reason the module screens do, and by
@@ -404,7 +421,14 @@ body {
   align-content: flex-start;
   gap: var(--sp-4);
 }
-.console-root.rail-over .area-right .rail-body > * { flex: 1 1 320px; min-width: 0; }
+.console-root.rail-over .area-right .rail-body > * {
+  /* 380px is a BASIS, not a width: the flex line grows each block to fill the
+     row. In the 1520px card that lands three abreast at about 470px each, which
+     is the width these blocks were originally drawn for as a docked rail, and it
+     is what stops the panel scrolling. A narrower window takes two, then one. */
+  flex: 1 1 380px;
+  min-width: 0;
+}
 /* The verdict and the gate are the two things that must never share a line. */
 .console-root.rail-over .area-right .rail-body > .rail-wide { flex: 1 1 100%; }
 /* Closed: gone from the DOM's reach entirely rather than slid off-screen, so
