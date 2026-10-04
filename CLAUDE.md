@@ -3,7 +3,71 @@
 **Autonomous inspection & triage console for utility-scale solar.**
 Read this file completely before writing any code.
 
-> ### 🟢 STATUS — 2 Aug 2026. Built. Read this box before §2.
+> ### 🔴 STATUS — 4 Oct 2026. UI REWORK IN PLAN. Read this box first.
+>
+> **`plan/rework/` supersedes `plan/` and this file wherever they conflict.**
+> Target: JSS AI FORGE 36, Industry 4.0 track. Team SIGMOID.
+> Hard milestone **13 Oct**: UI shell, twin as main view, what-if sandbox working.
+> PPT due 15 Oct 13:04 IST. Build runs to 24 Oct; the 36-hour round is
+> mentor-requested changes only, not first builds.
+>
+> | What | Where |
+> |---|---|
+> | Hero moment, showpiece, USP, sourced claims | `plan/rework/01-hero.md` |
+> | Stack lock and decision records | `plan/rework/02-stack.md` |
+> | Keep / change / do-not-touch list | `plan/rework/04-architecture.md` §2 |
+> | Design system, type scale, the two directions | `plan/rework/06-design-system.md` |
+> | Build order and the cut list | `plan/rework/08-build-plan.md` |
+> | Risks | `plan/rework/09-risks.md` |
+>
+> #### What changed in this file on 4 Oct 2026
+>
+> **DELETED — do not follow these any more:**
+> - **§2's demo-script table is no longer a contract.** Demo mode is retired and
+>   `beats.test.tsx` is deleted. A committed rehearsal seed replaces it: the seeded
+>   live run must reproduce B-17's deviation, deadline and queue order.
+> - **§3's "desktop only, fixed 1920×1080, do not spend time on responsive".** The
+>   console is `100dvh` and must work at 1920×1080 **and** 1366×768.
+> - **§12's ALL-CAPS + letter-spaced labels.** Sentence case everywhere.
+> - **§12's "nothing rounder than 3px"** as an absolute.
+> - **§13's console layout spec**, in full. Replaced by `06-design-system.md`.
+> - **The cinematic as a separate mode.** The twin is the main view.
+>
+> **REWRITTEN:**
+> - **Type scale** → five sizes, 14 px floor, mono for identifiers only.
+>   `06-design-system.md` §2 is the owner.
+> - **`check:layout`** → re-pointed at the new root, two required widths.
+> - **`ModuleShell.purpose`** → one line per panel; explanation behind the `?`
+>   toggle, reusing `showWorkings` rather than a second mechanism.
+> - **§12 Motion** → still restrained and mechanical; now also covers overlays
+>   arriving over a moving 3D scene.
+>
+> **KEPT, and load-bearing — none of these are negotiable:**
+> one clock · never invent a number · Zod plus invariants I1–I16 · `check:literals`
+> · the approval gate · evidence scoped to where it was measured · no box drawn that
+> the model did not produce.
+>
+> #### Two new enforced rules
+>
+> 1. **Vocabulary.** B-17 is **diagnosed** (real thermal capture). All other arrays
+>    are **flagged from modelled signature**. "Diagnosed" against an array with no
+>    capture is a build failure — a forbidden-phrase pass in `check:literals`. This
+>    is rule §0.5 expressed as words.
+> 2. **No DSM charge is ever computed.** CERC's in-force formula divides by a
+>    parameter `X` the regulation does not publish, and its Normal Rate is a live
+>    exchange price. The regulation is cited as context; rupees come from lost MWh ×
+>    the Bhadla Phase-III tariff, with its attribution rendered inline.
+>
+> #### `physics.ts` is FROZEN for the rework
+>
+> Hazards are applied in `lib/live.ts` as a per-array `(g, tAmb)` modifier before
+> `evaluateArray`, which already takes both as per-array arguments. The golden test
+> against `scripts/physics.py` must stay green throughout. See
+> `04-architecture.md` §7 for what breaks if this is ignored.
+
+---
+
+> ### 🟢 STATUS — 2 Aug 2026. Built. Historical; read the box above first.
 >
 > **This file was written as a hackathon spec for a 90-second recording. The product
 > outgrew it.** The spec is still correct about physics, schemas, identifiers, agent
