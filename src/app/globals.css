@@ -78,6 +78,12 @@
   --radius-sm: 2px;
   --radius-md: 3px;
 
+  /* CONTROL FEEDBACK. A tint, not a colour, because it is composited OVER
+     whatever ground a control already has — see the .btn-reset:hover rule for
+     why it cannot be a background. */
+  --control-hover: rgb(255 255 255 / 6%);
+  --control-press: rgb(255 255 255 / 11%);
+
   /* Rhythm — 4px base */
   --sp-1: 4px;
   --sp-2: 8px;
@@ -151,9 +157,46 @@ body {
   color: inherit;
   text-align: inherit;
   cursor: pointer;
+  /* MOTION ON CONTROLS, IN ONE DECLARATION.
+
+     Every control in the app is a .btn-reset and almost every one is coloured by
+     an INLINE style computed from state - the active tab, an aria-pressed chip,
+     the approval bar going from red to teal. An inline declaration outranks any
+     class rule, so this stylesheet cannot set those colours; but nothing sets
+     `transition` inline, so it can govern how they ARRIVE. That is the lever:
+     one line here and forty-two controls crossfade instead of cutting.
+
+     Named properties rather than `all`. `all` would also transition width,
+     transform and the rest, which is how a console stops feeling animated and
+     starts feeling slow. */
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out,
+    box-shadow 140ms ease-out,
+    opacity 140ms ease-out;
 }
 .btn-reset:disabled {
   cursor: default;
+}
+
+/* THE HOVER AFFORDANCE THIS CONSOLE NEVER HAD. Before this rule nothing in the
+   app responded to a pointer at all - no :hover existed anywhere in src/.
+
+   It is a box-shadow and not a background for the reason given above: the
+   background is inline on most of these and would win. An inset tint with a
+   spread larger than any control floods the box and composites over whatever
+   colour the inline style set, so it reads identically on an active tab and an
+   idle one without this rule having to know which is which. */
+.btn-reset:not(:disabled):hover {
+  box-shadow: inset 0 0 0 100vmax var(--control-hover);
+}
+
+/* A press answers harder and faster than a hover. An instrument's button
+   acknowledges the finger; it does not ease into it. */
+.btn-reset:not(:disabled):active {
+  box-shadow: inset 0 0 0 100vmax var(--control-press);
+  transition-duration: 60ms;
 }
 .btn-reset:focus-visible {
   outline: 2px solid var(--line-focus);
@@ -410,8 +453,8 @@ body {
   background: radial-gradient(
     ellipse 62% 58% at 50% 46%,
     transparent 0%,
-    rgb(0 0 0 / 22%) 62%,
-    rgb(0 0 0 / 52%) 100%
+    rgb(0 0 0 / 16%) 62%,
+    rgb(0 0 0 / 39%) 100%
   );
   animation: vignette-in 150ms ease-out;
 }
@@ -472,7 +515,26 @@ body {
 
 /* A module screen takes the map AND the right rail — the left rail keeps running
    because events do not stop happening because you changed screens. */
-.area-module { grid-column: 3 / 5; grid-row: 3; min-width: 0; min-height: 0; }
+.area-module {
+  grid-column: 3 / 5;
+  grid-row: 3;
+  min-width: 0;
+  min-height: 0;
+  /* A module screen replaces the entire working area, and swapping one for
+     another with no motion at all reads as a repaint rather than a navigation -
+     the icon rail is 64px wide, so the tab's own 2px edge is not enough on its
+     own to say the screen changed. Each screen is a distinct component type in
+     `ModuleArea`, so React remounts on every switch and this runs once per
+     change. Only ModuleShell carries this class: the site screen is deliberately
+     left alone, because the map and the panel already announce their own
+     arrival. */
+  animation: module-in 150ms ease-out;
+}
+
+@keyframes module-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
 
 
 /* ── The dossier ─────────────────────────────────────────────────────────────
@@ -540,6 +602,34 @@ body {
   align-content: start;
 }
 .dossier-col::-webkit-scrollbar { display: none; }
+
+/* THE DOSSIER ARRIVES THE WAY THE ARRAY PANEL DOES. They are the same kind of
+   thing - a card that takes the screen in answer to a click - and Phase 28 gave
+   one of them an animation and not the other, so opening the incident file was
+   the one big transition in the console that still cut on a frame.
+
+   Same 150ms and the same curve as `panel-open`. The wash fades on its own so it
+   is not still snapping on while the card is lifting. `Dossier` returns null when
+   closed, so the element mounts fresh on every open and this runs once, with no
+   state to reset and nothing to reverse on close. */
+.scrim {
+  animation: scrim-in 150ms ease-out;
+}
+.dossier {
+  animation: dossier-open 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Less scale than the array panel's 0.985. This card is nearly the whole screen,
+   and the same ratio on a bigger box is a bigger movement. */
+@keyframes dossier-open {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* A labelled group. The rule above it is what makes structure visible at a
    glance — the old rail separated sections with 12px of space and nothing else. */
@@ -844,6 +934,10 @@ body {
   --text-muted: #6b7480;        /* ~4.7:1 — still passes, unlike its dark twin */
   --text-inverse: #f7f8fa;
 
+  /* The tint inverts with the ground: a white wash is invisible on near-white. */
+  --control-hover: rgb(16 21 29 / 6%);
+  --control-press: rgb(16 21 29 / 11%);
+
   /* The one off-ramp colour. Teal at its dark-theme value is 2.1:1 on near-white,
      so it darkens; it is used for agent activity and for the active tab, both of
      which carry text. */
@@ -867,8 +961,8 @@ body {
   background: radial-gradient(
     ellipse 62% 58% at 50% 46%,
     transparent 0%,
-    rgb(0 0 0 / 30%) 62%,
-    rgb(0 0 0 / 68%) 100%
+    rgb(0 0 0 / 22%) 62%,
+    rgb(0 0 0 / 51%) 100%
   );
 }
 
