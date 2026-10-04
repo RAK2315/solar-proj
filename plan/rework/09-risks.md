@@ -76,6 +76,19 @@ to prevent.
 
 **Fallback:** cut F5 entirely. It is last on the cut line for this reason.
 
+## R5b — Glassmorphism (mockup C) cannot hold the frame budget · MEDIUM / LOW
+
+`backdrop-filter` over a live WebGL canvas is one of the most expensive things a
+browser can be asked to composite, and it is being evaluated at the width with the
+least headroom.
+
+**Mitigation:** fps is measured per mockup at 1366×768 and reported beside it. The
+measurement is the decision, not taste.
+
+**Fallback:** if C is beautiful but slow, the panel treatment is a token group
+(§1 of `06-design-system.md`), so its *look* can be approximated with an opaque tint
+plus a light border and no blur. Do not ship a blur that costs the hero its frames.
+
 ## R6 — WASM under the Next 15 app router · LOW / MEDIUM
 
 `highs` ships a `.wasm` asset, and bundler asset-path handling is a known friction

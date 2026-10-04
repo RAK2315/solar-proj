@@ -1,11 +1,51 @@
 # 06 — Design system
 
-**Mockups:** https://claude.ai/artifact/RiP23wmRiLjGSSEzuQbFWa (A and B, both widths)
 **Status:** direction NOT yet chosen. Everything in §2–§6 is settled either way.
+
+> ### Design gate changed, 4 Oct 2026 — FOUR mockups, as live routes
+>
+> The two static directions were judged insufficient. Before P1 proper, build **four**
+> mockups of the hero screen as **dev-only routes** `/mockups/a` … `/mockups/d`.
+>
+> **Live, not pictures.** Each route renders the real twin canvas and real selector
+> values. A static image cannot answer the question that decides this — whether
+> frosted panels stay readable over a *moving* field, and what they cost in frames.
+>
+> **Hero screen** = twin full-screen · B-17 panel · repair queue panel · hazard
+> toolbar. Identical content in all four.
+>
+> | Route | Direction |
+> |---|---|
+> | `/mockups/a` | **Broadcast** — §1 below |
+> | `/mockups/b` | **Instrument** — §1 below |
+> | `/mockups/c` | **Glassmorphism, done properly** — frosted panels with real
+>   `backdrop-filter` blur over the moving twin, layered depth, light borders, and
+>   contrast verified against the artifact-design ban on decorative glass. Here it is
+>   not decorative: the twin beneath is the subject, and a frosted panel is the one
+>   treatment that lets the field read *through* the data. |
+> | `/mockups/d` | **Builder's choice** — clearly distinct from the other three. |
+>
+> All four use the settled tokens in §2–§6: five sizes, 14 px floor, sentence case,
+> mono for identifiers only, one line of copy per panel.
+>
+> **Measure fps for each at 1366×768 and report it beside the mockup.** C is the one
+> at risk — `backdrop-filter` over a live WebGL canvas is expensive, and R2 already
+> flags frame budget as a MEDIUM/HIGH risk. A direction that cannot hold 60 fps at
+> 1366×768 is not a candidate, however good it looks.
+>
+> Screenshot each in Chrome, show all four, then **STOP and wait for the pick**.
+> Mind the SwiftShader screenshot trap in `08-build-plan.md` — panels animate in over
+> a live canvas, which is exactly the case that photographs blank.
+>
+> After the pick: record it here, **delete the `/mockups` routes**, then start P0.
+>
+> Superseded: the earlier two-direction artifact,
+> https://claude.ai/artifact/RiP23wmRiLjGSSEzuQbFWa — still useful as the reference
+> for A and B.
 
 ---
 
-## 1. The two directions
+## 1. The directions
 
 Both keep the ironbow ramp, the five-size scale, the 14 px floor, mono-for-IDs-only,
 sentence case, and one line of copy per panel.
@@ -57,6 +97,25 @@ Five sizes. Floor 14 px. Ratio ≈ 1.22.
 | `--t5` | **36px** | 700 | The single most important number on screen. **One per screen, never two.** |
 
 **Replaces** 52 / 42 / 32 / 24 / 14 / 13 / 12 / 11 / 10.
+
+**Migration is concentrated, not spread.** Counted 4 Oct 2026 — six classes carry 327
+of the 352 usages, so the type rewrite is six find-and-replaces plus a token block,
+not a sweep through every component:
+
+| class | usages | becomes |
+|---|---|---|
+| `t-micro` | 120 | `--t1` — **the big one.** Every usage is currently 10 px and must come up to 14 |
+| `t-data` | 65 | `--t1` |
+| `t-prose` | 39 | `--t1`, line-height 1.5 |
+| `t-h1` | 37 | `--t2`, sentence case, tracking removed |
+| `t-h2` | 36 | `--t1` or `--t2` by role; sentence case |
+| `t-data-em` | 30 | `--t1` weight 600, or `--t3` where it carries a table |
+| `t-label` | 11 | `--t1`, sentence case |
+| `t-hero` / `t-kpi` / `t-metric` | 15 | collapse into `--t5` (one per screen) and `--t4` |
+| `t-value` | 3 | `--t3` |
+| `t-kpi-unit` / `t-log` | 3 | `--t1` |
+
+`t-h1`, `t-h2` and `t-label` (84 usages) are where every tracked-caps label lives.
 
 **Rules**
 - **Nothing below 14 px anywhere**, including micro-labels and timestamps.

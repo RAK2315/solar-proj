@@ -4,11 +4,11 @@
 the sandbox must work, because the PPT (15 Oct, 13:04 IST) needs real screenshots.
 Build continues to 24 Oct. The 36-hour round is **mentor-requested changes only**.
 
-> **Team assumption, flagged for correction.** Team is SIGMOID; the division of
-> labour was not specified. This plan puts **Colab training entirely off the UI
-> critical path**, which is correct whether SIGMOID is one person or three. If more
-> than one person builds, P3 training starts on day 1 in parallel and nothing else
-> changes.
+> **Team.** SIGMOID — solo builder plus Claude Code; Colab training runs in a
+> parallel session. Recorded 4 Oct 2026 after the division of labour was left
+> unspecified three times; the owner offered this as the fallback. **Correct it if
+> wrong.** The only thing it changes is whether P3 training truly parallelises;
+> this plan keeps it off the UI critical path either way.
 
 ---
 
@@ -142,4 +142,57 @@ Cuts come off the bottom. **F2 and F3 are never cut.**
 - A build interrupted partway leaves no build at all. Kill the port, wipe `.next`,
   build, then serve.
 - `npm run demo` needs network for `next/font`. A DNS blip fails the build; retry
-  before debugging.
+  before debugging. Seen once on 4 Oct: `getaddrinfo ENOTFOUND fonts.googleapis.com`,
+  green on retry with no code change.
+
+---
+
+## Browser verification — learned the hard way, 4 Oct 2026
+
+### SwiftShader stalls animations, and a screenshot then lies
+
+Running Chrome with `--use-angle=swiftshader` blocks the main thread hard enough that
+**CSS animations do not advance during a `waitForTimeout`**. A screenshot taken
+"after" a 150 ms animation can capture its `from` keyframe — so an element that
+animates `opacity: 0 → 1` photographs **completely blank**.
+
+This cost a false bug report on 4 Oct: a module screen was diagnosed as broken when
+the animation had simply never ticked. Without the SwiftShader flags the same screen
+settled correctly in under 600 ms.
+
+**Rules when screenshotting anything animated:**
+- Assert the settled state before capturing: poll `getComputedStyle(el).opacity` or
+  `el.getAnimations().length === 0`, do not trust a fixed wait.
+- A blank capture under SwiftShader is a timing artifact until proven otherwise.
+  Re-check without the GL flags before believing it.
+- **This matters immediately for the four mockup routes**, which screenshot panels
+  that animate in over a live 3D canvas.
+
+### `check:layout` already takes the width
+
+`scripts/check_layout.mjs` reads `process.argv[2]` and `[3]`, defaulting to 1512×900.
+Adding the second required pass in P1 is a second invocation, not a rewrite:
+
+```
+node scripts/check_layout.mjs 1920 1080
+node scripts/check_layout.mjs 1366 768
+```
+
+### Harness specifics
+
+- Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`, driven by
+  `playwright-core` (already a dependency).
+- 3D needs `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`, with
+  the caveat above.
+- Arrays are clickable via `[data-panel-id]`; the 2D fallback carries the same hook.
+- Write throwaway scripts to the **repo root** — ESM resolves packages from the
+  file's own location — and delete them afterwards.
+- `npm run demo` writes nothing to stdout you can block on; wait with
+  `until grep -q "Ready in" <log>; do sleep 3; done` in a backgrounded shell.
+
+### The `impeccable` skill
+
+- Its `context.mjs` lives at `~/.claude/skills/impeccable/scripts/`, **not** in the
+  project. The documented `node .claude/skills/...` invocation fails here.
+- `PRODUCT.md` now exists at the repo root, so the skill will not re-trigger `init`.
+  It is deliberately thin and points at this pack.

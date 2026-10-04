@@ -35,8 +35,8 @@ Automatic, not a user setting.
 
 **Acceptance**
 - WebGL context creation fails → 2D SVG map, no error dialog, console still usable.
-- Sustained fps below threshold → same. Threshold proposed at **30 fps averaged over
-  3 s**; confirm before building.
+- Sustained fps below threshold → same. Threshold **CONFIRMED 4 Oct 2026: 30 fps
+  averaged over 3 s.** Not a user setting; the switch is automatic.
 - The fallback reads the same selectors, so no second data path exists.
 - Switching is announced in the log line, not silent.
 
@@ -105,7 +105,10 @@ Exact MILP over jobs, 2 drones, 2–3 crews, shift limits, heat threshold.
 - 72 h forecast carries **uncertainty bands**, drawn as bands and labelled as such.
 - The CERC DSM regulation is cited as context only. **Any code path computing a DSM
   charge is a build failure** — `X` is unpublished and NR is a live market price.
-- **Blocked until** the owner opens the PIB link and confirms the figures.
+- **GATED, 4 Oct 2026.** The owner is verifying the PIB tariff personally and will
+  report back. F5 does not start until they do. Do not substitute another tariff, do
+  not proceed on the corroborating secondary sources, and do not quietly drop the
+  attribution to unblock it.
 
 **Dependencies** — F2 for the forecast surface.
 
