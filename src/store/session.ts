@@ -404,7 +404,10 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   },
 }), {
   name: 'surya-session',
-  version: 1,
+  // Demo mode was retired on 5 Oct 2026 and nothing on screen can enter it any
+  // more, so a session saved while it was showing must not strand the operator there.
+  version: 2,
+  migrate: (persisted) => ({ ...(persisted as object), mode: 'live' }) as unknown as SessionState,
   // Hydrated explicitly after mount by ClockDriver. Reading storage during render
   // would make the server and client disagree on the very first paint.
   skipHydration: true,

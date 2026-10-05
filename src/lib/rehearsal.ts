@@ -20,7 +20,23 @@
  */
 
 import { allPanels } from './live';
-import type { LiveFrame } from './live';
+import type { LiveFrame, ScenarioEvent } from './live';
+
+/**
+ * The committed rehearsal seed: the state a rehearsal run starts from.
+ *
+ * It replaced the scripted demo. That was 91 recorded frames; this is an input to
+ * the live model, and `rehearsal.test.ts` asserts that running it reproduces B-17's
+ * deviation, its computed deadline and the queue order. A judge who re-runs it
+ * sees what they saw before because the model is deterministic, not because
+ * anything was recorded.
+ *
+ * Twelve site minutes in: B-17's fault began at four and takes three to develop.
+ */
+export const REHEARSAL_SEED: { siteSeconds: number; injected: readonly ScenarioEvent[] } = {
+  siteSeconds: 12 * 60,
+  injected: [],
+};
 
 /**
  * Coprime with 120, and large enough that consecutive picks are nowhere near each

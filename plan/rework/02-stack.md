@@ -120,10 +120,10 @@ and deployed. This file selects only for the new layers.
 | Pair | Risk | Status |
 |---|---|---|
 | React 19 ↔ R3F v9 / drei v10 | the classic break | already running |
-| `highs` WASM ↔ Next 15 bundler | WASM asset path under the app router | **verify in the first build** — known friction point |
+| `highs` WASM ↔ Next 15 bundler | WASM asset path under the app router | **verified in P0, 5 Oct 2026.** Loads and solves in Chrome (optimal, 23 ms on a toy MILP). Needed one fix: the ESM build names `node:module` and friends, which webpack cannot resolve for the browser; `next.config.ts` strips the scheme and resolves them to nothing. The `.wasm` must be served from `/public` and found through `locateFile`; P4 adds the copy step to `sync:artefacts`. |
 | `highs` WASM ↔ `onnxruntime-web` | two WASM modules, memory | low; both well under budget |
 | Next 15 ↔ Node 24.16 | — | already running |
-| ONNX opset ↔ ORT 1.19.2 | classifier export | **check in Colab before training completes** |
+| ONNX opset ↔ ORT 1.19.2 | classifier export | **checked in P0, 5 Oct 2026.** The detector that already runs here is opset 12, IR version 7 (read from `public/models/defect_yolov8n.onnx`). Export the classifier at **opset 12**: it is the one opset proven on this pinned runtime. Do not accept the exporter's default without reading it back. |
 
 Two items are flagged, not resolved. Both are cheap to check now and expensive to
 discover late.

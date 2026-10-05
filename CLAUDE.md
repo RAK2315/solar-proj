@@ -20,6 +20,19 @@ Read this file completely before writing any code.
 > | Build order and the cut list | `plan/rework/08-build-plan.md` |
 > | Risks | `plan/rework/09-risks.md` |
 >
+> #### Build progress
+>
+> | | |
+> |---|---|
+> | Design gate | **Closed 5 Oct.** Direction **E, Glass with rail**, dark by default, light as a toggle. Spec in `06-design-system.md` §1. Mockups deleted; reference at commit `2138fad`. |
+> | P0 Prepare | **Done 5 Oct.** `beats.test.tsx` deleted · the M key and the header mode switch removed · saved sessions migrate to live · `src/lib/rehearsal.test.ts` pins the seeded run · `highs` 1.15.3 installed and verified in the browser · classifier export fixed at opset 12. |
+> | P1 UI shell and twin | **Next.** Twin plus one panel first, per `09-risks.md` R1. |
+> | Added by the owner | **F6, an immersive 3D landing page**, scheduled as P2b after the hero. |
+>
+> Demo mode is unreachable but not yet removed: the `demo` branches in
+> `selectors.ts`, `flightCue.ts` and `demoClock.ts` go with the components that
+> read them, in P1. Until then several tests still set it directly.
+>
 > #### What changed in this file on 4 Oct 2026
 >
 > **DELETED — do not follow these any more:**

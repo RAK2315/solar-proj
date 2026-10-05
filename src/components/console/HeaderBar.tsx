@@ -15,7 +15,7 @@
  * about what the product is.
  */
 
-import { Grid2x2, Moon, Power, Radio, Sun, TextSearch } from 'lucide-react';
+import { Grid2x2, Moon, Sun, TextSearch } from 'lucide-react';
 
 import { useHydrated } from '@/hooks/useHydrated';
 import { num } from '@/lib/format';
@@ -41,7 +41,6 @@ const DAY_LABEL = ['Today', '+24h', '+48h'];
 export function HeaderBar() {
   const mode = useMode();
   const running = useSession((s) => s.running);
-  const setMode = useSession((s) => s.setMode);
   const highs = useDailyHighs();
   const farm = useFarm();
   const hydrated = useHydrated();
@@ -176,28 +175,6 @@ export function HeaderBar() {
             : live ? (running ? '● LIVE' : '❚❚ LIVE · PAUSED') : '▶ DEMO REPLAY'}
         </span>
 
-        {/* Which world you are looking at, and the control that changes it. A live
-            console and a recording of one must never be confusable, see the note
-            in store/session.ts. */}
-        <button
-          type="button"
-          className="btn-reset"
-          onClick={() => setMode(live ? 'demo' : 'live')}
-          aria-label={live
-            ? 'Switch to the scripted demo replay (M)'
-            : 'Switch to live site operation (M)'}
-          title="Press M to switch"
-          style={{
-            width: 32, height: 32, display: 'grid', placeItems: 'center',
-            borderRadius: '50%',
-            background: live ? 'var(--sev-active)' : 'transparent',
-            border: live ? 'none' : '1px solid var(--sev-warning)',
-            color: live ? 'var(--text-inverse)' : 'var(--sev-warning)',
-          }}
-        >
-          {live ? <Radio size={17} strokeWidth={2} aria-hidden />
-            : <Power size={17} strokeWidth={2} aria-hidden />}
-        </button>
       </div>
     </header>
   );

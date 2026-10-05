@@ -96,12 +96,6 @@ export function useRehearsalKeys(): void {
         return;
       }
 
-      // `M` swaps between the live console and the scripted demo. Everything below
-      // it only makes sense in demo mode, where `t` is the timeline.
-      if (e.key === 'm' || e.key === 'M') {
-        session.setMode(session.mode === 'demo' ? 'live' : 'demo');
-        return;
-      }
       // The panic key. Works in BOTH modes, and before the mode check, because
       // the state it clears is exactly the state that makes a mode misbehave.
       if (e.key === 'R' && e.shiftKey) {

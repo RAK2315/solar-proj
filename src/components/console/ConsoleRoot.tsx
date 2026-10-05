@@ -51,7 +51,7 @@ export function ConsoleRoot() {
   const showWorkings = useSession((s) => s.showWorkings);
 
   // The event rail belongs to the map. Demo mode always shows it: the scripted
-  // incident has beats that fire in the feed, and beats.test.tsx pins them.
+  // incident has beats that fire in the feed.
   const onSite = mode === 'demo' || screen === 'site';
 
   // The detail rail is a response to a question. In demo mode the script asks it
