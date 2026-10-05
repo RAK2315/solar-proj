@@ -114,6 +114,21 @@ Exact MILP over jobs, 2 drones, 2–3 crews, shift limits, heat threshold.
 
 ---
 
+## F6 — Immersive 3D landing page [owner request, 5 Oct 2026]
+
+The owner asked for the landing page to become a 3D environment: the field, panels
+and drones in motion, not a text page with a link.
+
+- Built from the twin's own scene components, so it is the same site the console
+  shows and costs no new dependency.
+- A drone flies a looping inspection pass over the field behind the headline; the
+  camera drifts. Motion is derived from one clock, like everything else.
+- Every figure on it still comes through `src/app/numbers.ts`. No new claims.
+- Reduced motion and WebGL failure fall back to a still frame of the same scene.
+- Instanced meshes only, `dpr` capped at 1.5, 60 fps at 1366×768 or it does not ship.
+- Scheduled after the hero (P2), before the 13 Oct screenshot gate. It is on the
+  cut list: if P2 slips, the existing landing is restyled to direction E instead.
+
 ## V2
 
 - **V2-1 — Real plant dataset with a learned anomaly detector.** Replaces modelled

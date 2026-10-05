@@ -66,6 +66,17 @@ still green · reset works from every state including mid-drag.
 
 **This is the milestone.** At the end of P2 the PPT screenshots exist.
 
+## P2b — Immersive 3D landing (1 day) · by 11 Oct
+
+Owner request, 5 Oct. F6 in `03-features.md`. Starts only after P2 passes.
+
+- Landing rebuilt on the twin's scene components: field, panels, a drone on a
+  looping inspection pass, drifting camera, the headline and figures in glass.
+- Still-frame fallback for reduced motion and for no WebGL.
+
+**Verification:** 60 fps at 1366×768 · every figure still from `numbers.ts` ·
+fallback renders with WebGL blocked · `view.test.tsx` updated and green.
+
 ---
 
 ### ◆ 13 Oct — PPT SCREENSHOT GATE ◆
@@ -128,6 +139,7 @@ Cuts come off the bottom. **F2 and F3 are never cut.**
 |---|---|---|
 | 1 | STRETCH items | any slip |
 | 2 | `recharts` removal (DR-5) | P1 running hot |
+| 2b | P2b 3D landing — restyle the existing landing to direction E instead | P2 not passed by 11 Oct |
 | 3 | P5 rupees | PIB unconfirmed, or P1 slips > 1 day |
 | 4 | P4 scheduler polish — keep the solve, drop the plan strip | P1 slips > 2 days |
 | 5 | P3 sweep across all 120 — classify a subset, say so | training late |
