@@ -85,6 +85,71 @@ shown as a thermal sweep across the twin.
 
 **Dependencies** — F1 for the sweep surface. Training is independent and starts day 1.
 
+### F3 contract — set by the owner, 6 Oct 2026. Written here before any code.
+
+Where this and the acceptance list above differ, this wins.
+
+**Data.** Raptor Maps InfraredSolarModules, MIT. The class list and the image
+size are READ from the dataset's own `module_metadata.json` and its images, never
+from memory or from this plan. Read on 6 Oct 2026 from the local copy
+(`dataset/thermal-raptormaps/`): **20,000 images, 24 wide by 40 high, 8-bit
+single channel, 12 classes.** Counts from the metadata file, which is the
+authority: No-Anomaly 10,000 · Cell 1,877 · Vegetation 1,639 · Diode 1,499 ·
+Cell-Multi 1,288 · Shadowing 1,056 · Cracking 940 · Offline-Module 827 ·
+Hot-Spot 249 · Hot-Spot-Multi 246 · Soiling 204 · Diode-Multi 175. (The
+dataset's README table gives 941, 828, 251, 247 and 205 for five of those and
+sums to 20,006. The metadata file sums to 20,000 and is what the notebook reads.)
+The class ORDER is fixed in a committed `classes.json` that ships with the model.
+
+**Input.** Native resolution, grey, one channel, no resize. Pixels are scaled to
+[0, 1], then normalised by the TRAIN split's mean and standard deviation. Both
+figures are stored in `classes.json`, so the browser normalises exactly as
+training did.
+
+**Split.** Stratified 70 / 15 / 15, fixed seed 20261006. Reported on the held-out
+TEST split: per-class precision, recall and F1, macro-F1, and the confusion
+matrix. **The headline is macro-F1, not accuracy**, because No-Anomaly is half the
+dataset and a model that said nothing else would score 50 % accuracy.
+
+**Metrics** live in `data/evidence/thermal_classifier.json`, validated by a new
+Zod schema and invariant in `src/lib/types.ts`, the same pattern as
+`b17_detection.json`. The invariant is added at integration, when the file
+exists; until then `validate:data` reports it as absent and skips.
+
+**Model.** A small CNN, exported to ONNX at **opset 12**, the one opset proven on
+the pinned `onnxruntime-web` 1.19.2, as a second model beside the detector. The
+notebook reads the opset and IR version back from the exported file and checks
+the ONNX output against PyTorch's on the whole test split before it lets
+anything be downloaded.
+
+**Training.** A Colab notebook, `plan/COLAB-THERMAL-NOTEBOOK.md`, in the pattern
+of `plan/COLAB-NOTEBOOK.md`. The owner runs it. No training runs on the laptop.
+
+**Modelled frames for the other 119 arrays.** `scripts/render_thermal.py`,
+deterministic and seeded. One frame per array at the dataset's resolution, from
+that array's physics cell temperature and the fault mechanism the site record
+gives it, under the declared `THERMAL_SPAN_C` scaling, with one pattern per
+mechanism (hot-spot, diode band, soiling, offline) and noise at the dataset's
+measured level. Output is committed: `data/evidence/thermal_modelled.json` and a
+contact sheet for looking at. B-17 is not rendered; it has a real capture. Every
+result that rests on a modelled frame is labelled "flagged from modelled
+signature". The other verb is reserved for B-17.
+
+**Sanity check.** The classifier is run on the modelled frames of the healthy
+arrays and the share that come out No-Anomaly is reported, low or not, on screen
+and in `thermal_classifier.json`. A classifier trained on real frames may well
+reject frames drawn from a model; if it does, that is the finding.
+
+**File destinations at integration**
+
+| File from the notebook | Goes to |
+|---|---|
+| `thermal_classifier.onnx` | `public/models/thermal_classifier.onnx` |
+| `thermal_classifier.classes.json` | `public/models/thermal_classifier.classes.json` |
+| `thermal_classifier.json` | `data/evidence/thermal_classifier.json` |
+| `thermal_classifier.pt` | `models/thermal_classifier.pt` (provenance, never loaded at runtime) |
+| `thermal_confusion.png`, `thermal_training.csv` | `docs/training/` |
+
 ## F4 — Crew and drone scheduler [MVP]
 
 Exact MILP over jobs, 2 drones, 2–3 crews, shift limits, heat threshold.
