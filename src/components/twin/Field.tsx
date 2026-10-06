@@ -36,7 +36,11 @@ const PLATE_LIFT = 0.07;
 const LIFT_Y = Math.cos(PANEL_TILT) * PLATE_LIFT;
 const LIFT_Z = Math.sin(PANEL_TILT) * PLATE_LIFT;
 
-export function Field({ dark }: { dark: boolean }) {
+export function Field({ dark, interactive = true }: {
+  dark: boolean;
+  /** False on the landing page: every array drawn here, and nothing to click. */
+  interactive?: boolean;
+}) {
   // CrackedPanel draws this array even at rest, so it is excluded even at rest.
   const drawnApart = useSession(
     (s) => flightCueAt(s.siteSeconds, s.missions).targetId,
@@ -45,8 +49,8 @@ export function Field({ dark }: { dark: boolean }) {
   const tints = useArrayTints();
 
   const modules = useMemo(
-    () => ALL.filter((p) => arrayOf(p.id) !== drawnApart),
-    [drawnApart],
+    () => (interactive ? ALL.filter((p) => arrayOf(p.id) !== drawnApart) : ALL),
+    [drawnApart, interactive],
   );
 
   const glass = useRef<InstancedMesh>(null);
@@ -112,9 +116,10 @@ export function Field({ dark }: { dark: boolean }) {
         ref={glass}
         args={[undefined, undefined, CAPACITY]}
         frustumCulled={false}
-        onClick={select}
-        onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
-        onPointerOut={() => { document.body.style.cursor = ''; }}
+        onClick={interactive ? select : undefined}
+        onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer'; } : undefined}
+        onPointerOut={interactive ? () => { document.body.style.cursor = ''; } : undefined}
+        raycast={interactive ? undefined : () => null}
       >
         <boxGeometry args={[PANEL_W, 0.05, PANEL_H]} />
         <meshStandardMaterial

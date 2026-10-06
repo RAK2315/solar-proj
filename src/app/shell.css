@@ -13,7 +13,9 @@
   --line: #222b3a; --line-hi: #36425a;
   --ink: #e6ebf4; --ink-2: #97a3b8; --ink-3: #5f6b7e;
   --live: #3fd4b8;
-  --i20: #4a1d6e; --i40: #9b2a63; --i60: #d94a3d; --i80: #f08b2a; --i95: #ffc94d;
+  /* The ramp is declared once, in globals.css, where a test holds it equal to the
+     thermal shader's. These are its short names. */
+  --i20: var(--iron-20); --i40: var(--iron-40); --i60: var(--iron-60); --i80: var(--iron-80); --i95: var(--iron-95);
   --healthy: #24406b;
   /* A ramp colour that is a fine fill is often too dark as 14 px text. */
   --crit-ink: color-mix(in oklab, var(--i60), white 38%);
@@ -384,7 +386,7 @@
 .matrix .cell { background: color-mix(in oklab, var(--ink) 6%, transparent); font-weight: 600; }
 .matrix .cell[data-ink='dark'] { color: #070a0f; }
 .matrix .cell[data-ink='light'] { color: #ffffff; }
-.matrix .cell[data-defect='true'] { outline: 2px solid #fff3d6; outline-offset: -2px; }
+.matrix .cell[data-defect='true'] { outline: 2px solid var(--iron-100); outline-offset: -2px; }
 .defects { padding: 4px 12px; border-radius: 10px; background: var(--well); }
 .defects li { display: flex; align-items: center; gap: 10px; padding: var(--row) 0; }
 .defects li > span:nth-child(2) { flex: 1; }
@@ -413,3 +415,36 @@
 }
 .sy-flightbar .says { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
 .sy-flightbar .tool { padding: 8px 12px; }
+
+/* ── Landing ─────────────────────────────────────────────────────────────── */
+
+.sy-landscene { position: absolute; inset: 0; z-index: var(--z-twin); }
+.sy-landscene img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sy-land {
+  position: absolute; z-index: var(--z-panel); left: var(--edge); top: var(--edge); bottom: var(--edge); width: min(500px, calc(100% - 2 * var(--edge)));
+  padding: 30px 32px; border-radius: 18px;
+  display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
+}
+.hero { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.hero .brand { font-weight: 600; color: var(--ink-2); }
+.hero h1 { font-size: var(--t5); font-weight: 600; line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance; }
+.hero .approve { width: auto; padding: 13px 24px; border-radius: 999px; }
+.sy .hero a.approve { color: var(--on-sev); }
+.loop { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.loop li { display: flex; gap: 10px; padding: var(--row) 0; }
+.proof { display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
+.sy a.src { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-hi); }
+.sy a.src:hover { text-decoration-color: var(--ink); }
+.sy .sy-stats {
+  position: absolute; z-index: var(--z-panel); right: var(--edge); bottom: var(--edge); left: calc(min(500px, 100% - 2 * var(--edge)) + 2 * var(--edge));
+  padding: 18px 22px; border-radius: 18px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 24px;
+}
+.sy-stats dd { font-size: var(--t4); font-weight: 600; line-height: 1.1; }
+.sy-stats dt { margin-top: 4px; color: var(--ink-2); }
+.sy-landtheme { position: absolute; z-index: var(--z-panel); top: var(--edge); right: var(--edge); border-radius: 999px; padding: 6px; }
+.sy-landtheme .tool { padding: 8px; border-radius: 999px; border-color: transparent; background: none; }
+@media (max-width: 900px) {
+  .sy-stats { display: none; }
+}

@@ -8,8 +8,6 @@
  * post-transform pixels, which is the bug that wrapper kept causing.
  */
 
-import '../shell.css';
-
 import { Shell } from '@/components/shell/Shell';
 
 export default function Page() {

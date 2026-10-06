@@ -31,7 +31,7 @@ import { Watchdog } from './Watchdog';
 
 /* The ground plan/rework/06-design-system.md §7 describes. The daylit desert is
    kept for the light theme, where a near-black field would fight the panels. */
-function DarkEnvironment() {
+export function DarkEnvironment() {
   return (
     <>
       <color attach="background" args={[TWIN.void]} />

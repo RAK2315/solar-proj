@@ -18,7 +18,7 @@
  *   CLIPPED   no block wider than the sheet it sits in, and none taller than a
  *             sheet that cannot scroll
  *   FRAME     the rail and every sheet inside the viewport
- *   CANVAS    the twin's canvas fills the viewport
+ *   CANVAS    the twin's canvas fills the viewport, and the landing page's too
  *
  * It also proves the console is alive: every step presses a real control, and a
  * control that is not there fails the run instead of being skipped.
@@ -111,7 +111,7 @@ const measure = () => page.evaluate(({ minFont, tol }) => {
   }
 
   const scrolls = (el) => /auto|scroll/.test(getComputedStyle(el).overflowY);
-  for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-left > *, .sy-flightbar')) {
+  for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-left > *, .sy-flightbar, .sy-land, .sy-stats')) {
     if (!visible(frame)) continue;
     const r = frame.getBoundingClientRect();
     if (r.left < -tol || r.top < -tol || r.right > vw + tol || r.bottom > vh + tol) {
@@ -133,7 +133,7 @@ const measure = () => page.evaluate(({ minFont, tol }) => {
     }
   }
 
-  const canvas = document.querySelector('.sy-twin canvas');
+  const canvas = document.querySelector('.sy-twin canvas, .sy-landscene canvas');
   if (canvas) {
     const c = canvas.getBoundingClientRect();
     const cover = (c.width * c.height) / (vw * vh);
@@ -198,6 +198,12 @@ await settle();
 for (const f of await measure()) {
   if (!f.startsWith('CANVAS')) faults.push(`dark/2D fallback  ${f}`);
 }
+
+/* The landing page is held to the same type and frame rules. */
+await page.goto(BASE.replace(/\/console$/, '/'), { waitUntil: 'load' });
+await page.waitForSelector('.sy-land', { timeout: 60000 });
+await page.waitForSelector('canvas', { state: 'attached', timeout: 60000 });
+await check('landing');
 
 await browser.close();
 

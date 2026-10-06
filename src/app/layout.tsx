@@ -1,26 +1,20 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from 'next/font/google';
+import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
 
 import { ClockDriver } from './ClockDriver';
 import './globals.css';
+import './shell.css';
 
-/* Two families, three roles (plan/04 §2). Both were drawn for technical
-   interfaces, which is the point. Mono carries every number and ID; Condensed
-   carries labels and chrome; Sans appears ONLY in agent reasoning prose. */
+/* Two faces (plan/rework/06-design-system.md §2). IBM Plex Sans for everything,
+   IBM Plex Mono for identifiers only. Plex Sans Condensed went with the tracked
+   capitals it existed to make fit. */
 
 const plexMono = IBM_Plex_Mono({
   variable: '--font-plex-mono',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   display: 'swap',
-  preload: true,          // above the fold everywhere
-});
-
-const plexCond = IBM_Plex_Sans_Condensed({
-  variable: '--font-plex-cond',
-  subsets: ['latin'],
-  weight: ['600'],
-  display: 'swap',
+  preload: false,         // identifiers only; the sans is what paints first
 });
 
 const plexSans = IBM_Plex_Sans({
@@ -34,22 +28,20 @@ export const metadata: Metadata = {
   title: 'SURYA AGENT · Bhadla Solar Park',
   description:
     'Autonomous inspection and triage console for utility-scale solar. ' +
-    'Telemetry anomaly to deadlined work order in 90 seconds, gated on a human.',
+    'It finds the array that is underperforming, sends a drone to verify why, and ' +
+    'hands an operator a ranked, deadlined repair plan to approve.',
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // The font variables go on <html>, NOT <body>. globals.css composes them into
-    // --font-mono / --font-cond / --font-sans on :root, and a custom property that
-    // references another one resolves against the element it is DECLARED on. With
-    // the variables on <body>, `var(--font-plex-mono)` is undefined at :root, which
-    // makes --font-mono guaranteed-invalid and silently falls every font back to
-    // the browser default. One element up, and the whole type scale works.
+    // The font variables go on <html>, NOT <body>. The stylesheet composes them
+    // into its own tokens, and a custom property that references another one
+    // resolves against the element it is DECLARED on.
     <html
       lang="en"
-      className={`${plexMono.variable} ${plexCond.variable} ${plexSans.variable}`}
+      className={`${plexMono.variable} ${plexSans.variable}`}
     >
       <body>
         {/* The one rAF loop. Mounted here so it outlives every view switch. */}

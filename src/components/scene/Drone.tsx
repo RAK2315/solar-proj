@@ -18,7 +18,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { Group, Mesh } from 'three';
 
-import { droneAt, droneVisible } from '@/lib/scene';
+import { droneAt, droneVisible, type Vec3 } from '@/lib/scene';
 import { SCENE } from '@/lib/scenePalette';
 import { flightCueNow } from '@/store/flightCue';
 
@@ -27,24 +27,40 @@ const ROTORS: Array<[number, number]> = [
   [ARM, ARM], [-ARM, ARM], [ARM, -ARM], [-ARM, -ARM],
 ];
 
-export function Drone() {
+/** Where one aircraft is this frame, and where it will be a moment later. */
+export interface DroneSample { p: Vec3; ahead: Vec3; visible: boolean }
+
+const AHEAD = 0.25;
+
+/** The mission's own aircraft, read off the flight cue. */
+function missionSample(): DroneSample {
+  const cue = flightCueNow();
+  return {
+    p: droneAt(cue.t, cue.target),
+    ahead: droneAt(cue.t + AHEAD, cue.target),
+    // Hidden while the camera is riding it, or we would be looking at the
+    // inside of its own shell.
+    visible: droneVisible(cue.t),
+  };
+}
+
+export function Drone({ sample = missionSample, scale = 1 }: {
+  /** Defaults to the dispatched mission. The landing page flies its own loops. */
+  sample?: () => DroneSample;
+  scale?: number;
+}) {
   const group = useRef<Group>(null);
   const rotors = useRef<Array<Mesh | null>>([]);
   const shadow = useRef<Mesh>(null);
 
   useFrame((_, delta) => {
-    const cue = flightCueNow();
-    const t = cue.t;
-    const p = droneAt(t, cue.target);
+    const { p, ahead, visible } = sample();
 
     if (group.current) {
-      // Hidden while the camera is riding it — otherwise we would be looking at
-      // the inside of its own shell.
-      group.current.visible = droneVisible(t);
+      group.current.visible = visible;
       group.current.position.set(p.x, p.y, p.z);
       // Bank into the direction of travel. Sampled by differencing two samples of
       // a pure function — still no accumulated state.
-      const ahead = droneAt(t + 0.25, cue.target);
       const dx = ahead.x - p.x;
       const dz = ahead.z - p.z;
       const speed = Math.hypot(dx, dz);
@@ -69,7 +85,7 @@ export function Drone() {
 
   return (
     <>
-      <group ref={group}>
+      <group ref={group} scale={scale}>
         <mesh castShadow={false}>
           <boxGeometry args={[0.75, 0.16, 1.15]} />
           <meshStandardMaterial color={SCENE.droneBody} metalness={0.4} roughness={0.5} />
