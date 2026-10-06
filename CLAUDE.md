@@ -26,7 +26,7 @@ Read this file completely before writing any code.
 > |---|---|
 > | Design gate | **Closed 5 Oct.** Direction **E, Glass with rail**, dark by default, light as a toggle. Spec in `06-design-system.md` §1. Mockups deleted; reference at commit `2138fad`. |
 > | P0 Prepare | **Done 5 Oct.** `beats.test.tsx` deleted · the M key and the header mode switch removed · saved sessions migrate to live · `src/lib/rehearsal.test.ts` pins the seeded run · `highs` 1.15.3 installed and verified in the browser · classifier export fixed at opset 12. |
-> | P1 UI shell and twin | **Next.** Twin plus one panel first, per `09-risks.md` R1. |
+> | P1 UI shell and twin | **In progress, 6 Oct.** The twin is the main view at `/console`: 120 arrays instanced with per-instance status colour, its own field camera, the mission camera when a drone is followed, an fps watchdog and a 2D fallback. Shell in direction E with all six screens at first depth. `components/console/` and `components/cinematic/` are unmounted but still in the tree with their tests; they go once every surface in them exists in the new shell. |
 > | Added by the owner | **F6, an immersive 3D landing page**, scheduled as P2b after the hero. |
 >
 > Demo mode is unreachable but not yet removed: the `demo` branches in

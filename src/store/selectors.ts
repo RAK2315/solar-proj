@@ -22,8 +22,8 @@ import {
   repairQueue, telemetry,
 } from '@/lib/data';
 import {
-  eventFor, forecastOffset, inverterComparison, liveFrameAt, referenceShortfallKW,
-  type LiveFrame,
+  allEvents, eventFor, forecastOffset, inverterComparison, liveFrameAt,
+  referenceShortfallKW, scenario, type LiveFrame, type ScenarioEvent,
 } from '@/lib/live';
 import {
   CELL_TEMP_REF_C, F_SOIL, cellTemp, irradianceAt, isDark, soilFor,
@@ -48,7 +48,7 @@ import type {
 } from '@/lib/types';
 import { useDemoClock } from './demoClock';
 import { useDetector } from './detector';
-import { useFlightCue } from './flightCue';
+import { flightCueAt, useFlightCue } from './flightCue';
 import {
   MISSION, MISSION_TOTAL, missionPhaseAt, missionProgressAt, useSession,
 } from './session';
@@ -596,8 +596,7 @@ export function useCurrentFrame(): {
     if (mode === 'demo') {
       return { ...demoFrame, clock: demoFrame.timestamp };
     }
-    const scheduled = new Set(workOrders.map((w) => w.panelId));
-    const live = liveFrameAt(siteSeconds, scheduled, injected);
+    const live = sharedFrame(siteSeconds, workOrders, injected);
     return {
       panels: live.panels as unknown as Record<string, PanelReading>,
       ambientC: live.ambientC,
@@ -722,16 +721,86 @@ export function useFeedEvents(): DemoEvent[] {
 export const useModule = () => useSession((s) => s.module);
 export const useSetModule = () => useSession((s) => s.setModule);
 
+/**
+ * The site at one moment, evaluated once however many panels ask for it.
+ *
+ * Every panel that shows a reading holds its own `useMemo`, so a screen of eight
+ * panels evaluated all 120 arrays eight times a frame. The inputs are identical
+ * across them, so one remembered answer serves the lot. It keys on identity, which
+ * is exactly what `useMemo` was already keying on.
+ */
+let lastFrame: { key: readonly unknown[]; frame: LiveFrame } | null = null;
+
+function sharedFrame(
+  siteSeconds: number,
+  workOrders: ReadonlyArray<{ panelId: string }>,
+  injected: Parameters<typeof liveFrameAt>[2],
+): LiveFrame {
+  const key = [siteSeconds, workOrders, injected] as const;
+  if (lastFrame && lastFrame.key.every((k, i) => k === key[i])) return lastFrame.frame;
+  const frame = liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId)), injected);
+  lastFrame = { key, frame };
+  return frame;
+}
+
 /** The raw live frame, for screens that need site time alongside the readings. */
 export function useSiteFrame(): LiveFrame {
   const siteSeconds = useSession((s) => s.siteSeconds);
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
   return useMemo(
-    () => liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId)), injected),
+    () => sharedFrame(siteSeconds, workOrders, injected),
     [siteSeconds, workOrders, injected],
   );
 }
+
+/** The hour of day the scenario starts at. Site time counts from here. */
+export const useScenarioEpochHour = (): number => scenario.epochHour;
+
+/** Every fault in force: the committed site history plus this session's rehearsal. */
+export function useScenarioEvents(): ScenarioEvent[] {
+  const injected = useSession((s) => s.injected);
+  return useMemo(() => allEvents(injected), [injected]);
+}
+
+/** What the twin lays over an array that is not simply healthy. */
+export type ArrayTint = 'warning' | 'critical' | 'scheduled' | 'affected';
+
+/**
+ * Every array the twin has to recolour, by status.
+ *
+ * The map keeps its identity until a status actually changes. Site time ticks
+ * sixty times a second and statuses change a few times an hour, so the twin
+ * rewrites its instance colours on the second and never on the first.
+ */
+export function useArrayTints(): ReadonlyMap<string, ArrayTint> {
+  const frame = useSiteFrame();
+  const key = useMemo(() => {
+    const parts: string[] = [];
+    for (const [id, r] of Object.entries(frame.panels)) {
+      if (r.status !== 'healthy') parts.push(`${id}:${r.status}`);
+    }
+    return parts.join('|');
+  }, [frame]);
+  return useMemo(
+    () => new Map(key ? key.split('|').map((pair) => pair.split(':') as [string, ArrayTint]) : []),
+    [key],
+  );
+}
+
+/**
+ * Is the twin's camera riding along with a drone right now? A boolean, so the
+ * scene subscribes to the answer and not to every tick of site time.
+ */
+export const useFollowingFlight = (): boolean => useSession(
+  (s) => s.followFlight && flightCueAt('live', 0, s.siteSeconds, s.missions).active,
+);
+
+/** The array a flight is inspecting, or null when nothing is in the air. */
+export const useFlightTargetId = (): string | null => useSession((s) => {
+  const cue = flightCueAt('live', 0, s.siteSeconds, s.missions);
+  return cue.active ? cue.targetId : null;
+});
 
 export const useWorkOrders = () => useSession((s) => s.workOrders);
 

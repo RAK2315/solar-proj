@@ -40,6 +40,7 @@ import { useDemoClock } from './demoClock';
 
 import { scenario, type ScenarioEvent } from '@/lib/live';
 import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
+import type { TwinView } from '@/lib/twinCamera';
 
 export type Mode = 'live' | 'demo';
 
@@ -48,7 +49,13 @@ export type Mode = 'live' | 'demo';
  * default and the one the demo needs. The other four are real screens over real
  * state, which is why the rail is navigation now rather than decoration.
  */
-export type ModuleId = 'site' | 'drones' | 'missions' | 'repairs' | 'analytics' | 'scenario';
+export type ModuleId =
+  | 'site' | 'incident' | 'queue' | 'analytics' | 'drones' | 'sandbox'
+  // The old console's screens. They go when components/console/ does.
+  | 'missions' | 'repairs' | 'scenario';
+
+/** Why the twin is showing the 2D map, when it is. Null means the twin is up. */
+export type TwinFallback = null | 'webgl' | 'fps';
 
 /** Severity floor for the event feed. `all` is the default. */
 export type FeedFilter = 'all' | 'warning' | 'critical';
@@ -190,6 +197,25 @@ export interface SessionState {
    */
   dossierOpen: boolean;
 
+  /**
+   * Does the twin's camera ride along with a dispatched drone?
+   *
+   * The cinematic used to be a separate view the console cut to. It is the twin's
+   * own camera now, so "watch the flight" is a camera choice and the operator can
+   * take the field back mid-mission. Not persisted: a reload returns to the field.
+   */
+  followFlight: boolean;
+
+  /** Set by the twin itself, never by an operator. See components/twin/Watchdog. */
+  twinFallback: TwinFallback;
+
+  /** Perspective by default; the top view is the operator's to ask for. */
+  twinView: TwinView;
+
+  setFollowFlight: (follow: boolean) => void;
+  setTwinView: (view: TwinView) => void;
+  setTwinFallback: (why: TwinFallback) => void;
+
   setMode: (m: Mode) => void;
   setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
@@ -268,6 +294,9 @@ const initial = {
   showWorkings: false,
   theme: 'dark' as 'dark' | 'light',
   dossierOpen: false,
+  followFlight: true,
+  twinView: 'perspective' as TwinView,
+  twinFallback: null as TwinFallback,
 };
 
 const FILTER_CYCLE: FeedFilter[] = ['all', 'warning', 'critical'];
@@ -284,6 +313,9 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   // reading one array's evidence under another's heading. Close it.
   selectPanel: (selectedPanelId) => set({ selectedPanelId, dossierOpen: false }),
   setDossier: (dossierOpen) => set({ dossierOpen }),
+  setFollowFlight: (followFlight) => set({ followFlight }),
+  setTwinView: (twinView) => set({ twinView }),
+  setTwinFallback: (twinFallback) => set({ twinFallback }),
   setTimeScale: (timeScale) => set({ timeScale }),
   setSiteSeconds: (siteSeconds) => set({ siteSeconds: Math.max(0, siteSeconds) }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
@@ -319,6 +351,8 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     useDemoClock.getState().clearViewOverride();
 
     return {
+      // Sending a drone is a request to watch it.
+      followFlight: true,
       missions: [...s.missions, {
         id: `MSN-${String(s.missions.length + 1).padStart(3, '0')}`,
         droneId: busy === 0 ? 'DRONE 01' : 'DRONE 02',
@@ -395,7 +429,7 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   })),
 
   /** Clears the operator's session. The site itself is not resettable — it is a site. */
-  resetSession: () => set({ ...initial }),
+  resetSession: () => set((s) => ({ ...initial, theme: s.theme, twinFallback: s.twinFallback })),
 
   _tickLive: (dt) => {
     const { running, timeScale, siteSeconds } = get();

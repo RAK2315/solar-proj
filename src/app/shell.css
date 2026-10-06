@@ -1,0 +1,317 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SURYA AGENT — the console shell. Direction E, Glass with rail.
+   Spec: plan/rework/06-design-system.md. Reference: commit 2138fad, mockups.css
+   sections C and E.
+
+   One frosted sheet per screen over the live twin, a slim glass rail on the left.
+   Five type sizes, 14 px floor, sentence case, mono for identifiers only.
+   The ironbow ramp carries state and does not invert between themes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sy {
+  --void: #070a0f; --panel: #0e1219; --raised: #161c26; --high: #1e2634;
+  --line: #222b3a; --line-hi: #36425a;
+  --ink: #e6ebf4; --ink-2: #97a3b8; --ink-3: #5f6b7e;
+  --live: #3fd4b8;
+  --i20: #4a1d6e; --i40: #9b2a63; --i60: #d94a3d; --i80: #f08b2a; --i95: #ffc94d;
+  --healthy: #24406b;
+  /* A ramp colour that is a fine fill is often too dark as 14 px text. */
+  --crit-ink: color-mix(in oklab, var(--i60), white 38%);
+  --warn-ink: var(--i95);
+  --on-sev: #070a0f; --on-live: #070a0f;
+
+  --glass: rgb(26 33 46 / 0.5);
+  --glass-solid: rgb(20 26 37 / 0.94);
+  --glass-fx: blur(22px) saturate(1.6);
+  --glass-line: rgb(255 255 255 / 0.14);
+  --glass-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 20px 48px -16px rgb(0 0 0 / 0.5);
+  --well: rgb(255 255 255 / 0.055);
+
+  --t1: 14px; --t2: 17px; --t3: 21px; --t4: 26px; --t5: 36px;
+  --sans: var(--font-plex-sans), system-ui, sans-serif;
+  --mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --row: 6px; --gap: 11px;
+  --rail-w: 92px; --edge: 16px; --stage-left: 120px;
+
+  --z-twin: 0; --z-overlay: 10; --z-panel: 20; --z-dossier: 30; --z-toast: 40;
+
+  --sev: var(--line-hi); --sev-ink: var(--ink);
+
+  position: fixed; inset: 0; overflow: clip;
+  background: var(--void); color: var(--ink);
+  font: 400 var(--t1) / 1.45 var(--sans);
+}
+
+:root[data-theme='light'] .sy {
+  --void: #edf0f4; --panel: #ffffff; --raised: #f3f5f8; --high: #e2e7ee;
+  --line: #d3d9e3; --line-hi: #9aa6b8;
+  --ink: #10151f; --ink-2: #4a5567; --ink-3: #7a8598;
+  --live: #0a7c69;
+  --crit-ink: #b0261b; --warn-ink: #8a4700; --on-live: #ffffff; --healthy: #cbd4e2;
+  --glass: rgb(255 255 255 / 0.68);
+  --glass-solid: rgb(250 251 253 / 0.96);
+  --glass-fx: blur(22px) saturate(1.4) brightness(1.12);
+  --glass-line: rgb(255 255 255 / 0.7);
+  --glass-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 20px 48px -20px rgb(16 21 31 / 0.35);
+  --well: rgb(16 21 31 / 0.05);
+}
+
+.sy [data-sev='info'], .sy [data-sev='healthy'] { --sev: var(--line-hi); --sev-ink: var(--ink); }
+.sy [data-sev='critical'] { --sev: var(--i60); --sev-ink: var(--crit-ink); }
+.sy [data-sev='warning'] { --sev: var(--i80); --sev-ink: var(--warn-ink); }
+.sy [data-sev='scheduled'], .sy [data-sev='active'] { --sev: var(--live); --sev-ink: var(--live); }
+
+/* ── Reset, scoped ──────────────────────────────────────────────────────── */
+
+.sy p, .sy h1, .sy h2, .sy h3, .sy dl, .sy dd, .sy ol, .sy ul, .sy figure { margin: 0; padding: 0; }
+.sy ol, .sy ul { list-style: none; }
+.sy a { color: inherit; text-decoration: none; }
+.sy button, .sy select, .sy input {
+  appearance: none; margin: 0; font: inherit; color: inherit; background: none; border: 0;
+}
+.sy button, .sy select { cursor: pointer; }
+.sy :focus-visible { outline: 2px solid var(--line-hi); outline-offset: 2px; }
+.sy :disabled { opacity: 0.3; cursor: default; box-shadow: none; }
+
+/* ── Frame ──────────────────────────────────────────────────────────────── */
+
+.sy-twin { position: absolute; inset: 0; z-index: var(--z-twin); }
+.sy-anchors { position: absolute; inset: 0; pointer-events: none; overflow: clip; z-index: var(--z-overlay); }
+.sy-anchors[data-follow='true'] > [data-anchor] { display: none; }
+
+.glass {
+  border: 1px solid var(--glass-line); background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-fx); backdrop-filter: var(--glass-fx);
+  box-shadow: var(--glass-shadow);
+}
+/* R5b. Compositing a blur over a canvas that is repainting under a moving
+   footprint is the most expensive thing this screen does. The tint stands in for
+   it only while the drag lasts. */
+.sy[data-dragging='true'] .glass,
+.sy[data-dragging='true'] .sy-stage::before {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--glass-solid);
+}
+
+.sy-rail {
+  position: absolute; z-index: var(--z-panel);
+  left: 12px; top: 12px; bottom: 12px; width: var(--rail-w); padding: 14px 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: 12px;
+  border-radius: 20px;
+}
+.sy-rail .brand { text-align: center; font-weight: 600; }
+.tabs { display: flex; flex-direction: column; gap: 2px; padding: 0 6px; }
+.tabs button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0;
+  border-radius: 14px; color: var(--ink-2); font-weight: 500; line-height: 1.2;
+}
+.tabs button[aria-current='page'] { color: var(--ink); background: var(--well); box-shadow: inset 0 0 0 1px var(--glass-line); }
+.sy-rail .time { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: auto; padding: 0 6px; }
+.sy-rail .time .tool { padding: 6px 7px; }
+.sy-rail .kpis { display: flex; flex-direction: column; gap: 8px; padding: 12px 0 0; border-top: 1px solid var(--glass-line); }
+.sy-rail .kpis > div { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+.sy-rail .kpis dd { font-weight: 600; }
+.sy-rail .kpis dt { color: var(--ink-2); }
+.sy-rail .prefs { display: flex; justify-content: center; gap: 4px; padding: 0 6px; }
+.sy-rail .prefs .tool { padding: 7px; }
+
+/* The sheet. Its glass sits on a pseudo-element: a backdrop filter on the sheet
+   itself would make it the containing block for any fixed descendant. */
+.sy-stage { position: absolute; z-index: var(--z-panel); top: var(--edge); right: var(--edge); bottom: var(--edge); border-radius: 18px; }
+.sy-stage::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: 18px;
+  border: 1px solid var(--glass-line); background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-fx); backdrop-filter: var(--glass-fx);
+  box-shadow: var(--glass-shadow);
+}
+.sy-stage > * { min-width: 0; }
+
+.sy-stage[data-layout='side'] { width: 404px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+.sy-stage[data-layout='wide'] {
+  left: var(--stage-left); padding: 26px 30px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 22px 32px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
+}
+
+/* The two small panels beside the rail. */
+.sy-left {
+  position: absolute; z-index: var(--z-panel); left: var(--stage-left); top: var(--edge);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 16px; pointer-events: none;
+}
+.sy-left > * { pointer-events: auto; border-radius: 18px; }
+.sy-left .blk-hd h2 { font-size: var(--t2); }
+
+/* ── Atoms ──────────────────────────────────────────────────────────────── */
+
+.sy .id { font-family: var(--mono); font-weight: 500; }
+.sy .num { font-variant-numeric: tabular-nums; }
+.sy .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--sev); }
+.sy .chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  font: 500 var(--t1) / 1 var(--sans); letter-spacing: 0;
+  background: color-mix(in oklab, var(--sev) 20%, transparent); color: var(--sev-ink);
+}
+.sy .count { font: 400 var(--t1) / 1 var(--sans); color: var(--ink-2); }
+
+.blk { display: flex; flex-direction: column; animation: sy-rise 150ms cubic-bezier(0.2, 0, 0, 1) backwards; }
+@keyframes sy-rise { from { opacity: 0; transform: translateY(6px); } }
+.blk-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.blk-hd h2 { display: flex; align-items: center; gap: 10px; font-size: var(--t3); font-weight: 500; line-height: 1.2; }
+.blk-bd { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+.big { font-size: var(--t5); font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+.one, .work, .says, .meta, .empty { color: var(--ink-2); text-wrap: pretty; }
+.fig, .score { font-size: var(--t2); font-weight: 600; line-height: 1.1; white-space: nowrap; }
+
+/* Lists and label-value rows sit in a well. A sheet never nests a second sheet. */
+.rows, .q, .steps, .defer, .plan, .events, .tbl, .loop, .well { padding: 4px 12px; border-radius: 10px; background: var(--well); }
+.well { padding: 10px 12px; }
+
+.rows > div { display: flex; justify-content: space-between; gap: 16px; padding: var(--row) 0; }
+.rows dt { color: var(--ink-2); }
+.rows dd { font-weight: 500; text-align: right; }
+.done { padding: 10px 0; color: var(--live); font-weight: 500; }
+.done .id { color: var(--ink); }
+
+.q { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
+.q li { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: 10px; padding: calc(var(--row) + 2px) 0; }
+.q button.pick { display: contents; text-align: left; }
+.rank { color: var(--ink-2); }
+.job { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta { display: flex; align-items: center; gap: 7px; }
+.q .work { grid-column: 2 / -1; padding-top: 3px; }
+
+.steps li { display: grid; grid-template-columns: 8px 1fr; column-gap: 12px; align-items: baseline; padding: var(--row) 0; }
+.steps .dot { align-self: center; background: var(--line-hi); }
+.steps [data-state='done'] .dot { background: var(--live); }
+.steps [data-state='active'] .dot { background: var(--i80); }
+.steps [data-state='blocked'] .dot { background: var(--i60); }
+.step { font-weight: 500; }
+.steps .says { grid-column: 2; }
+
+.defer li { display: flex; align-items: center; gap: 10px; padding: var(--row) 0; }
+.defer li > span:first-child { flex: 1; }
+
+.plan li { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; column-gap: 12px; padding: var(--row) 0; }
+.track { position: relative; height: 14px; background: var(--well); border-radius: 3px; }
+.track .bar { position: absolute; top: 0; bottom: 0; background: var(--sev); border-radius: 3px; }
+.track .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.plan .fig { font-size: var(--t1); font-weight: 500; }
+
+.curve { display: block; width: 100%; height: 108px; }
+.curve .area { fill: color-mix(in oklab, var(--live) 16%, transparent); }
+.curve .line { fill: none; stroke: var(--live); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.curve .now { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.axis { display: flex; justify-content: space-between; color: var(--ink-2); }
+
+.tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
+.tbl th { padding: var(--row) 12px var(--row) 0; font-weight: 400; color: var(--ink-2); text-align: left; }
+.tbl td { padding: var(--row) 12px var(--row) 0; }
+.tbl th:last-child, .tbl td:last-child { padding-right: 0; text-align: right; }
+.tbl tr[data-sev] td:nth-child(2) { color: var(--sev-ink); }
+
+.events li { display: grid; grid-template-columns: 46px 52px 1fr; column-gap: 10px; align-items: baseline; padding: var(--row) 0; }
+.feed li { display: grid; grid-template-columns: 46px minmax(0, 1fr); column-gap: 10px; padding: var(--row) 0; }
+.feed .ttl { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.feed .says { grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Controls: default, hover, focus-visible, active, pressed, disabled ─── */
+
+.why, .tool, .approve, .tabs button, .q button.pick {
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, box-shadow 140ms ease-out, opacity 140ms ease-out;
+}
+.why:not(:disabled):hover, .tool:not(:disabled):hover, .approve:not(:disabled):hover, .tabs button:hover {
+  box-shadow: inset 0 0 0 99px color-mix(in oklab, var(--ink) 7%, transparent);
+}
+.tabs button[aria-current='page']:hover { box-shadow: inset 0 0 0 1px var(--glass-line), inset 0 0 0 99px color-mix(in oklab, var(--ink) 7%, transparent); }
+.why:not(:disabled):active, .tool:not(:disabled):active, .approve:not(:disabled):active, .tabs button:active {
+  box-shadow: inset 0 0 0 99px rgb(0 0 0 / 0.2); transition-duration: 60ms;
+}
+.q li:has(button.pick:hover) .job .id { text-decoration: underline; text-underline-offset: 3px; }
+
+.sy .why {
+  display: grid; place-items: center; width: 24px; height: 24px; flex: none;
+  border: 1px solid var(--glass-line); border-radius: 50%; color: var(--ink-2);
+  font: 500 var(--t1) / 1 var(--sans);
+}
+.sy .why[aria-pressed='true'] { background: var(--high); border-color: var(--ink-2); color: var(--ink); }
+.sy .tool {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px;
+  border: 1px solid var(--glass-line); border-radius: 10px; background: var(--well); color: var(--ink);
+  font: 500 var(--t1) / 1 var(--sans); white-space: nowrap;
+}
+.sy .tool[aria-pressed='true'] { border-color: var(--i80); background: var(--high); color: var(--warn-ink); }
+.sy .tool.quiet[aria-pressed='true'] { border-color: var(--ink-2); color: var(--ink); }
+.sy .approve {
+  display: block; width: 100%; padding: 12px 14px; text-align: center;
+  border: 1px solid var(--i60); border-radius: 10px; background: var(--i60); color: var(--on-sev);
+  font: 600 var(--t1) / 1 var(--sans);
+}
+.sy .approve.live { border-color: var(--live); background: var(--live); color: var(--on-live); }
+.actions { display: flex; flex-direction: column; gap: 8px; }
+.actions .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.actions .pair > * { min-width: 0; width: 100%; }
+.actions > div > .tool { width: 100%; }
+
+/* ── Markers on the field ───────────────────────────────────────────────── */
+
+/* Hidden until the camera has placed it, or it flashes in the corner for a frame. */
+.sy-anchor { position: absolute; left: 0; top: 0; will-change: transform; visibility: hidden; }
+.sy-anchor i { position: absolute; left: -44px; top: -16px; width: 88px; height: 32px; border: 1.5px solid var(--live); border-radius: 50%; }
+.sy-anchor .id {
+  position: absolute; left: 30px; top: -44px; padding: 2px 7px; white-space: nowrap;
+  border: 1px solid var(--line-hi); border-radius: 6px; background: var(--panel); color: var(--ink);
+}
+
+/* ── 2D fallback ────────────────────────────────────────────────────────── */
+
+.sy-map {
+  position: absolute; inset: 24px 444px 24px 444px;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+}
+.sy-map .zone { display: flex; flex-direction: column; gap: 4px; }
+.sy-map .cells { display: grid; gap: 3px; }
+.sy-map .cell {
+  display: grid; place-items: center; height: 29px; border-radius: 3px;
+  background: var(--healthy); color: var(--ink); font-size: var(--t1);
+}
+.sy-map .cell[data-sev='warning'], .sy-map .cell[data-sev='critical'] { background: var(--sev); color: var(--on-sev); }
+.sy-map .cell[data-sev='scheduled'] { background: var(--sev); color: var(--on-live); }
+.sy-map .cell[aria-pressed='true'] { outline: 2px solid var(--live); outline-offset: 2px; }
+.sy-map .cell:hover { box-shadow: inset 0 0 0 99px color-mix(in oklab, var(--ink) 12%, transparent); }
+
+/* ── Panel details ──────────────────────────────────────────────────────── */
+
+.hd-tools { display: flex; gap: 6px; }
+.sev-ink { color: var(--sev-ink); }
+.flight { display: flex; flex-direction: column; gap: 9px; }
+.flight-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.foot-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.foot-row .tool { padding: 8px 12px; }
+.inject { display: flex; flex-direction: column; gap: 6px; }
+.inject .tool { justify-content: flex-start; }
+.sy button.link { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-hi); }
+.sy button.link:hover { text-decoration-color: var(--ink); }
+.sy select.tool { text-align: center; text-align-last: center; }
+.sy select.tool option { background: var(--panel); color: var(--ink); }
+
+.q li { display: block; }
+.q button.pick {
+  display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: 10px;
+  width: 100%; text-align: left; border-radius: 6px;
+}
+.q .work { display: block; padding: 3px 0 0 28px; }
+.feed button.ttl { text-align: left; min-width: 0; }
+.feed button.ttl:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.sy-feed { width: 300px; padding: 14px 16px; }
+.sy-feed .tool { padding: 6px 10px; }
+.sy-palette { width: 196px; padding: 14px; }
+
+/* Site and sandbox: the sheet is a column, and the queue takes what is left. */
+.sy-stage[data-layout='side'] > [data-b='queue'] { flex: 1 1 0; min-height: 120px; }
+.sy-stage[data-layout='side'] > [data-b='queue'] > .blk-bd { flex: 1 1 0; }
+.sy-stage[data-layout='side'] > [data-b='queue'] .q { flex: 1 1 0; }
+
+.sy-stage[data-screen='incident'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr); }
+.sy-stage[data-screen='queue'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.sy-stage[data-screen='analytics'] > [data-b='curve'] { grid-column: 1 / -1; }

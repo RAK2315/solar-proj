@@ -40,7 +40,10 @@ const skyFragment = /* glsl */ `
   }
 `;
 
-export function SceneEnvironment() {
+/** Linear fog, near and far. The default suits a camera a few metres off the ground. */
+const FOG: [number, number] = [70, 260];
+
+export function SceneEnvironment({ fog = FOG }: { fog?: [number, number] }) {
   const sky = useRef<Mesh>(null);
 
   /**
@@ -64,7 +67,7 @@ export function SceneEnvironment() {
   return (
     <>
       {/* Fog colour matches the horizon so the field dissolves rather than ends. */}
-      <fog attach="fog" args={[SKY_HORIZON, 70, 260]} />
+      <fog attach="fog" args={[SKY_HORIZON, fog[0], fog[1]]} />
 
       <mesh ref={sky}>
         <sphereGeometry args={[300, 24, 16]} />

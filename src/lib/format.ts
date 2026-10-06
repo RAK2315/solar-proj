@@ -76,3 +76,24 @@ export const serviceDate = (iso: string): string => {
   const [y, m, d] = iso.split('-').map(Number);
   return `${String(d).padStart(2, '0')} ${MONTHS[m - 1]} ${y}`;
 };
+
+/** Sentence case for a committed label written in capitals. */
+export const sentence = (s: string): string =>
+  s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+/**
+ * Sentence case that leaves identifiers alone. The committed event copy is upper
+ * case; sentence case is a settled rule, but `B-17`, `INV-B` and `DRONE 01` are
+ * names and keep their own casing.
+ */
+export const eventCase = (s: string): string =>
+  sentence(s).replace(
+    /\b([a-z]-\d+(?:-s\d+)?|b\d-\d+|inv-[a-c]|inc-[a-z]\d+|pad-\d+|msn-\d+|drone \d+|surya)\b/g,
+    (m) => m.toUpperCase(),
+  );
+
+/** `10.2` hours of the day as `10:12`. */
+export const clockOf = (hour: number): string => {
+  const m = Math.round(hour * 60);
+  return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};

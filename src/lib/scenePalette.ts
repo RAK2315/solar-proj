@@ -57,3 +57,37 @@ export const SCENE_MATERIAL = {
   sunIntensity: 2.2,
   hemisphereIntensity: 0.45,
 } as const;
+
+/**
+ * The twin's own colours. three.js cannot read CSS custom properties, so the
+ * settled tokens from plan/rework/06-design-system.md §3 are repeated here by name.
+ * The status and hazard colours ARE semantic, and they are the ironbow stops the
+ * panels use for the same statuses.
+ */
+export const TWIN = {
+  void: '#070a0f',
+  ground: '#0b1018',
+  keyLight: '#b9c9e6',
+  /** The module blue, lifted. On the near-black ground the daylit value reads as a hole. */
+  panel: '#3a5f9a',
+  panelMetalness: 0.12,
+  skyFill: '#8fb0d9',
+
+  warning: '#f08b2a',
+  critical: '#d94a3d',
+  scheduled: '#3fd4b8',
+  /** An array a hazard is holding below the model without tipping it into warning. */
+  affected: '#9b2a63',
+
+  dust: '#f08b2a',
+  cloud: '#97a3b8',
+} as const;
+
+/** The design gate measured 2.6 and 1.2; the real shell's glass sits over more of
+    the field, and at those values the arrays sank into the ground. */
+export const TWIN_LIGHT = {
+  key: 3.4,
+  hemisphere: 1.7,
+  fogNear: 120,
+  fogFar: 330,
+} as const;
