@@ -16,13 +16,16 @@ import { Cloud, RotateCcw, ThermometerSun, Wind, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { twinProbe } from '@/components/twin/probe';
-import { clockOf, degC, hours, num, pctPlain } from '@/lib/format';
+import { MWh, clockOf, degC, hours, num, pctPlain } from '@/lib/format';
+import { lostRevenue } from '@/lib/money';
 import { DUST_WASH_WINDOW_H, HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
 import {
-  useFlatField, useHazardImpact, useHazards, useHeatwaveC, useScenarioEpochHour, useSiteFrame,
+  OUTLOOK_HOURS, useFlatField, useHazardCostMWh, useHazardImpact, useHazards, useHeatwaveC,
+  useScenarioEpochHour, useSiteFrame,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
+import { TariffBasis } from './Tariff';
 
 const TOOLS: Array<{ id: HazardKind; Icon: typeof Wind }> = [
   { id: 'dust', Icon: Wind },
@@ -174,6 +177,7 @@ export function HazardsPanel() {
   const remove = useSession((s) => s.removeHazard);
   const clear = useSession((s) => s.clearHazards);
   const epoch = useScenarioEpochHour();
+  const cost = useHazardCostMWh();
 
   return (
     <Blk
@@ -195,6 +199,14 @@ export function HazardsPanel() {
             </li>
           ))}
         </ol>
+      )}
+      {/* What makes the sandbox a decision tool: the same what-if, in rupees. */}
+      {cost && (
+        <p className="well cost" role="status">
+          Over the next {OUTLOOK_HOURS} h these cost the modelled arrays <b className="num">{MWh(cost.mwh)}</b>,
+          {' '}<b className="num">{lostRevenue(cost.mwh)}</b> of revenue, <TariffBasis />.
+          Forecast band <span className="num">{lostRevenue(cost.low)} to {lostRevenue(cost.high)}</span>.
+        </p>
       )}
       <div className="work workings">
         <p>Declared scenario assumptions, not measurements of Bhadla:</p>

@@ -10,7 +10,6 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_TARIFF_INR_PER_KWH, formatINR, inrForMWh, inrWithBasis } from './money';
 import {
   CREW_COUNT, INSPECT_HOURS, REPAIR_HOURS, TRAVEL_HOURS_BASE,
   jobsSavedByOneMoreCrew, planDay, planDayWith,
@@ -130,26 +129,3 @@ describe('what the plan costs', () => {
   });
 });
 
-describe('money is an assumption the operator owns', () => {
-  it('converts energy at whatever tariff it is handed', () => {
-    expect(inrForMWh(1, 3)).toBe(3000);
-    expect(inrForMWh(3.07, DEFAULT_TARIFF_INR_PER_KWH)).toBeCloseTo(9210, 6);
-  });
-
-  it('groups digits the Indian way, because the site is in Rajasthan', () => {
-    // ₹12,34,567 and not ₹1,234,567. The difference between a console built for
-    // this site and one that had a currency symbol swapped in.
-    expect(formatINR(1234567)).toBe('₹12,34,567');
-    expect(formatINR(9210)).toBe('₹9,210');
-    expect(formatINR(120)).toBe('₹120');
-  });
-
-  it('never returns a rupee figure without the assumption attached', () => {
-    // The eight words that make the number defensible. A bare ₹ figure ending up
-    // on a slide on its own is the failure this guards against.
-    const { amount, basis } = inrWithBasis(3.07, DEFAULT_TARIFF_INR_PER_KWH);
-    expect(amount).toBe('₹9,210');
-    expect(basis).toMatch(/an assumption, not a sourced tariff/);
-    expect(basis).toContain('3.00');
-  });
-});

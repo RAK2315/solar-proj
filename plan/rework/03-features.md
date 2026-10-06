@@ -112,18 +112,22 @@ Exact MILP over jobs, 2 drones, 2–3 crews, shift limits, heat threshold.
 
 ## F5 — Forecast to rupees [MVP, last] — reframed
 
-**Lost MWh × ₹2.44/kWh = lost revenue.** Not a DSM charge.
+**Lost MWh × ₹2.446/kWh = lost revenue.** Not a DSM charge. **Built 6 Oct 2026.**
 
 **Acceptance**
-- Tariff rendered with its attribution inline: "₹2.44/kWh — SECI Bhadla Phase-III
-  auction, fixed 25 years (MNRE, 12 May 2017)".
+- The tariff is the two auction lots blended by capacity, with the arithmetic on
+  screen: (200 MW × ₹2.44 + 300 MW × ₹2.45) ÷ 500 MW = ₹2.446/kWh. **Never a bare
+  ₹2.44 for the whole block** (owner ruling, 6 Oct). Every rupee figure carries
+  its attribution inline.
 - 72 h forecast carries **uncertainty bands**, drawn as bands and labelled as such.
 - The CERC DSM regulation is cited as context only. **Any code path computing a DSM
   charge is a build failure** — `X` is unpublished and NR is a live market price.
-- **GATED, 4 Oct 2026.** The owner is verifying the PIB tariff personally and will
-  report back. F5 does not start until they do. Do not substitute another tariff, do
-  not proceed on the corroborating secondary sources, and do not quietly drop the
-  attribution to unblock it.
+- **Gate cleared 6 Oct 2026.** The owner verified the tariff and gave the two
+  sources recorded in `02-stack.md` §7. It was gated from 4 Oct until then.
+- The band is a declared assumption, ±5 % on irradiance now to ±15 % at 72 h,
+  and says so on screen. It is not a fitted error model.
+- `check:literals` fails the build on either lot's figure outside
+  `src/lib/money.ts`, and on any deviation-charge identifier anywhere.
 
 **Dependencies** — F2 for the forecast surface.
 

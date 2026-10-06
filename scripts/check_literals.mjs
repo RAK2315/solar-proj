@@ -68,6 +68,19 @@ const FORBIDDEN = [
  */
 const FORBIDDEN_PHRASES = [
   { pattern: /\bdiagnosed\b/i, only: 'src/lib/basis.ts', why: 'the verb is chosen per array by basisFor() in src/lib/basis.ts' },
+
+  // THE TARIFF HAS ONE HOME. Bhadla Phase-III was auctioned as two lots at two
+  // tariffs, and the block's figure is their capacity-weighted blend, computed in
+  // src/lib/money.ts. Either lot's figure written anywhere else is a screen about
+  // to quote one of them for the whole block, or a second tariff in the code.
+  { pattern: /(?<![\d.])2\.4[45]\d?(?![\d])/, only: 'src/lib/money.ts', why: 'the tariff and its blend, from src/lib/money.ts' },
+
+  // NO DEVIATION CHARGE IS EVER COMPUTED. CERC's formula in force divides by a
+  // parameter the regulation leaves to a separate order, and its Normal Rate is a
+  // live exchange price, so any code path that produces one is producing a number
+  // with no primary source. The regulation may be CITED, in words. A name like
+  // these is somebody starting to compute it.
+  { pattern: /\b(dsm\w*(charge|penalty|payable|cost)|deviation\w*(charge|penalty)|normalRate)\b/i, only: '', why: 'nowhere: rupees come from lost MWh times the tariff in src/lib/money.ts' },
 ];
 
 function walk(dir) {
@@ -116,7 +129,7 @@ for (const path of walk(ROOT)) {
 }
 
 if (findings.length === 0) {
-  console.log('check:literals — clean. No headline number is hardcoded in src/, and "diagnosed" is written only where it is earned.');
+  console.log('check:literals — clean. No headline number is hardcoded in src/, "diagnosed" is written only where it is earned, the tariff has one home, and nothing computes a deviation charge.');
   process.exit(0);
 }
 

@@ -4,12 +4,14 @@
 
 import { HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
 import { MW, MWh, clockOf, degC, kW, ms, num, pctPlain, sentence, wm2 } from '@/lib/format';
-import { LOSS_CAUSES, LOSS_LABEL, type LossCause, type OutlookPoint } from '@/lib/outlook';
+import { lostRevenue } from '@/lib/money';
+import { FORECAST_BAND, LOSS_CAUSES, LOSS_LABEL, type LossCause, type OutlookPoint } from '@/lib/outlook';
 import {
-  useForecast, useHeatwaveC, useLossAttribution, useModelConstants, useOutlook,
+  OUTLOOK_HOURS, useForecast, useHeatwaveC, useLossAttribution, useModelConstants, useOutlook,
   useScenarioEpochHour, useSiteFrame, useZoneBreakdown,
 } from '@/store/selectors';
 import { Blk, Why } from './Block';
+import { TariffBasis } from './Tariff';
 
 const W = 480;
 const H = 120;
@@ -17,7 +19,6 @@ const H = 120;
 const CHART_W = 960;
 const OUTPUT_H = 150;
 const LOSS_H = 110;
-const DAY_HOURS = 24;
 /** Stacked bottom to top. The fault is the base because it is the part that stays. */
 const STACK: readonly LossCause[] = ['fault', 'soiling', 'hazard'];
 
@@ -36,6 +37,10 @@ function band(points: OutlookPoint[], hours: number, upTo: number, peak: number)
 /**
  * Expected against actual for the modelled arrays, and the gap between them.
  *
+ * It covers the 72 hours the forecast does and no further, because there is no
+ * honest figure beyond the forecast. The band around the expected line is how far
+ * the forecast may be out; it is a declared assumption and is labelled as one.
+ *
  * TWO SCALES, AND THE PANEL SAYS SO. The arrays' whole shortfall is about one
  * per cent of what they produce, so on the output chart the two lines all but
  * coincide: that is the true picture and it is drawn as it is. The gap is then
@@ -43,22 +48,24 @@ function band(points: OutlookPoint[], hours: number, upTo: number, peak: number)
  * an operator can act on.
  */
 export function CurvePanel() {
-  const { points, markers, lostMWh, expectedMWh, hours } = useOutlook(DAY_HOURS);
+  const { points, markers, lostMWh, lostMWhLow, lostMWhHigh, expectedMWh, hours } = useOutlook(OUTLOOK_HOURS);
   const frame = useSiteFrame();
   const epochHour = useScenarioEpochHour();
 
   const nowH = Math.min(hours, frame.siteSeconds / 3600);
   const now = points.reduce((best, p) => (Math.abs(p.hourOffset - nowH) < Math.abs(best.hourOffset - nowH) ? p : best), points[0]);
   const shortNow = now.expectedKW - now.actualKW;
-  const peakOut = Math.max(...points.map((p) => p.expectedKW), 1);
+  const peakOut = Math.max(...points.map((p) => p.expectedKW * p.high), 1);
   const peakLoss = Math.max(...points.map((p) => p.expectedKW - p.actualKW), 1);
   const lostTotal = LOSS_CAUSES.reduce((s, c) => s + lostMWh[c], 0);
 
   const yOut = (v: number) => OUTPUT_H - (v / peakOut) * (OUTPUT_H - 8);
   const expected = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.expectedKW)]);
   const actual = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.actualKW)]);
+  const bandHigh = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.expectedKW * p.high)]);
+  const bandLow = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.expectedKW * p.low)]);
   const nowX = xOf(nowH, hours);
-  const ticks = Array.from({ length: hours / 6 + 1 }, (_, i) => i * 6);
+  const ticks = Array.from({ length: hours / 12 + 1 }, (_, i) => i * 12);
 
   return (
     <Blk b="curve" title={<>Expected against actual, next {hours} h<span className="count">modelled arrays, a prediction</span></>} aside={<Why />}>
@@ -66,9 +73,16 @@ export function CurvePanel() {
         <div><div className="big num">{MW(frame.farmOutputMW)}</div><p className="one">site output now</p></div>
         <div><div className="fig num">{kW(shortNow, 0)}</div><p className="one">short of the model now, {pctPlain(now.expectedKW > 0 ? (shortNow / now.expectedKW) * 100 : 0, 1)} of the arrays&apos; output</p></div>
         <div><div className="fig num">{MWh(lostTotal)}</div><p className="one">lost over the {hours} h, of {MWh(expectedMWh, 0)} expected</p></div>
+        <div>
+          <div className="fig num">{lostRevenue(lostTotal)}</div>
+          <p className="one">
+            lost revenue over the {hours} h, <TariffBasis />. Forecast band {lostRevenue(lostMWhLow)} to {lostRevenue(lostMWhHigh)}.
+          </p>
+        </div>
       </div>
 
       <svg className="chart" viewBox={`0 0 ${CHART_W} ${OUTPUT_H}`} preserveAspectRatio="none" role="img" aria-label={`Expected and actual output of the modelled arrays over ${hours} hours`}>
+        <polygon className="band" points={path([...bandHigh, ...bandLow.slice().reverse()])} />
         <polygon className="gap" points={path([...expected, ...actual.slice().reverse()])} />
         <polyline className="expected" points={path(expected)} />
         <polyline className="actual" points={path(actual)} />
@@ -77,6 +91,9 @@ export function CurvePanel() {
       <ul className="key">
         <li><i className="swatch" data-k="expected" />Expected, the model at nominal soiling</li>
         <li><i className="swatch" data-k="actual" />Actual, with every fault, soiled array and hazard</li>
+        <li>
+          <i className="swatch" data-k="band" />Forecast band, ±{FORECAST_BAND.nowPct} % on irradiance now to ±{FORECAST_BAND.at72hPct} % at {FORECAST_BAND.hours} h. Declared, not fitted
+        </li>
       </ul>
 
       <p className="one">The gap between those two lines, at its own scale and split by cause.</p>
@@ -89,8 +106,8 @@ export function CurvePanel() {
           <line className="now" x1={nowX} x2={nowX} y1="0" y2={LOSS_H} />
         </svg>
         {/* Labels are HTML over the drawing: text inside a stretched SVG stretches with it. */}
-        {markers.map((m) => (
-          <span key={`${m.kind}-${m.label}-${m.hourOffset}`} className="marklabel" data-kind={m.kind} style={{ left: `${(m.hourOffset / hours) * 100}%` }}>
+        {markers.map((m, i) => (
+          <span key={`${m.kind}-${m.label}-${m.hourOffset}`} className="marklabel" data-kind={m.kind} data-row={i % 3} style={{ left: `${(m.hourOffset / hours) * 100}%` }}>
             {m.kind === 'fault' ? <span className="id">{m.label}</span> : HAZARD_SPEC[m.label as HazardKind].label}
           </span>
         ))}
@@ -100,17 +117,19 @@ export function CurvePanel() {
       </div>
 
       <table className="tbl">
-        <thead><tr><th>Cause</th><th>Now</th><th>Over the {hours} h</th></tr></thead>
+        <thead><tr><th>Cause</th><th>Now</th><th>Over the {hours} h</th><th>Lost revenue</th></tr></thead>
         <tbody>
           {STACK.map((c) => (
             <tr key={c}>
               <td><i className="swatch" data-cause={c} />{LOSS_LABEL[c]}</td>
               <td className="num">{kW(now.loss[c], 1)}</td>
               <td className="num">{MWh(lostMWh[c])}</td>
+              <td className="num">{lostRevenue(lostMWh[c])}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="one">Lost revenue is lost energy <TariffBasis />. The arithmetic and its sources are in the panel below.</p>
       <p className="work workings">
         Peak shortfall on this chart {kW(peakLoss, 0)}, against a peak expected output of {MW(peakOut / 1000, 1)} for
         the 120 modelled arrays. Marks show where a fault or a hazard begins. Now is {frame.clock}; everything to

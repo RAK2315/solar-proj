@@ -219,7 +219,11 @@
 /* The outlook chart. Thin strokes, no chrome; the ramp carries the causes. */
 .chart-hd { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 40px; }
 .chart { display: block; width: 100%; height: 132px; overflow: visible; }
-.chart-wrap { position: relative; padding-top: 24px; }
+/* Three rows of labels: faults that begin within hours of each other sit a few
+   pixels apart on a 72 h axis. */
+.chart-wrap { position: relative; padding-top: 66px; }
+.marklabel[data-row='1'] { top: 21px; }
+.marklabel[data-row='2'] { top: 42px; }
 .chart-wrap .chart { height: 104px; }
 .chart .gap { fill: color-mix(in oklab, var(--i60) 45%, transparent); }
 .chart .expected { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
@@ -237,6 +241,18 @@
 .key .swatch { margin-right: 0; }
 .swatch[data-k='expected'] { height: 0; border-top: 2px dashed var(--ink-2); border-radius: 0; }
 .swatch[data-k='actual'] { height: 0; border-top: 2px solid var(--live); border-radius: 0; }
+.swatch[data-k='band'] { background: color-mix(in oklab, var(--ink-2) 26%, transparent); }
+.chart .band { fill: color-mix(in oklab, var(--ink-2) 20%, transparent); }
+.chart-hd > div { min-width: 0; flex: 0 1 auto; }
+.chart-hd > div:last-child { flex: 1 1 260px; }
+.sy-stage[data-screen='analytics'] > .sy-sheet > [data-b='tariff'] { grid-column: 1 / -1; }
+.sy .basis { color: var(--ink-2); font-weight: 400; }
+.rows dt .basis { display: block; }
+.rows dd { min-width: 0; overflow-wrap: anywhere; }
+.defer .amt { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.defer .rupees { color: var(--ink-2); font-weight: 500; white-space: nowrap; }
+.cost b { font-weight: 600; color: var(--ink); }
+.formula.num { font-family: var(--sans); font-size: var(--t2); font-weight: 500; }
 
 .tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
 .tbl th { padding: var(--row) 12px var(--row) 0; font-weight: 400; color: var(--ink-2); text-align: left; }
@@ -309,8 +325,11 @@
 .hazards b { font-weight: 500; color: var(--ink); }
 .work p + p { margin-top: 4px; }
 .sy-stage[data-screen='sandbox'] > .sy-sheet > * { flex: none; }
-.sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: none; }
-.sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] .q { flex: none; max-height: 232px; }
+/* As specific as the side layout's own queue rule, which would otherwise shrink
+   this block to its minimum and let its list run over the block below. */
+.sy .sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] { flex: none; min-height: 0; }
+.sy .sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: none; }
+.sy .sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] .q { flex: none; max-height: 232px; }
 .sy-stage[data-screen='sandbox'] .inject { display: grid; grid-template-columns: 1fr 1fr; }
 .sy-stage[data-screen='sandbox'] .inject .tool { white-space: normal; text-align: left; line-height: 1.25; }
 .sy-stage[data-screen='sandbox'] .inject .tool:last-child { grid-column: 1 / -1; }
@@ -386,9 +405,12 @@
 .sy-palette { width: 196px; padding: 14px; }
 
 /* Site and sandbox: the sheet is a column, and the queue takes what is left. */
-.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] { flex: 1 1 0; min-height: 120px; }
-.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: 1 1 0; }
-.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] .q { flex: 1 1 0; }
+/* The queue's floor is its own fixed parts plus one row of the list. A fixed
+   120 px floor was less than that once the plan's score and the footer were
+   added, and the block spilled its last lines past its own box. */
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] { flex: 1 1 0; min-height: auto; }
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: 1 1 auto; min-height: auto; }
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] .q { flex: 1 1 0; min-height: 58px; }
 
 .sy-stage[data-screen='incident'] > .sy-sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr); }
 .sy-stage[data-screen='queue'] > .sy-sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }

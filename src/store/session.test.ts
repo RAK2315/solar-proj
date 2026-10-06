@@ -86,14 +86,12 @@ describe('only the operator’s own state is stored', () => {
     const keys = Object.keys(stored!.state as Record<string, unknown>);
 
     // The exact key set, asserted rather than sampled, so a READING cannot drift
-    // into storage. Everything here is something the operator did or chose:
-    // `tariffInrPerKWh` is their declared assumption about electricity price, not
-    // a measurement, and it persists for the same reason a work order does —
-    // retyping it after every reload would make it feel like a toy.
+    // into storage. Everything here is something the operator did or chose. The
+    // tariff is not among them: it is a cited figure in lib/money.ts, not a setting.
     expect(keys.sort()).toEqual([
       'feedFilter', 'hazards', 'injected', 'missions', 'module', 'overrides',
       'running', 'selectedPanelId', 'showWorkings', 'siteSeconds',
-      'tariffInrPerKWh', 'theme', 'timeScale', 'twinMode', 'workOrders',
+      'theme', 'timeScale', 'twinMode', 'workOrders',
     ]);
   });
 

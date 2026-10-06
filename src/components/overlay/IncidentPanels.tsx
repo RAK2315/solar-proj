@@ -6,8 +6,10 @@
  */
 
 import { MWh } from '@/lib/format';
+import { lostRevenue } from '@/lib/money';
 import { useDeferOutcomes, useIncident, useSelectedPanelId } from '@/store/selectors';
 import { Blk, Why } from './Block';
+import { TariffBasis } from './Tariff';
 
 export function ChainPanel() {
   const panelId = useSelectedPanelId();
@@ -38,13 +40,17 @@ export function DeferPanel() {
   const outcomes = useDeferOutcomes(panelId);
   return (
     <Blk b="defer" title="Cost of waiting">
-      <p className="one">Energy lost if the repair starts at each point.</p>
+      <p className="one">Energy lost if the repair starts at each point, and the revenue that is, <TariffBasis />.</p>
       <ol className="defer">
         {outcomes.map((o) => (
           <li key={o.id} data-sev={o.breaches ? 'critical' : undefined}>
             <span>{o.label}</span>
             {o.breaches && <span className="chip" data-sev="critical">Past deadline</span>}
-            <span className="fig num">{MWh(o.lostMWh)}</span>
+            {/* Stacked, not side by side: the column is too narrow at 1366 for both. */}
+            <span className="amt">
+              <span className="fig num">{MWh(o.lostMWh)}</span>
+              <span className="num rupees">{lostRevenue(o.lostMWh)}</span>
+            </span>
           </li>
         ))}
       </ol>

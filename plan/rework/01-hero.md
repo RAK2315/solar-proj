@@ -57,8 +57,11 @@ both stronger and structurally truer.
 **One sentence:** the judge names a hazard, the presenter drags it onto the field,
 and the entire operating plan re-derives in front of them.
 
-No rupee figure appears here. Forecast-to-rupees is cut-line item 5 and gated on
-CERC verification (see `02-stack.md` §7), so the hero moment must stand without it.
+The hero beat itself carries no rupee figure and stands without one. Since 6 Oct
+2026, when the owner cleared the tariff gate, the Hazards panel on the same screen
+states what the dropped hazards cost over the next 72 h in MWh and in rupees, with
+the tariff's attribution beside it (see `02-stack.md` §7). It is one line under
+the beat, not a step in it.
 
 ### The beat, second by second
 

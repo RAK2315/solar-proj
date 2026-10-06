@@ -105,6 +105,50 @@ describe('the 2D and 3D switch', () => {
   });
 });
 
+describe('rupees', () => {
+  const BASIS = '₹2.446/kWh';
+
+  it('shows the blend and its arithmetic on the screen about money', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'analytics' });
+    const tariff = text(container.querySelector('[data-b="tariff"]') as Element);
+    expect(tariff).toContain('(200 MW × ₹2.44 + 300 MW × ₹2.45) ÷ 500 MW = ₹2.446/kWh');
+    expect(tariff).toContain('ACME Solar Holdings 200 MW');
+    expect(tariff).toContain('SBG Cleantech 300 MW');
+    expect(tariff).toContain('checked 6 Oct 2026');
+    expect(tariff).toContain('No deviation charge is computed');
+  });
+
+  it('draws the 72 h forecast with a band, and says the band is declared', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'analytics' });
+    const curve = container.querySelector('[data-b="curve"]') as Element;
+    expect(curve.querySelector('.chart .band')).not.toBeNull();
+    expect(text(curve)).toContain('next 72 h');
+    expect(text(curve)).toMatch(/Forecast band, ±5 % on irradiance now to ±15 % at 72 h\. Declared, not fitted/);
+    expect(text(curve)).toMatch(/Forecast band ₹[\d,]+ to ₹[\d,]+/);
+  });
+
+  it('never shows a rupee figure without the tariff it rests on beside it', () => {
+    const at = arrayCentre('B-12');
+    const state = { siteSeconds: DEVELOPED, selectedPanelId: 'B-17' };
+    const { container } = open(state);
+    act(() => useSession.getState().dropHazard('dust', { x: at.x, z: at.z }));
+    set({ siteSeconds: DEVELOPED + 1800 });
+    for (const screen of ['site', 'incident', 'queue', 'analytics', 'drones', 'sandbox'] as const) {
+      set({ module: screen });
+      for (const block of container.querySelectorAll('.sy-stage [data-b]')) {
+        if (text(block).includes('₹')) expect(text(block), `${screen}: ${block.getAttribute('data-b')}`).toContain(BASIS);
+      }
+    }
+    // And the figures are really there: the array, the cost of waiting, the hazards.
+    set({ module: 'site' });
+    expect(text(container.querySelector('[data-b="facts"]') as Element)).toMatch(/Lost revenue, 72 h.*₹[\d,]+/);
+    set({ module: 'incident' });
+    expect(text(container.querySelector('[data-b="defer"]') as Element)).toMatch(/₹[\d,]+/);
+    set({ module: 'sandbox' });
+    expect(text(container.querySelector('[data-b="hazards"]') as Element)).toMatch(/these cost the modelled arrays .* MWh, ₹[\d,]+ of revenue/);
+  });
+});
+
 describe('the queue screen', () => {
   it('shows every job with its cause and its arithmetic, without being asked', () => {
     const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });

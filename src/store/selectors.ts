@@ -32,7 +32,7 @@ import {
   referenceShortfallKW, scenario, siteHour, type LiveFrame, type ScenarioEvent,
 } from '@/lib/live';
 import { liveEvents } from '@/lib/liveEvents';
-import { outlook, type Outlook } from '@/lib/outlook';
+import { hazardCostMWh, outlook, type Outlook } from '@/lib/outlook';
 import {
   ETA_INV, F_SOIL, GAMMA, NOCT, cellTemp, clockAt, irradianceAt, isDark, soilFor,
   type ArrayReading,
@@ -788,6 +788,31 @@ export function useOutlook(hours: number): Outlook {
     () => outlook(new Set(workOrders.map((w) => w.panelId)), injected, hazards, hours),
     [workOrders, injected, hazards, hours],
   );
+}
+
+/** How far ahead the forecast, and therefore every money figure, can honestly look. */
+export const OUTLOOK_HOURS = 72;
+/** Coarser than the chart: this one is recomputed inside the drop-to-replan budget. */
+const COST_SAMPLES_PER_HOUR = 2;
+
+/**
+ * What the hazards in force cost over the forecast window: the energy the site
+ * loses with them, less what it would lose at the same faults without them.
+ * Null when nothing has been dropped.
+ */
+export function useHazardCostMWh(): { mwh: number; low: number; high: number } | null {
+  const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
+  const without = useMemo(
+    () => outlook(new Set(workOrders.map((w) => w.panelId)), injected, [], OUTLOOK_HOURS, COST_SAMPLES_PER_HOUR),
+    [workOrders, injected],
+  );
+  return useMemo(() => {
+    if (hazards.length === 0) return null;
+    const withThem = outlook(new Set(workOrders.map((w) => w.panelId)), injected, hazards, OUTLOOK_HOURS, COST_SAMPLES_PER_HOUR);
+    return hazardCostMWh(without, withThem);
+  }, [without, workOrders, injected, hazards]);
 }
 
 /** Where the site's lost energy is going, by mechanism. */

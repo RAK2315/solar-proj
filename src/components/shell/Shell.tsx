@@ -26,6 +26,7 @@ import { FeedPanel } from '@/components/overlay/FeedPanel';
 import { HazardPalette, HazardsPanel } from '@/components/overlay/HazardPalette';
 import { ChainPanel, DeferPanel } from '@/components/overlay/IncidentPanels';
 import { PlanPanel } from '@/components/overlay/PlanPanel';
+import { TariffPanel } from '@/components/overlay/Tariff';
 import { OrdersPanel, QueuePanel } from '@/components/overlay/QueuePanel';
 import { FlightOverlay } from '@/components/twin/FlightOverlay';
 import { hasCapturedEvidence } from '@/lib/data';
@@ -84,7 +85,7 @@ function Panels({ screen }: { screen: ScreenId }) {
     case 'site': return <><ArrayPanel /><QueuePanel footer /></>;
     case 'incident': return <Incident />;
     case 'queue': return <><QueuePanel detail /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
-    case 'analytics': return <><CurvePanel /><WeatherPanel /><LossPanel /><ZonesPanel /><ModelPanel /></>;
+    case 'analytics': return <><CurvePanel /><TariffPanel /><WeatherPanel /><LossPanel /><ZonesPanel /><ModelPanel /></>;
     case 'drones': return <><div className="col"><FleetPanel /><CommsPanel /></div><div className="col"><MissionsPanel /><MissionProfilePanel /></div></>;
     case 'sandbox': return <><QueuePanel scores /><HazardsPanel /><InjectPanel /><ScenarioPanel /></>;
   }

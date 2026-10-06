@@ -39,7 +39,6 @@ import { persist } from 'zustand/middleware';
 import { HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
 import { scenario, type ScenarioEvent } from '@/lib/live';
 import { REHEARSAL_SEED } from '@/lib/rehearsal';
-import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
 
 /**
  * The screens behind the icon rail. `site` is the map and the detail rail — the
@@ -162,16 +161,6 @@ export interface SessionState {
   feedFilter: FeedFilter;
 
   /**
-   * Electricity tariff, rupees per kWh — the assumption every money figure on
-   * screen rests on.
-   *
-   * It is OPERATOR STATE rather than a constant precisely because we cannot
-   * source it. A number nobody can change reads as a claim; one the operator sets
-   * reads as what it is. See src/lib/money.ts.
-   */
-  tariffInrPerKWh: number;
-
-  /**
    * Is the provenance layer on screen?
    *
    * OFF by default. The receipts are what make this product believable and they
@@ -248,7 +237,6 @@ export interface SessionState {
   setSiteSeconds: (seconds: number) => void;
   toggleRunning: () => void;
   cycleFeedFilter: () => void;
-  setTariff: (inrPerKWh: number) => void;
   toggleWorkings: () => void;
   toggleTheme: () => void;
   setDossier: (open: boolean) => void;
@@ -316,7 +304,6 @@ const initial = {
   armedHazard: null as HazardKind | null,
   hazardDraft: null as { x: number; z: number } | null,
   feedFilter: 'all' as FeedFilter,
-  tariffInrPerKWh: DEFAULT_TARIFF_INR_PER_KWH,
   showWorkings: false,
   theme: 'dark' as 'dark' | 'light',
   dossierOpen: false,
@@ -344,13 +331,6 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   setTimeScale: (timeScale) => set({ timeScale }),
   setSiteSeconds: (siteSeconds) => set({ siteSeconds: Math.max(0, siteSeconds) }),
   toggleRunning: () => set((s) => ({ running: !s.running })),
-
-  // Clamped rather than validated: a tariff of zero or a negative one is not a
-  // disagreement worth honouring, and an unbounded one turns every figure on
-  // screen into nonsense without saying why.
-  setTariff: (tariffInrPerKWh) => set({
-    tariffInrPerKWh: Math.max(0.1, Math.min(50, tariffInrPerKWh)),
-  }),
 
   toggleWorkings: () => set((s) => ({ showWorkings: !s.showWorkings })),
   toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
@@ -502,10 +482,13 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   name: 'surya-session',
   // Demo mode was retired on 5 Oct 2026 and its field went on 6 Oct. A session
   // saved by either earlier build carries a `mode` this store no longer has.
-  version: 3,
+  // The operator-set tariff went on 6 Oct too: the tariff is a cited figure in
+  // lib/money.ts now, and a saved ₹3.00 must not come back as a second one.
+  version: 4,
   migrate: (persisted) => {
     const saved = { ...(persisted as Record<string, unknown>) };
     delete saved.mode;
+    delete saved.tariffInrPerKWh;
     return saved as unknown as SessionState;
   },
   // Hydrated explicitly after mount by ClockDriver. Reading storage during render
@@ -526,9 +509,6 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     injected: s.injected,
     hazards: s.hazards,
     feedFilter: s.feedFilter,
-    // The operator's own assumption. Retyping it after every reload would make
-    // it feel like a toy rather than a setting they own.
-    tariffInrPerKWh: s.tariffInrPerKWh,
     showWorkings: s.showWorkings,
     theme: s.theme,
     twinMode: s.twinMode,

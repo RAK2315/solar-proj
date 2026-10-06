@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { HAZARD_SPEC, type HazardEvent } from './hazard';
 import { scenario } from './live';
-import { LOSS_CAUSES, outlook } from './outlook';
+import { FORECAST_BAND, LOSS_CAUSES, bandFractionAt, hazardCostMWh, outlook } from './outlook';
 import { arrayCentre } from './scene';
 
 const NONE = new Set<string>();
@@ -50,6 +50,51 @@ describe('the outlook', () => {
     for (const e of scenario.events) {
       expect(markers.some((m) => m.kind === 'fault' && m.label === e.panelId)).toBe(true);
     }
+  });
+
+  it('widens its forecast band with lead time, from the declared start to the declared end', () => {
+    expect(bandFractionAt(0)).toBeCloseTo(FORECAST_BAND.nowPct / 100, 12);
+    expect(bandFractionAt(72)).toBeCloseTo(FORECAST_BAND.at72hPct / 100, 12);
+    expect(bandFractionAt(36)).toBeGreaterThan(bandFractionAt(12));
+    expect(bandFractionAt(500)).toBeCloseTo(FORECAST_BAND.at72hPct / 100, 12);
+  });
+
+  it('brackets every daylight sample, and the window\u2019s lost energy, with the band', () => {
+    const { points, lostMWh, lostMWhLow, lostMWhHigh } = outlook(NONE, [], [], 72);
+    const total = LOSS_CAUSES.reduce((sum, c) => sum + lostMWh[c], 0);
+    expect(lostMWhLow).toBeLessThan(total);
+    expect(lostMWhHigh).toBeGreaterThan(total);
+    for (const p of points.filter((q) => q.expectedKW > 0)) {
+      expect(p.low).toBeLessThan(1);
+      expect(p.high).toBeGreaterThan(1);
+    }
+    // At night there is nothing to be uncertain about.
+    for (const p of points.filter((q) => q.expectedKW === 0)) expect([p.low, p.high]).toEqual([1, 1]);
+  });
+
+  it('covers the whole 72 h the forecast does', () => {
+    const { points, hours } = outlook(NONE, [], [], 72);
+    expect(hours).toBe(72);
+    expect(points[points.length - 1].hourOffset).toBe(72);
+  });
+
+  it('costs a hazard as the energy the site makes without it, less what it makes with it', () => {
+    const base = outlook(NONE, [], [], 72, 2);
+    const dust = hazardCostMWh(base, outlook(NONE, [], [dustOver('C-12', scenario.epochHour + 1)], 72, 2));
+    expect(dust.mwh).toBeGreaterThan(0);
+    expect(dust.low).toBeLessThan(dust.mwh);
+    expect(dust.high).toBeGreaterThan(dust.mwh);
+
+    const heat: HazardEvent = {
+      kind: 'heatwave', id: 'hz-heat', intensity: HAZARD_SPEC.heatwave.intensity,
+      startHour: scenario.epochHour, rampMinutes: 0, durationHours: null,
+    };
+    // A heatwave puts no array below the model, and still costs energy.
+    const hot = outlook(NONE, [], [heat], 72, 2);
+    expect(hot.lostMWh.hazard).toBe(0);
+    expect(hazardCostMWh(base, hot).mwh).toBeGreaterThan(0);
+
+    expect(hazardCostMWh(base, base).mwh).toBe(0);
   });
 
   it('is the same for the same inputs', () => {

@@ -20,6 +20,7 @@
  *   FRAME     the rail and every sheet inside the viewport
  *   GLASS     the element that carries a sheet's glass never scrolls, so the
  *             text cannot leave the glass behind
+ *   OVERLAP   no block of a sheet runs over the block after it
  *
  * Every screen is measured twice: as it opens, and again with each sheet
  * scrolled to its end. A sheet that only breaks once it is scrolled used to pass.
@@ -127,6 +128,17 @@ const measure = () => page.evaluate(({ minFont, tol }) => {
       if (r.top < s.top - tol || r.bottom > s.bottom + tol || r.left < s.left - tol || r.right > s.right + tol) {
         faults.push(`GLASS ${name(sheet)} is not inside the glass it sits on`);
       }
+    }
+  }
+  // A block squeezed below its content keeps its box and spills its text over
+  // the next one. Nothing is clipped and nothing leaves the frame, so only this
+  // catches it.
+  for (const sheet of root.querySelectorAll('.sy-sheet')) {
+    // Measured as the block's own overflow, so a list that scrolls inside the
+    // block is counted at the height it shows and not the height it holds.
+    for (const blk of [...sheet.querySelectorAll(':scope > .blk, :scope > .col > .blk')].filter(visible)) {
+      const spill = blk.scrollHeight - blk.clientHeight;
+      if (spill > tol) faults.push(`OVERLAP ${name(blk)} holds ${spill}px more than its own height, over the block below`);
     }
   }
   for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-sheet, .sy-left > *, .sy-flightbar, .sy-land, .sy-stats')) {

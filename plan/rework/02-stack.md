@@ -272,7 +272,38 @@ regulation is cited on screen as *context for why deviation matters*. The produc
 **never claims to compute a DSM charge**, because `X` is unpublished and NR is a
 live market price. Treat any attempt to do so as a build failure.
 
-### The tariff, from primary source
+### THE TARIFF IN FORCE IN THE CODE, 6 Oct 2026 — gate cleared by the owner
+
+The owner verified the tariff personally and cleared the gate on 6 Oct 2026. What
+the product uses is this, and it supersedes the table further down where they
+differ:
+
+| Field | Value |
+|---|---|
+| Tariff for the block | **₹2.446 / kWh**, the two lots blended by capacity |
+| Arithmetic, shown on screen | (200 MW × ₹2.44 + 300 MW × ₹2.45) ÷ 500 MW = ₹2.446/kWh |
+| Lots | ACME Solar Holdings 200 MW at ₹2.44/kWh; SBG Cleantech 300 MW at ₹2.45/kWh |
+| Terms | fixed for 25 years, no escalation, SECI as off-taker |
+| Source 1 | `https://www.iea.org/policies/6373-auction-of-solar-corporation-of-india-seci` |
+| Source 2 | `https://www.pv-magazine-india.com/?p=1613` |
+| Checked | **6 Oct 2026**, by the owner |
+| Lives in | `src/lib/money.ts`, and nowhere else: `check:literals` fails the build on either lot's figure written in any other file |
+
+**Never a bare ₹2.44 for the whole block.** The block is both lots, so its tariff
+is neither lot's. The owner accepted the blend for the prototype and may refine it.
+
+**Wording on screen:** every rupee figure carries "at ₹2.446/kWh, the SECI Bhadla
+Phase-III tariffs blended by capacity". The Analytics screen carries the arithmetic,
+the lots, the terms, both sources and the check date, and states that no deviation
+charge is computed.
+
+**The forecast band** drawn with it is ±5 % on irradiance now, widening linearly to
+±15 % at 72 h. It is a DECLARED ASSUMPTION, labelled as one on screen. It is not a
+fitted error model: the forecast is generated, so there is no record of its misses
+to fit one to. If a sourced day-ahead error figure for the site is found, it
+replaces the constant in `lib/outlook.ts` and the label changes with it.
+
+### The tariff, as first recorded on 4 Oct (kept for the record)
 
 | Field | Value |
 |---|---|

@@ -18,8 +18,10 @@ import {
   usePanels, useProjectedLossMWh, useSiteFrame,
 } from '@/store/selectors';
 import { HAZARD_SPEC } from '@/lib/hazard';
+import { lostRevenue } from '@/lib/money';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 import { Blk, Why } from './Block';
+import { TariffBasis } from './Tariff';
 
 /** Why an operator declines. Fixed reasons, so the record can be queried later. */
 const OVERRIDE_REASONS = [
@@ -153,6 +155,7 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
         <div><dt>Expected</dt><dd className="num">{kW(reading.expectedKW, 1)}</dd></div>
         <div><dt>Cell temperature</dt><dd className="num">{degC(reading.cellTempC)}</dd></div>
         {task && <div><dt>Lost over 72 h</dt><dd className="num">{MWh(loss72)}</dd></div>}
+        {task && <div><dt>Lost revenue, 72 h, <TariffBasis /></dt><dd className="num">{lostRevenue(loss72)}</dd></div>}
         {task && <div><dt>Act within</dt><dd className="num">{hours(task.hoursUntilDeadline)}</dd></div>}
       </dl>
       <p className="work workings">
