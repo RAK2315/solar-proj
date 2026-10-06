@@ -122,26 +122,28 @@
 .sy-rail .prefs .tool { padding: 7px; }
 
 /* The sheet. Its glass sits on a pseudo-element: a backdrop filter on the sheet
-   itself would make it the containing block for any fixed descendant. */
-.sy-stage { position: absolute; z-index: var(--z-panel); top: var(--edge); right: var(--edge); bottom: var(--edge); border-radius: 18px; }
+   itself would make it the containing block for any fixed descendant.
+   THE STAGE NEVER SCROLLS. The glass is pinned to its box, so when the stage was
+   the scroll container the text scrolled and the glass stayed, and a long screen
+   ran its text out over the bare field. What scrolls is .sy-sheet, inside it. */
+.sy-stage { position: absolute; z-index: var(--z-panel); top: var(--edge); right: var(--edge); bottom: var(--edge); border-radius: 18px; overflow: clip; }
 .sy-stage::before {
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: 18px;
   border: 1px solid var(--glass-line); background: var(--glass);
   -webkit-backdrop-filter: var(--glass-fx); backdrop-filter: var(--glass-fx);
   box-shadow: var(--glass-shadow);
 }
-.sy-stage > * { min-width: 0; }
+.sy-sheet { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
+.sy-sheet > * { min-width: 0; }
 
 /* It scrolls as a last resort: with the working shown at 768 high, the array
    panel and a usable queue do not both fit, and clipping either hides a reading. */
-.sy-stage[data-layout='side'] {
-  width: 404px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px;
-  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
-}
-.sy-stage[data-layout='wide'] {
-  left: var(--stage-left); padding: 26px 30px;
+.sy-stage[data-layout='side'] { width: 404px; }
+.sy-stage[data-layout='side'] > .sy-sheet { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+.sy-stage[data-layout='wide'] { left: var(--stage-left); }
+.sy-stage[data-layout='wide'] > .sy-sheet {
+  padding: 26px 30px;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 22px 32px;
-  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
 }
 
 /* The two small panels beside the rail. */
@@ -167,7 +169,7 @@
 .blk { display: flex; flex-direction: column; animation: sy-rise 150ms cubic-bezier(0.2, 0, 0, 1) backwards; }
 @keyframes sy-rise { from { opacity: 0; transform: translateY(6px); } }
 .blk-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.blk-hd h2 { display: flex; align-items: center; gap: 10px; font-size: var(--t3); font-weight: 500; line-height: 1.2; }
+.blk-hd h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; font-size: var(--t3); font-weight: 500; line-height: 1.2; }
 .blk-bd { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
 .big { font-size: var(--t5); font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
 .one, .work, .says, .meta, .empty { color: var(--ink-2); text-wrap: pretty; }
@@ -213,6 +215,28 @@
 .curve .line { fill: none; stroke: var(--live); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .curve .now { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .axis { display: flex; justify-content: space-between; color: var(--ink-2); }
+
+/* The outlook chart. Thin strokes, no chrome; the ramp carries the causes. */
+.chart-hd { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 40px; }
+.chart { display: block; width: 100%; height: 132px; overflow: visible; }
+.chart-wrap { position: relative; padding-top: 24px; }
+.chart-wrap .chart { height: 104px; }
+.chart .gap { fill: color-mix(in oklab, var(--i60) 45%, transparent); }
+.chart .expected { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.chart .actual { fill: none; stroke: var(--live); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.chart .now { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.chart .mark { stroke: var(--ink-3); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart .loss[data-cause='fault'], .swatch[data-cause='fault'] { fill: var(--i60); background: var(--i60); }
+.chart .loss[data-cause='soiling'], .swatch[data-cause='soiling'] { fill: var(--i80); background: var(--i80); }
+.chart .loss[data-cause='hazard'], .swatch[data-cause='hazard'] { fill: var(--i40); background: var(--i40); }
+.marklabel { position: absolute; top: 0; padding-left: 5px; white-space: nowrap; color: var(--ink-2); border-left: 1px solid var(--ink-3); line-height: 1.5; }
+.sy .key { display: flex; flex-wrap: wrap; gap: 4px 22px; color: var(--ink-2); }
+.key li, .tbl td:first-child { align-items: center; }
+.key li { display: flex; gap: 8px; }
+.swatch { display: inline-block; width: 16px; height: 10px; margin-right: 8px; border-radius: 2px; vertical-align: baseline; }
+.key .swatch { margin-right: 0; }
+.swatch[data-k='expected'] { height: 0; border-top: 2px dashed var(--ink-2); border-radius: 0; }
+.swatch[data-k='actual'] { height: 0; border-top: 2px solid var(--live); border-radius: 0; }
 
 .tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
 .tbl th { padding: var(--row) 12px var(--row) 0; font-weight: 400; color: var(--ink-2); text-align: left; }
@@ -284,8 +308,9 @@
 .hazards li { grid-template-columns: 46px 1fr auto; align-items: center; }
 .hazards b { font-weight: 500; color: var(--ink); }
 .work p + p { margin-top: 4px; }
-.sy-stage[data-screen='sandbox'] { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
-.sy-stage[data-screen='sandbox'] > * { flex: none; }
+.sy-stage[data-screen='sandbox'] > .sy-sheet > * { flex: none; }
+.sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: none; }
+.sy-stage[data-screen='sandbox'] > .sy-sheet > [data-b='queue'] .q { flex: none; max-height: 232px; }
 .sy-stage[data-screen='sandbox'] .inject { display: grid; grid-template-columns: 1fr 1fr; }
 .sy-stage[data-screen='sandbox'] .inject .tool { white-space: normal; text-align: left; line-height: 1.25; }
 .sy-stage[data-screen='sandbox'] .inject .tool:last-child { grid-column: 1 / -1; }
@@ -295,17 +320,34 @@
 /* ── 2D fallback ────────────────────────────────────────────────────────── */
 
 .sy-map {
-  position: absolute; inset: 24px 444px 24px 444px;
-  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  position: absolute; inset: 20px 444px 20px 444px;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
 }
-.sy-map .zone { display: flex; flex-direction: column; gap: 4px; }
+/* Each zone in its own frame, as on a site plan. The frame takes the colour of
+   the worst thing inside it, so a zone with a fault is found before an array is. */
+.sy-map .zone {
+  display: flex; flex-direction: column; gap: 5px; padding: 7px 9px 9px;
+  border: 1px solid var(--line); border-radius: 8px; background: color-mix(in oklab, var(--panel) 55%, transparent);
+}
+.sy-map .zone[data-sev] { border-color: color-mix(in oklab, var(--sev) 70%, transparent); }
+.sy-map .zone header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sy-map .zone h2 { font-size: var(--t1); font-weight: 500; }
 .sy-map .cells { display: grid; gap: 3px; }
 .sy-map .cell {
-  display: grid; place-items: center; height: 29px; border-radius: 3px;
+  display: grid; place-items: center; height: 26px; border-radius: 2px;
   background: var(--healthy); color: var(--ink); font-size: var(--t1);
 }
-.sy-map .cell[data-sev='warning'], .sy-map .cell[data-sev='critical'] { background: var(--sev); color: var(--on-sev); }
+/* Hatched as well as coloured: status has to survive a washed-out projector. */
+.sy-map .cell[data-sev='warning'] {
+  background: repeating-linear-gradient(135deg, var(--sev) 0 5px, color-mix(in oklab, var(--sev) 72%, black) 5px 8px); color: var(--on-sev);
+}
+.sy-map .cell[data-sev='critical'] {
+  background: repeating-linear-gradient(45deg, var(--sev) 0 3px, color-mix(in oklab, var(--sev) 62%, black) 3px 6px); color: #ffffff;
+}
 .sy-map .cell[data-sev='scheduled'] { background: var(--sev); color: var(--on-live); }
+.sy-map .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; padding-top: 2px; color: var(--ink-2); }
+.sy-map .legend li { display: flex; align-items: center; gap: 7px; }
+.sy-map .legend .cell { width: 22px; height: 12px; }
 .sy-map .cell[aria-pressed='true'] { outline: 2px solid var(--live); outline-offset: 2px; }
 .sy-map .cell:hover { box-shadow: inset 0 0 0 99px color-mix(in oklab, var(--ink) 12%, transparent); }
 
@@ -330,6 +372,12 @@
   width: 100%; text-align: left; border-radius: 6px;
 }
 .q .work { display: block; padding: 3px 0 0 28px; }
+.q[data-detail='true'] li { padding: calc(var(--row) + 6px) 0; }
+.q[data-detail='true'] li + li { border-top: 1px solid var(--glass-line); }
+.sy .sum { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 0 0 28px; }
+.sum > div { display: flex; flex-direction: column; line-height: 1.25; }
+.sum dd { font-weight: 600; white-space: nowrap; }
+.sum dt { color: var(--ink-2); }
 .feed button.ttl { text-align: left; min-width: 0; }
 .feed button.ttl:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -338,13 +386,13 @@
 .sy-palette { width: 196px; padding: 14px; }
 
 /* Site and sandbox: the sheet is a column, and the queue takes what is left. */
-.sy-stage[data-layout='side'] > [data-b='queue'] { flex: 1 1 0; min-height: 120px; }
-.sy-stage[data-layout='side'] > [data-b='queue'] > .blk-bd { flex: 1 1 0; }
-.sy-stage[data-layout='side'] > [data-b='queue'] .q { flex: 1 1 0; }
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] { flex: 1 1 0; min-height: 120px; }
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] > .blk-bd { flex: 1 1 0; }
+.sy-stage[data-layout='side'] > .sy-sheet > [data-b='queue'] .q { flex: 1 1 0; }
 
-.sy-stage[data-screen='incident'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr); }
-.sy-stage[data-screen='queue'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
-.sy-stage[data-screen='analytics'] > [data-b='curve'] { grid-column: 1 / -1; }
+.sy-stage[data-screen='incident'] > .sy-sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr); }
+.sy-stage[data-screen='queue'] > .sy-sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.sy-stage[data-screen='analytics'] > .sy-sheet > [data-b='curve'] { grid-column: 1 / -1; }
 
 /* ── Screens with more than one view, and columns inside a sheet ─────────── */
 
@@ -353,13 +401,19 @@
 .screenbar h1 { font-size: var(--t3); font-weight: 500; line-height: 1.2; }
 .seg { display: flex; gap: 4px; }
 .seg .tool { padding: 8px 14px; }
-.sy-stage[data-screen='dossier'] { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr); }
-.sy-stage[data-screen='analytics'] > [data-b='model'] { grid-column: 1 / -1; }
+.sy-stage[data-screen='dossier'] > .sy-sheet { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr); }
+.sy-stage[data-screen='analytics'] > .sy-sheet > [data-b='model'] { grid-column: 1 / -1; }
 .sy-stage[data-screen='incident'] .blk-hd h2, .sy-stage[data-screen='dossier'] .blk-hd h2 { font-size: var(--t2); }
 
 /* ── Dossier ─────────────────────────────────────────────────────────────── */
 
-.caps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.caps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.caps[data-lead='true'] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: start; }
+.caps figcaption { text-wrap: pretty; }
+/* A 24 by 40 pixel sensor frame. Smoothing it invents detail it does not have. */
+.caps img.raw { image-rendering: pixelated; aspect-ratio: auto; height: auto; object-fit: contain; }
+.proof { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; }
+.proof img { display: block; width: 100%; border-radius: 6px; border: 1px solid var(--glass-line); }
 .caps figure { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .caps img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-line); }
 .caps figcaption { color: var(--ink-2); }

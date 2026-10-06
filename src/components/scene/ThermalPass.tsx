@@ -19,7 +19,7 @@
  */
 
 import { EffectComposer } from '@react-three/postprocessing';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { BlendFunction, Effect } from 'postprocessing';
 import { Uniform } from 'three';
@@ -83,6 +83,17 @@ const Ironbow = forwardRef<IronbowEffect>(function Ironbow(_props, ref) {
 
 export function ThermalPass() {
   const composer = useRef(null);
+  const gl = useThree((s) => s.gl);
+
+  // THE COMPOSER TURNS THE RENDERER'S AUTO-CLEAR OFF AND NEVER TURNS IT BACK ON.
+  // postprocessing does it in its constructor; the React wrapper then saves and
+  // restores that already-false value around each frame. This pass is mounted
+  // only while a flight is followed, so after the first flight the canvas stopped
+  // clearing between frames. The dark scene hid it, because a background colour
+  // forces a clear; the daylit scene has none, so in the light theme every module
+  // and every held footprint left a copy behind as the camera or pointer moved.
+  useLayoutEffect(() => () => { gl.autoClear = true; }, [gl]);
+
   return (
     <EffectComposer ref={composer}>
       <Ironbow />

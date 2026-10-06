@@ -73,6 +73,57 @@ describe('offline is a first-class outcome, not a crash', () => {
   });
 });
 
+describe('a rate limit is waited out, not passed straight on', () => {
+  const limited = (retryAfter?: string) => new Response('{}', {
+    status: 429, headers: retryAfter ? { 'retry-after': retryAfter } : {},
+  });
+  const answered = () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify(goodTriage) } }],
+  }), { status: 200 });
+
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('waits what the provider asks for, then succeeds', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValueOnce(limited('2')).mockResolvedValueOnce(answered());
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const pending = post({ panelId: 'B-17', siteSeconds: 600 });
+    await vi.advanceTimersByTimeAsync(1900);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(200);
+    const res = await pending;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+  });
+
+  it('backs off on its own when the provider names no wait', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(limited()).mockResolvedValueOnce(limited()).mockResolvedValueOnce(answered());
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const pending = post({ panelId: 'B-17', siteSeconds: 600 });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect((await pending).status).toBe(200);
+  });
+
+  it('hands the wait on, as a 429, when it is longer than the console would sit through', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(limited('45'));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const res = await post({ panelId: 'B-17', siteSeconds: 600 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('45');
+    expect((await res.json()).retryAfterSeconds).toBe(45);
+  });
+});
+
 describe('it validates the request before it spends a token', () => {
   it('rejects an unknown array', async () => {
     const res = await post({ panelId: 'Z-99', siteSeconds: 0 });

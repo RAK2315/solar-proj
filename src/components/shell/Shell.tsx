@@ -31,7 +31,7 @@ import { FlightOverlay } from '@/components/twin/FlightOverlay';
 import { hasCapturedEvidence } from '@/lib/data';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
 import { HAZARD_SPEC } from '@/lib/hazard';
-import { useFollowingFlight, useFootprints, useSelectedPanelId } from '@/store/selectors';
+import { useFlatField, useFollowingFlight, useFootprints, useSelectedPanelId } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { useSolver } from '@/store/solver';
 import { Rail, screenOf, type ScreenId } from './Rail';
@@ -83,10 +83,10 @@ function Panels({ screen }: { screen: ScreenId }) {
   switch (screen) {
     case 'site': return <><ArrayPanel /><QueuePanel footer /></>;
     case 'incident': return <Incident />;
-    case 'queue': return <><QueuePanel /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
+    case 'queue': return <><QueuePanel detail /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
     case 'analytics': return <><CurvePanel /><WeatherPanel /><LossPanel /><ZonesPanel /><ModelPanel /></>;
     case 'drones': return <><div className="col"><FleetPanel /><CommsPanel /></div><div className="col"><MissionsPanel /><MissionProfilePanel /></div></>;
-    case 'sandbox': return <><HazardsPanel /><InjectPanel /><ScenarioPanel /><QueuePanel /></>;
+    case 'sandbox': return <><QueuePanel scores /><HazardsPanel /><InjectPanel /><ScenarioPanel /></>;
   }
 }
 
@@ -107,7 +107,7 @@ export function Shell() {
   const screen = screenOf(useSession((s) => s.module));
   const selected = useSession((s) => s.selectedPanelId);
   const showWorkings = useSession((s) => s.showWorkings);
-  const fallback = useSession((s) => s.twinFallback);
+  const fallback = useFlatField();
   const holding = useSession((s) => s.armedHazard !== null);
   const footprints = useFootprints();
   const dossier = useSession((s) => s.dossierOpen);
@@ -153,15 +153,17 @@ export function Shell() {
 
       <Rail screen={screen} />
 
+      {/* Site is for operating and Sandbox is for what-if, so the hazard tools
+          appear only on the screen that is about them. */}
       {side && (
         <div className="sy-left">
-          <HazardPalette />
+          {screen === 'sandbox' && <HazardPalette />}
           <FeedPanel />
         </div>
       )}
 
       <main className="sy-stage" data-layout={side ? 'side' : 'wide'} data-screen={screen === 'incident' && dossier ? 'dossier' : screen}>
-        <Panels screen={screen} />
+        <div className="sy-sheet"><Panels screen={screen} /></div>
       </main>
     </div>
   );

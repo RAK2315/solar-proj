@@ -75,6 +75,8 @@ export interface TriageEntry {
    */
   attemptedAt?: number;
   retriable?: boolean;
+  /** Wall clock before which asking again is pointless: the provider said so. */
+  retryAt?: number;
 }
 
 /**
@@ -132,7 +134,7 @@ export const useTriage = create<TriageState>((set, get) => ({
     // thing being judged has changed underneath the answer.
     const staleFailure = existing?.status === 'unavailable'
       && existing.retriable
-      && Date.now() - (existing.attemptedAt ?? 0) >= RETRY_AFTER_MS;
+      && Date.now() >= (existing.retryAt ?? (existing.attemptedAt ?? 0) + RETRY_AFTER_MS);
     if (existing && existing.status !== 'idle'
       && existing.condition === condition && !staleFailure) return;
 
@@ -166,6 +168,7 @@ export const useTriage = create<TriageState>((set, get) => ({
         // silently, so an array the operator has just selected can sit without a
         // verdict for no visible reason. Better to ask, be told no, and say so.
         const limited = res.status === 429;
+        const owed = Number(json?.retryAfterSeconds);
         set((s) => ({
           byPanel: {
             ...s.byPanel,
@@ -173,13 +176,16 @@ export const useTriage = create<TriageState>((set, get) => ({
               status: 'unavailable',
               condition,
               attemptedAt: Date.now(),
+              retryAt: limited && Number.isFinite(owed)
+                ? Date.now() + Math.max(owed * 1000, RETRY_AFTER_MS)
+                : undefined,
               // A 400 or a 401 will fail again for the same reason. Everything
               // else might not.
               retriable: limited || res.status >= 500,
               reason: limited
-                ? 'Rate limited by the model provider, the site clock is running '
-                  + 'fast, so statuses are changing faster than the agent can be '
-                  + 'asked about them. Slow the clock or press TRY AGAIN.'
+                ? 'Rate limited by the model provider. The server already waited and '
+                  + 'tried again before reporting this. It asks again on its own once '
+                  + 'the provider allows, or press Ask again.'
                 : json?.reason ?? `agent returned ${res.status}`,
             },
           },

@@ -15,7 +15,7 @@
 
 import { useMemo } from 'react';
 
-import { diagnose } from '@/lib/causes';
+import { diagnose, type Cause } from '@/lib/causes';
 import {
   agentCache as agentCacheData, cellGrid, detection as detectionData, evidenceUrl,
   farm, forecast, hasCapturedEvidence, hasEvidence, panels,
@@ -28,15 +28,17 @@ import {
 import { hazardImpact, type HazardImpact } from '@/lib/impact';
 import { buildIncident, type Incident } from '@/lib/incident';
 import {
-  allEvents, eventFor, forecastOffset, hasCrackMechanism, inverterComparison, liveFrameAt,
+  allEvents, eventFor, faultProgressAt, forecastOffset, hasCrackMechanism, inverterComparison, liveFrameAt,
   referenceShortfallKW, scenario, siteHour, type LiveFrame, type ScenarioEvent,
 } from '@/lib/live';
 import { liveEvents } from '@/lib/liveEvents';
+import { outlook, type Outlook } from '@/lib/outlook';
 import {
   ETA_INV, F_SOIL, GAMMA, NOCT, cellTemp, clockAt, irradianceAt, isDark, soilFor,
   type ArrayReading,
 } from '@/lib/physics';
 import { liveQueueAt, projected72hLossMWh, type LiveQueue } from '@/lib/queue';
+import { repairFor } from '@/lib/repair';
 import {
   closedSlots, problemFrom, problemKey, slotStartOffsetH, solve, type Plan, type Problem,
 } from '@/lib/scheduler';
@@ -201,6 +203,11 @@ export const useFollowingFlight = (): boolean => useSession(
   (s) => s.followFlight && flightCueAt(s.siteSeconds, s.missions).active,
 );
 
+/** Is the field drawn as the 2D map, by the operator's choice or by the fallback? */
+export const useFlatField = (): boolean => useSession(
+  (s) => s.twinFallback !== null || s.twinMode === '2d',
+);
+
 /** The array a flight is inspecting, or null when nothing is in the air. */
 export const useFlightTargetId = (): string | null => useSession((s) => {
   const cue = flightCueAt(s.siteSeconds, s.missions);
@@ -319,6 +326,31 @@ export function useArrayFault(panelId: string) {
 export function useHasCrackMechanism(panelId: string): boolean {
   const injected = useSession((s) => s.injected);
   return hasCrackMechanism(panelId, injected);
+}
+
+/**
+ * What there is for the agent to judge about an array, as a key. Null means
+ * there is nothing settled to ask about yet.
+ *
+ * The agent used to be asked again on every change of STATUS. A fault ramping in
+ * passes through warning on its way to critical, an approval turns it scheduled,
+ * and sunset reads every array healthy, so one fault cost four or five requests
+ * and the provider's per-minute limit turned the panel into "Agent unavailable".
+ * None of those is a different thing to judge. The key is the CAUSE: which fault,
+ * once it has finished developing; or, with no fault, whether the array is off
+ * the model at all.
+ */
+export function useTriageCondition(panelId: string): string | null {
+  const frame = useSiteFrame();
+  const injected = useSession((s) => s.injected);
+  const fault = eventFor(panelId, injected);
+  const progress = fault ? faultProgressAt(fault, frame.siteSeconds) : 0;
+  // After sunset every reading is zero against zero. A verdict taken then would
+  // describe the night, not the array.
+  if (isDark(frame.irradiance)) return null;
+  if (fault && progress > 0) return progress < 1 ? null : `fault:${fault.id}`;
+  if ((frame.panels[panelId]?.status ?? 'healthy') === 'healthy') return 'nominal';
+  return frame.affected[panelId] !== undefined ? 'hazard' : 'off-nominal';
 }
 
 /* ── Events ──────────────────────────────────────────────────────────────── */
@@ -635,6 +667,31 @@ export function useLiveQueue(): LiveQueue {
   );
 }
 
+/**
+ * The likely cause of every queued job, from the same instrument readings the
+ * incident screen diagnoses from. Keyed by array.
+ */
+export function useQueueCauses(): ReadonlyMap<string, Cause> {
+  const { tasks } = useLiveQueue();
+  const frame = useSiteFrame();
+  return useMemo(() => {
+    const median = cellTemp(frame.ambientC, frame.irradiance);
+    const hourOffset = forecastOffset(frame.siteSeconds);
+    return new Map(tasks.map((t) => {
+      const r = frame.panels[t.panelId];
+      return [t.panelId, diagnose({
+        panelId: t.panelId,
+        deviationPct: r?.deviationPct ?? 0,
+        stringDeviationPct: r?.stringDeviationPct,
+        cellTempC: r?.cellTempC ?? median,
+        fleetMedianCellTempC: median,
+        hourOffset,
+        peakIrradiance: PEAK_IRRADIANCE,
+      })] as const;
+    }));
+  }, [tasks, frame]);
+}
+
 export const useWorkOrders = () => useSession((s) => s.workOrders);
 
 /** Every recommendation the operator has declined, with the reason given. */
@@ -677,15 +734,16 @@ export function useSchedule(): DaySchedule {
   const siteSeconds = useSiteSeconds();
   const frame = useSiteFrame();
   const hazards = useSession((s) => s.hazards);
+  const injected = useSession((s) => s.injected);
   const status = useSolver((s) => s.status);
   const solver = useSolver((s) => s.solver);
 
   return useMemo(() => {
     const median = cellTemp(frame.ambientC, frame.irradiance);
     const nowOffsetH = forecastOffset(siteSeconds);
-    const causeFor = (panelId: string) => {
+    const repairOf = (panelId: string) => {
       const r = frame.panels[panelId];
-      return diagnose({
+      const cause = diagnose({
         panelId,
         deviationPct: r?.deviationPct ?? 0,
         stringDeviationPct: r?.stringDeviationPct,
@@ -694,9 +752,10 @@ export function useSchedule(): DaySchedule {
         hourOffset: nowOffsetH,
         peakIrradiance: PEAK_IRRADIANCE,
       }).id;
+      return repairFor(cause, eventFor(panelId, injected));
     };
 
-    const ctx = { tasks, causeFor, nowOffsetH, epochHour: scenario.epochHour, hazards };
+    const ctx = { tasks, repairFor: repairOf, nowOffsetH, epochHour: scenario.epochHour, hazards };
     const problem = problemFrom(ctx);
     const key = `${status}#${problemKey(problem)}`;
     if (!lastPlan || lastPlan.key !== key) lastPlan = { key, plan: solve(problem, solver) };
@@ -708,38 +767,27 @@ export function useSchedule(): DaySchedule {
       firstSlotHour: (scenario.epochHour + slotStartOffsetH(nowOffsetH, 0)) % 24,
       solver: status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : 'loading',
     };
-  }, [tasks, frame, siteSeconds, hazards, status, solver]);
+  }, [tasks, frame, siteSeconds, hazards, injected, status, solver]);
 }
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */
 
-export interface DayPoint { hourOffset: number; outputMW: number; shortfallKW: number }
-
 /**
- * Site output across the first day, from the model.
+ * The modelled arrays across the hours ahead, from the model.
  *
- * Sampled, not continuous: four points an hour over 24 hours is 97 whole-site
- * evaluations, cheap enough to memoise and dense enough that a fault ramp shows
- * as a step. It is a PREDICTION for the hours ahead of site time, not a
- * recording, and the chart says so.
+ * Sampled, not continuous: four points an hour is dense enough that a fault ramp
+ * shows as a step and cheap enough to memoise. It does not depend on site time,
+ * so it is computed when a fault, a hazard or a work order changes and never per
+ * frame.
  */
-export const DAY_SAMPLES_PER_HOUR = 4;
-
-export function useDayCurve(): DayPoint[] {
+export function useOutlook(hours: number): Outlook {
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
   const hazards = useSession((s) => s.hazards);
-  return useMemo(() => {
-    const scheduled = new Set(workOrders.map((w) => w.panelId));
-    const n = 24 * DAY_SAMPLES_PER_HOUR;
-    return Array.from({ length: n + 1 }, (_, i) => {
-      const hourOffset = i / DAY_SAMPLES_PER_HOUR;
-      const f = liveFrameAt(hourOffset * 3600, scheduled, injected, hazards);
-      let shortfallKW = 0;
-      for (const r of Object.values(f.panels)) shortfallKW += r.expectedKW - r.actualKW;
-      return { hourOffset, outputMW: f.farmOutputMW, shortfallKW };
-    });
-  }, [workOrders, injected, hazards]);
+  return useMemo(
+    () => outlook(new Set(workOrders.map((w) => w.panelId)), injected, hazards, hours),
+    [workOrders, injected, hazards, hours],
+  );
 }
 
 /** Where the site's lost energy is going, by mechanism. */

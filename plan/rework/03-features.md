@@ -13,7 +13,10 @@ Full-screen R3F twin at `100dvh`. Panels float over it. No separate cinematic mo
 **Acceptance**
 - 60 fps at 1920×1080 **and** 1366×768 with all 120 arrays rendered.
 - No wasted margin: the canvas is the viewport, panels overlay it.
-- Near-nadir default camera; operator can pitch into perspective.
+- The twin rests in perspective, low enough that the modules' tilt and the stands
+  under them read. (Was "near-nadir default"; superseded at the design gate on
+  5 Oct and confirmed by the owner on 6 Oct.) The rail carries a 2D / 3D switch,
+  the operator's own choice, in place of the earlier top view.
 - `check:layout` passes at both widths.
 - Type system: ≤ 5 sizes, nothing under 14 px, mono only for IDs and codes,
   sentence case throughout. Zero `text-transform: uppercase` on labels.
@@ -31,7 +34,10 @@ Full-screen R3F twin at `100dvh`. Panels float over it. No separate cinematic mo
 
 ## F1a — Fallback to 2D map [MVP]
 
-Automatic, not a user setting.
+Automatic, and since 6 Oct also the operator's choice from the rail. The
+automatic switch and its line in the feed are unchanged. Asking for 3D after the
+frame-rate watchdog has tripped overrules it; a browser with no WebGL cannot be
+overruled.
 
 **Acceptance**
 - WebGL context creation fails → 2D SVG map, no error dialog, console still usable.
@@ -85,10 +91,19 @@ Exact MILP over jobs, 2 drones, 2–3 crews, shift limits, heat threshold.
 
 **Acceptance**
 - `highs` WASM. Deterministic: identical input gives an identical plan, every time.
-- Solve **< 50 ms** (measured 32.5 ms worst case in the spike).
+- Solve **< 50 ms** (measured 32.5 ms worst case in the spike). **Enforced as a
+  time limit since 6 Oct (owner ruling).** A solve that reaches it is shown as
+  "best plan found", with the gap to HiGHS's proved bound, and is never called
+  optimal. Identical input gives an identical plan whenever the solve finishes
+  inside the limit, which every day the site itself has posed does.
+- Jobs take crew time by repair type, from a declared table in `lib/repair.ts`
+  (module replacement, bypass diode service, array wash, string reconnection).
+  Declared assumptions, printed behind the `?`. Not sourced.
 - Constraints: shift cap, no field work inside the heat window, crew non-overlap,
   per-job deadline.
-- **Shows both scores** — greedy baseline and optimum — so the gap is visible.
+- **Shows both scores** — greedy baseline and optimum — whatever the difference
+  is. On the hero's own state the heuristic matches the optimum and the screen
+  says so; no gap is manufactured (owner ruling, 6 Oct).
 - Greedy also serves as the fallback if WASM fails to load.
 - **Proposes only.** No plan reaches a work order without the approval gate.
 - Re-solves on every hazard change, inside the F2 budget.

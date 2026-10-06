@@ -9,14 +9,24 @@
 
 import { MWh, hours, num, sentence } from '@/lib/format';
 import { scoreBreakdown } from '@/lib/ranking';
-import { siteClockAt, useLiveQueue, useOverrideList, useWorkOrders } from '@/store/selectors';
+import {
+  siteClockAt, useLiveQueue, useOverrideList, useQueueCauses, useWorkOrders,
+} from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { ImpactLine } from './HazardPalette';
 import { PlanScores } from './PlanPanel';
 
-export function QueuePanel({ footer = false }: { footer?: boolean }) {
+export function QueuePanel({ footer = false, scores = false, detail = false }: {
+  /** The site screen's footer: the plan's score, the order count, a way in. */
+  footer?: boolean;
+  /** The plan's two scores under the queue, where a hazard is dropped. */
+  scores?: boolean;
+  /** The queue screen: every job with its cause and its arithmetic, unasked. */
+  detail?: boolean;
+}) {
   const { tasks, unscheduled } = useLiveQueue();
+  const causes = useQueueCauses();
   const orders = useWorkOrders();
   const select = useSession((s) => s.selectPanel);
   const setModule = useSession((s) => s.setModule);
@@ -28,12 +38,14 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
       title={<>Repair queue<span className="count num">{tasks.length} {tasks.length === 1 ? 'job' : 'jobs'}</span></>}
       aside={<Why />}
     >
-      <p className="one">Ranked by loss × severity × urgency ÷ access.</p>
+      <p className="one">
+        Ranked by loss × severity × urgency ÷ access{detail ? ', arithmetic never a model\u2019s opinion. Each job shows its own.' : '.'}
+      </p>
       <ImpactLine />
       {tasks.length === 0 ? (
         <p className="empty well">Nothing is off nominal. A job appears here when an array falls below the model.</p>
       ) : (
-        <ol className="q">
+        <ol className="q" data-detail={detail}>
           {tasks.map((t, i) => {
             const s = scoreBreakdown(t);
             const sev = t.scheduled ? 'scheduled' : t.severity;
@@ -47,7 +59,20 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
                   </span>
                   <span className="score num">{num(s.score, 2)}</span>
                 </button>
-                <span className="work num workings">{MWh(s.loss)}/day × {num(s.severity, 1)} × {num(s.urgency, 2)} ÷ {num(s.access, 1)}</span>
+                {detail && causes.get(t.panelId) && (
+                  <span className="work">{causes.get(t.panelId)?.label}. {causes.get(t.panelId)?.action}</span>
+                )}
+                {detail ? (
+                  <dl className="sum num">
+                    <div><dd>{MWh(s.loss)}</dd><dt>lost a day</dt></div>
+                    <div><dd>× {num(s.severity, 1)}</dd><dt>severity</dt></div>
+                    <div><dd>× {num(s.urgency, 2)}</dd><dt>urgency</dt></div>
+                    <div><dd>÷ {num(s.access, 1)}</dd><dt>access</dt></div>
+                    <div><dd>= {num(s.score, 2)}</dd><dt>score</dt></div>
+                  </dl>
+                ) : (
+                  <span className="work num workings">{MWh(s.loss)}/day × {num(s.severity, 1)} × {num(s.urgency, 2)} ÷ {num(s.access, 1)}</span>
+                )}
               </li>
             );
           })}
@@ -58,7 +83,7 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
           Deviating with no deadline on file, so not ranked: <span className="id">{unscheduled.join(' ')}</span>.
         </p>
       )}
-      {footer && <PlanScores />}
+      {(footer || scores) && <PlanScores />}
       {footer && (
         <div className="foot-row">
           <span className="one">

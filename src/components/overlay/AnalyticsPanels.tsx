@@ -2,37 +2,120 @@
 
 /** The analytics screen: the day's output from the model, and where the loss goes. */
 
-import { MW, clockOf, degC, kW, ms, num, pctPlain, sentence, wm2 } from '@/lib/format';
+import { HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
+import { MW, MWh, clockOf, degC, kW, ms, num, pctPlain, sentence, wm2 } from '@/lib/format';
+import { LOSS_CAUSES, LOSS_LABEL, type LossCause, type OutlookPoint } from '@/lib/outlook';
 import {
-  useDayCurve, useForecast, useHeatwaveC, useLossAttribution, useModelConstants,
+  useForecast, useHeatwaveC, useLossAttribution, useModelConstants, useOutlook,
   useScenarioEpochHour, useSiteFrame, useZoneBreakdown,
 } from '@/store/selectors';
 import { Blk, Why } from './Block';
 
 const W = 480;
 const H = 120;
+/** The chart's own drawing space. It is stretched to the panel, so only ratios matter. */
+const CHART_W = 960;
+const OUTPUT_H = 150;
+const LOSS_H = 110;
 const DAY_HOURS = 24;
+/** Stacked bottom to top. The fault is the base because it is the part that stays. */
+const STACK: readonly LossCause[] = ['fault', 'soiling', 'hazard'];
 
+const xOf = (hourOffset: number, hours: number) => (hourOffset / hours) * CHART_W;
+const path = (pts: Array<[number, number]>) => pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+
+/** One cause's band of the stacked shortfall, as a closed polygon. */
+function band(points: OutlookPoint[], hours: number, upTo: number, peak: number): string {
+  const y = (kWValue: number) => LOSS_H - (kWValue / peak) * (LOSS_H - 8);
+  const below = (p: OutlookPoint) => STACK.slice(0, upTo).reduce((s, c) => s + p.loss[c], 0);
+  const top = points.map((p): [number, number] => [xOf(p.hourOffset, hours), y(below(p) + p.loss[STACK[upTo]])]);
+  const base = points.map((p): [number, number] => [xOf(p.hourOffset, hours), y(below(p))]).reverse();
+  return path([...top, ...base]);
+}
+
+/**
+ * Expected against actual for the modelled arrays, and the gap between them.
+ *
+ * TWO SCALES, AND THE PANEL SAYS SO. The arrays' whole shortfall is about one
+ * per cent of what they produce, so on the output chart the two lines all but
+ * coincide: that is the true picture and it is drawn as it is. The gap is then
+ * drawn again below at its own scale, split by cause, because that is the part
+ * an operator can act on.
+ */
 export function CurvePanel() {
-  const curve = useDayCurve();
+  const { points, markers, lostMWh, expectedMWh, hours } = useOutlook(DAY_HOURS);
   const frame = useSiteFrame();
   const epochHour = useScenarioEpochHour();
-  const peak = Math.max(...curve.map((p) => p.outputMW), 1);
-  const peakAt = curve.find((p) => p.outputMW === peak)?.hourOffset ?? 0;
-  const pts = curve
-    .map((p) => `${((p.hourOffset / DAY_HOURS) * W).toFixed(1)},${(H - (p.outputMW / peak) * (H - 6)).toFixed(1)}`)
-    .join(' ');
-  const nowX = Math.min(W, (frame.siteSeconds / 3600 / DAY_HOURS) * W);
+
+  const nowH = Math.min(hours, frame.siteSeconds / 3600);
+  const now = points.reduce((best, p) => (Math.abs(p.hourOffset - nowH) < Math.abs(best.hourOffset - nowH) ? p : best), points[0]);
+  const shortNow = now.expectedKW - now.actualKW;
+  const peakOut = Math.max(...points.map((p) => p.expectedKW), 1);
+  const peakLoss = Math.max(...points.map((p) => p.expectedKW - p.actualKW), 1);
+  const lostTotal = LOSS_CAUSES.reduce((s, c) => s + lostMWh[c], 0);
+
+  const yOut = (v: number) => OUTPUT_H - (v / peakOut) * (OUTPUT_H - 8);
+  const expected = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.expectedKW)]);
+  const actual = points.map((p): [number, number] => [xOf(p.hourOffset, hours), yOut(p.actualKW)]);
+  const nowX = xOf(nowH, hours);
+  const ticks = Array.from({ length: hours / 6 + 1 }, (_, i) => i * 6);
+
   return (
-    <Blk b="curve" title={<>Site output, first 24 h<span className="count">modelled</span></>}>
-      <div className="big num">{MW(frame.farmOutputMW)}</div>
-      <p className="one">Predicted from the forecast, peaking at {MW(peak)} around {clockOf(epochHour + peakAt)}.</p>
-      <svg className="curve" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Site output across the day, from the model">
-        <polygon className="area" points={`0,${H} ${pts} ${W},${H}`} />
-        <polyline className="line" points={pts} />
-        <line className="now" x1={nowX} x2={nowX} y1="0" y2={H} />
+    <Blk b="curve" title={<>Expected against actual, next {hours} h<span className="count">modelled arrays, a prediction</span></>} aside={<Why />}>
+      <div className="chart-hd">
+        <div><div className="big num">{MW(frame.farmOutputMW)}</div><p className="one">site output now</p></div>
+        <div><div className="fig num">{kW(shortNow, 0)}</div><p className="one">short of the model now, {pctPlain(now.expectedKW > 0 ? (shortNow / now.expectedKW) * 100 : 0, 1)} of the arrays&apos; output</p></div>
+        <div><div className="fig num">{MWh(lostTotal)}</div><p className="one">lost over the {hours} h, of {MWh(expectedMWh, 0)} expected</p></div>
+      </div>
+
+      <svg className="chart" viewBox={`0 0 ${CHART_W} ${OUTPUT_H}`} preserveAspectRatio="none" role="img" aria-label={`Expected and actual output of the modelled arrays over ${hours} hours`}>
+        <polygon className="gap" points={path([...expected, ...actual.slice().reverse()])} />
+        <polyline className="expected" points={path(expected)} />
+        <polyline className="actual" points={path(actual)} />
+        <line className="now" x1={nowX} x2={nowX} y1="0" y2={OUTPUT_H} />
       </svg>
-      <div className="axis num"><span>{clockOf(epochHour)}</span><span>now {frame.clock}</span><span>{clockOf(epochHour + DAY_HOURS)}</span></div>
+      <ul className="key">
+        <li><i className="swatch" data-k="expected" />Expected, the model at nominal soiling</li>
+        <li><i className="swatch" data-k="actual" />Actual, with every fault, soiled array and hazard</li>
+      </ul>
+
+      <p className="one">The gap between those two lines, at its own scale and split by cause.</p>
+      <div className="chart-wrap">
+        <svg className="chart" viewBox={`0 0 ${CHART_W} ${LOSS_H}`} preserveAspectRatio="none" role="img" aria-label="Shortfall against the model by cause">
+          {STACK.map((c, i) => <polygon key={c} className="loss" data-cause={c} points={band(points, hours, i, peakLoss)} />)}
+          {markers.map((m) => (
+            <line key={`${m.kind}-${m.label}-${m.hourOffset}`} className="mark" data-kind={m.kind} x1={xOf(m.hourOffset, hours)} x2={xOf(m.hourOffset, hours)} y1="0" y2={LOSS_H} />
+          ))}
+          <line className="now" x1={nowX} x2={nowX} y1="0" y2={LOSS_H} />
+        </svg>
+        {/* Labels are HTML over the drawing: text inside a stretched SVG stretches with it. */}
+        {markers.map((m) => (
+          <span key={`${m.kind}-${m.label}-${m.hourOffset}`} className="marklabel" data-kind={m.kind} style={{ left: `${(m.hourOffset / hours) * 100}%` }}>
+            {m.kind === 'fault' ? <span className="id">{m.label}</span> : HAZARD_SPEC[m.label as HazardKind].label}
+          </span>
+        ))}
+      </div>
+      <div className="axis num">
+        {ticks.map((t) => <span key={t}>{t === 0 ? clockOf(epochHour) : clockOf(epochHour + t)}</span>)}
+      </div>
+
+      <table className="tbl">
+        <thead><tr><th>Cause</th><th>Now</th><th>Over the {hours} h</th></tr></thead>
+        <tbody>
+          {STACK.map((c) => (
+            <tr key={c}>
+              <td><i className="swatch" data-cause={c} />{LOSS_LABEL[c]}</td>
+              <td className="num">{kW(now.loss[c], 1)}</td>
+              <td className="num">{MWh(lostMWh[c])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="work workings">
+        Peak shortfall on this chart {kW(peakLoss, 0)}, against a peak expected output of {MW(peakOut / 1000, 1)} for
+        the 120 modelled arrays. Marks show where a fault or a hazard begins. Now is {frame.clock}; everything to
+        its right is the model run forward on the forecast, not a measurement.
+      </p>
     </Blk>
   );
 }

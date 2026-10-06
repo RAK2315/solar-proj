@@ -4,16 +4,20 @@
  * PlanPanel: the day's crew plan, with the two scores side by side.
  *
  * The exact solve and the heuristic are scored by the same function on the same
- * problem, so the gap between them is the solver's whole case for being here. It
- * is zero on an easy day and a few per cent once the shift and the heat rule
- * bind, and the screen says which.
+ * problem, so the difference between them is the solver's whole case for being
+ * here, and the screen prints it whatever it is, including nothing.
+ *
+ * A solve stopped at its time limit is reported as the best plan found, with the
+ * gap to the solver's bound. It is never called optimal.
  *
  * A PROPOSAL. Nothing on this panel creates a work order.
  */
 
 import { clockOf, degC, hours, num, pctPlain } from '@/lib/format';
+import { DIODE_SERVICE_FROM_STRINGS, REPAIR_PART_HOURS } from '@/lib/repair';
+import { TRAVEL_HOURS_BASE } from '@/lib/schedule';
 import {
-  HEAT_WORK_LIMIT_C, LATE_FACTOR, SHIFT_CAP_HOURS, SHIFT_END_HOUR, SHIFT_START_HOUR, onTime,
+  HEAT_WORK_LIMIT_C, LATE_FACTOR, SHIFT_CAP_HOURS, SHIFT_END_HOUR, SHIFT_START_HOUR, SOLVE_BUDGET_MS, onTime,
 } from '@/lib/scheduler';
 import { useSchedule, type DaySchedule } from '@/store/selectors';
 import { useSession } from '@/store/session';
@@ -24,13 +28,23 @@ const SAME = 1e-6;
 
 /** The scores, in one sentence. Also what the site screen prints under its queue. */
 export function scoreLine({ plan, solver }: DaySchedule): string {
-  if (!plan.optimal) {
+  if (plan.status === 'limit') {
+    // Stopped at the time limit. The word for a finished solve is not used here.
+    const ahead = plan.objective - plan.baseline > SAME
+      ? `against ${num(plan.baseline, 2)} for the heuristic`
+      : 'the same as the heuristic';
+    return `Best plan found in ${SOLVE_BUDGET_MS} ms, score ${num(plan.objective, 2)}, ${ahead}. `
+      + `Gap ${pctPlain(plan.gapPct ?? 0, 1)} to the solver\u2019s bound: the search was stopped before it finished.`;
+  }
+  if (plan.status === 'heuristic') {
     return solver === 'failed'
       ? `Heuristic plan, score ${num(plan.baseline, 2)}. The exact solver did not load, so this is the fallback.`
-      : `Heuristic plan, score ${num(plan.baseline, 2)}. The exact solver is still loading.`;
+      : solver === 'loading'
+        ? `Heuristic plan, score ${num(plan.baseline, 2)}. The exact solver is still loading.`
+        : `Heuristic plan, score ${num(plan.baseline, 2)}. The exact solver returned nothing usable for this day.`;
   }
   const gain = plan.objective - plan.baseline;
-  if (gain <= SAME) return `Optimal plan, score ${num(plan.objective, 2)}. The heuristic finds the same one today.`;
+  if (gain <= SAME) return `Optimal plan, score ${num(plan.objective, 2)}. The heuristic matched the optimum.`;
   return `Optimal plan scores ${num(plan.objective, 2)} against ${num(plan.baseline, 2)} for the heuristic, `
     + `${pctPlain((gain / plan.baseline) * 100, 1)} better.`;
 }
@@ -122,7 +136,13 @@ export function PlanPanel() {
         <p>
           A job is worth its queue score, less a tenth of it across the horizon for starting later, and {pctPlain(LATE_FACTOR * 100)} of
           that if it finishes after its deadline. Both plans are scored by that one function. Solved in {num(plan.solveMs, 1)} ms as a mixed-integer program by HiGHS,
-          in this browser.
+          in this browser, with a {SOLVE_BUDGET_MS} ms limit. A solve that reaches the limit is shown as the best plan found, with its gap, and is not called optimal.
+        </p>
+        <p>
+          Crew time by repair, declared and not sourced: module replacement {hours(REPAIR_PART_HOURS.module)},
+          plus {hours(REPAIR_PART_HOURS.diode)} to test and replace bypass diodes when {DIODE_SERVICE_FROM_STRINGS} or more strings are affected;
+          array wash {hours(REPAIR_PART_HOURS.cleaning)}; string reconnection {hours(REPAIR_PART_HOURS.string)};
+          manual inspection {hours(REPAIR_PART_HOURS.inspection)}. Travel adds {hours(TRAVEL_HOURS_BASE)} times the array&apos;s access cost, and a job takes whole hours.
         </p>
       </div>
     </Blk>

@@ -148,19 +148,36 @@ describe('when the agent cannot answer', () => {
  * credentials problem that did not exist.
  */
 describe('rate limiting', () => {
-  it('names the limit AND its cause, which is the clock', async () => {
+  it('names the limit, and says it will ask again', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 429,
-      json: async () => ({ error: 'rate_limit_exceeded' }),
+      json: async () => ({ error: 'rate-limited', retryAfterSeconds: 45 }),
     });
 
-    await useTriage.getState().request('B-17', 0, 'critical');
+    await useTriage.getState().request('B-17', 0, 'fault:x');
 
-    const reason = useTriage.getState().byPanel['B-17'].reason!;
-    expect(reason).toMatch(/Rate limited/);
-    expect(reason).toMatch(/site clock is running fast/);
-    expect(reason).toMatch(/Slow the clock or press TRY AGAIN/);
+    const entry = useTriage.getState().byPanel['B-17'];
+    expect(entry.reason).toMatch(/Rate limited/);
+    expect(entry.reason).toMatch(/asks again on its own/);
+    expect(entry.retriable).toBe(true);
+  });
+
+  it('does not ask again before the provider\u2019s own wait is up', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false, status: 429, json: async () => ({ retryAfterSeconds: 45 }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await useTriage.getState().request('B-17', 0, 'fault:x');
+    now.mockReturnValue(1_000_000 + 30_000);
+    await useTriage.getState().request('B-17', 0, 'fault:x');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    now.mockReturnValue(1_000_000 + 46_000);
+    await useTriage.getState().request('B-17', 0, 'fault:x');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('still passes other server reasons through untouched', async () => {

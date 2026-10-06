@@ -71,7 +71,7 @@ export default function Twin({ overlay, watchdog, children }: {
       /* The live detector reads a frame back off this canvas, and without a
          preserved buffer WebGL may clear it first and return a blank image. */
       gl={{ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true }}
-      camera={{ fov: TWIN_FOV, near: 0.5, far: 600, position: [0, 84, 122] }}
+      camera={{ fov: TWIN_FOV, near: 0.5, far: 600, position: [0, 74, 164] }}
       style={{ position: 'absolute', inset: 0 }}
     >
       {day ? <SceneEnvironment fog={following ? undefined : DAY_FOG} /> : <DarkEnvironment />}

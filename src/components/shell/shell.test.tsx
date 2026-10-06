@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useConsoleKeys } from '@/hooks/useSiteClock';
 import { cellGrid } from '@/lib/data';
+import { highsSolver } from '@/lib/highsSolver';
 import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { M, arrayCentre } from '@/lib/scene';
 import { useDetector } from '@/store/detector';
@@ -71,6 +72,48 @@ beforeEach(() => {
 });
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+describe('the 2D and 3D switch', () => {
+  it('is the operator\u2019s to press, and remembers the choice through a reset', () => {
+    // jsdom has no WebGL, so the shell is already on the fallback here and the
+    // choice is made through the store the button writes to.
+    const { container } = open({ siteSeconds: DEVELOPED });
+    expect(useSession.getState().twinMode).toBe('3d');
+    act(() => useSession.getState().setTwinMode('2d'));
+    set({ twinFallback: null });
+    expect(container.querySelectorAll('[data-panel-id]')).toHaveLength(120);
+    expect(button(container, 'Show the field in 3D').disabled).toBe(false);
+    act(() => useSession.getState().resetSession());
+    expect(useSession.getState().twinMode).toBe('2d');
+  });
+
+  it('lets the operator overrule the frame-rate fallback, but not a browser with no WebGL', () => {
+    const { container } = open({ siteSeconds: DEVELOPED });
+    set({ twinFallback: 'fps' });
+    fireEvent.click(button(container, 'Show the field in 3D'));
+    expect(useSession.getState().twinFallback).toBeNull();
+
+    set({ twinFallback: 'webgl' });
+    expect(button(container, 'Show the field in 3D').disabled).toBe(true);
+  });
+
+  it('draws the map with a frame per zone and a legend', () => {
+    const { container } = open({ siteSeconds: DEVELOPED });
+    expect(container.querySelectorAll('.sy-map .zone')).toHaveLength(3);
+    expect(container.querySelector('.sy-map .zone[data-sev="critical"]')).not.toBeNull();
+    expect(text(container.querySelector('.sy-map .legend') as Element)).toContain('Under a hazard');
+  });
+});
+
+describe('the queue screen', () => {
+  it('shows every job with its cause and its arithmetic, without being asked', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    const first = container.querySelector('[data-b="queue"] .q li') as Element;
+    expect(text(first)).toContain('B-17');
+    expect(text(first)).toContain('Localised electrical fault');
+    expect(text(first)).toMatch(/lost a day.*severity.*urgency.*access.*score/);
+  });
+});
 
 describe('the shell', () => {
   it('offers six destinations and opens each one', () => {
@@ -284,8 +327,32 @@ describe('evidence belongs to the array it was captured from', () => {
     const { container } = dossier({
       siteSeconds: DEVELOPED + sceneT(M.rgb + 1), selectedPanelId: 'B-17', missions: [mission('B-17')],
     });
+    // The visible pass is due, the thermal one is not, and nothing has been
+    // captured in this browser yet: the panel says so instead of showing a
+    // photograph from somewhere else.
+    expect(container.querySelector('.caps img')).toBeNull();
+    expect(text(container.querySelector('[data-b="captures"]') as Element)).toContain('No frame from this flight');
+
+    act(() => useDetector.setState({
+      byPanel: {
+        'B-17': {
+          detections: [], elapsedMs: 1, frame: 'data:image/png;base64,AAAA', frameSize: [4, 4], run: 1, at: 0,
+          source: "the drone's camera over B-17", panelId: 'B-17',
+        },
+      },
+    }));
     const alts = [...container.querySelectorAll('.caps img')].map((i) => i.getAttribute('alt'));
-    expect(alts).toEqual(['Visible-light frame with the detection box']);
+    expect(alts).toEqual(['The frame the detector was run on']);
+  });
+
+  it('keeps the dataset photograph with the control that verifies against it', () => {
+    const { container } = dossier({
+      siteSeconds: DEVELOPED + INSPECTED_AFTER, selectedPanelId: 'B-17', missions: [mission('B-17')],
+    });
+    expect(container.querySelector('[data-b="captures"] .proof')).toBeNull();
+    const proof = container.querySelector('[data-b="detector"] .proof') as Element;
+    expect(text(proof)).toContain('not a drone frame');
+    expect(text(proof)).toContain('held-out test split');
   });
 
   it('holds the whole measured band after the drone has flown home', () => {
@@ -296,7 +363,7 @@ describe('evidence belongs to the array it was captured from', () => {
     expect(container.querySelectorAll('.matrix .cell[data-defect="true"]')).toHaveLength(cellGrid.defects.length);
     expect(container.querySelectorAll('.defects li')).toHaveLength(cellGrid.defects.length);
     expect(now()).toContain('R2, C4');
-    expect(container.querySelectorAll('.caps img')).toHaveLength(2);
+    expect(container.querySelectorAll('.caps img.raw')).toHaveLength(1);
   });
 
   it('refuses all of it for an array we hold no capture of, even one a drone inspected', () => {
@@ -314,6 +381,25 @@ describe('evidence belongs to the array it was captured from', () => {
     const rows = [...container.querySelectorAll('[data-b="inverters"] tbody tr')];
     expect(rows.map((r) => r.getAttribute('data-hot'))).toEqual(['false', 'true', 'false']);
     expect(text(rows[1])).toContain('INV-B');
+  });
+
+  it('asks the agent once per cause, not once per change of status', async () => {
+    const fetchMock = vi.fn(() => Promise.reject(new Error('offline')));
+    vi.stubGlobal('fetch', fetchMock);
+    // Half a minute into a three-minute ramp: the reading is still moving.
+    const { text: now } = open({ siteSeconds: 4.5 * 60, selectedPanelId: 'B-17', module: 'incident' });
+    await act(async () => { await Promise.resolve(); });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(now()).toContain('still developing');
+
+    set({ siteSeconds: DEVELOPED });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Approving the work turns the array scheduled. It is the same fault.
+    act(() => useSession.getState().createWorkOrder('B-17', 'test'));
+    await act(async () => { await Promise.resolve(); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('stays usable when the agent cannot be reached', async () => {
@@ -364,8 +450,15 @@ describe('the sandbox', () => {
     expect(container.querySelector('.impact')).toBeNull();
   });
 
-  it('applies a heatwave to the whole site, once', () => {
+  it('keeps the hazard tools off the site screen', () => {
     const { container } = open({ siteSeconds: DEVELOPED });
+    expect(maybeButton(container, 'Heatwave')).toBeNull();
+    fireEvent.click(button(container.querySelector('.sy-rail') as Element, 'Sandbox'));
+    expect(maybeButton(container, 'Heatwave')).not.toBeNull();
+  });
+
+  it('applies a heatwave to the whole site, once', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'sandbox' });
     fireEvent.click(button(container, 'Heatwave'));
     later(1800);
     expect(text(container.querySelector('.impact') as Element)).toContain('120 arrays affected');
@@ -467,11 +560,20 @@ describe('the day plan', () => {
 
   it('shows the optimum beside the heuristic once the solver is there', async () => {
     const { default: highsLoader } = await import('highs');
-    const highs = await highsLoader();
+    const real = highsSolver(await highsLoader());
     const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
-    act(() => useSolver.setState({ status: 'ready', solver: highs as never }));
+    // Untimed here: a shared test runner must not decide whether the solve finished.
+    act(() => useSolver.setState({ status: 'ready', solver: { solve: (lp) => real.solve(lp, 60) } }));
     expect(planText(container)).toMatch(/Optimal plan/);
     expect(planText(container)).toMatch(/\d+ of \d+ jobs placed/);
+  });
+
+  it('never calls a plan optimal when the solver was stopped at its limit', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    act(() => useSolver.setState({ status: 'ready', solver: { solve: () => ({ status: 'limit', values: {}, bound: 99 }) } }));
+    expect(planText(container)).toMatch(/Best plan found in 50 ms/);
+    expect(planText(container)).toMatch(/Gap \d+\.\d %/);
+    expect(planText(container)).not.toMatch(/Optimal plan/);
   });
 
   it('proposes and never commits: a plan on screen creates no work order', () => {

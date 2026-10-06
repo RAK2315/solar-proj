@@ -21,6 +21,8 @@ export const SCENE = {
 
   /** §14: "instanced cylinders, r 0.05, h 1.2, colour #9AA0A8" */
   post: '#9aa0a8',
+  /** The concrete pad a post stands in. A shade off the sand, so it reads as built. */
+  footing: '#d4c8b0',
 
   /** §14: "gradient shader, warm horizon → pale zenith. No HDRI (filesize)." */
   skyZenith: '#7fa8d4',
@@ -72,6 +74,9 @@ export const TWIN = {
   panel: '#3a5f9a',
   panelMetalness: 0.12,
   skyFill: '#8fb0d9',
+  /** Steel and concrete on the near-black ground: lit enough to read as a stand. */
+  post: '#8792a6',
+  footing: '#2a3342',
 
   warning: '#f08b2a',
   critical: '#d94a3d',

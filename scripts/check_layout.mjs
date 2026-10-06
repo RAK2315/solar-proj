@@ -18,6 +18,11 @@
  *   CLIPPED   no block wider than the sheet it sits in, and none taller than a
  *             sheet that cannot scroll
  *   FRAME     the rail and every sheet inside the viewport
+ *   GLASS     the element that carries a sheet's glass never scrolls, so the
+ *             text cannot leave the glass behind
+ *
+ * Every screen is measured twice: as it opens, and again with each sheet
+ * scrolled to its end. A sheet that only breaks once it is scrolled used to pass.
  *   CANVAS    the twin's canvas fills the viewport, and the landing page's too
  *
  * It also proves the console is alive: every step presses a real control, and a
@@ -111,7 +116,20 @@ const measure = () => page.evaluate(({ minFont, tol }) => {
   }
 
   const scrolls = (el) => /auto|scroll/.test(getComputedStyle(el).overflowY);
-  for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-left > *, .sy-flightbar, .sy-land, .sy-stats')) {
+  // The stage's glass is a pseudo-element pinned to its box. If the stage itself
+  // scrolls, its content moves and the glass does not.
+  for (const stage of root.querySelectorAll('.sy-stage')) {
+    if (!visible(stage)) continue;
+    if (scrolls(stage) || stage.scrollTop !== 0) faults.push(`GLASS ${name(stage)} scrolls, so its text leaves the glass behind`);
+    const s = stage.getBoundingClientRect();
+    for (const sheet of stage.querySelectorAll('.sy-sheet')) {
+      const r = sheet.getBoundingClientRect();
+      if (r.top < s.top - tol || r.bottom > s.bottom + tol || r.left < s.left - tol || r.right > s.right + tol) {
+        faults.push(`GLASS ${name(sheet)} is not inside the glass it sits on`);
+      }
+    }
+  }
+  for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-sheet, .sy-left > *, .sy-flightbar, .sy-land, .sy-stats')) {
     if (!visible(frame)) continue;
     const r = frame.getBoundingClientRect();
     if (r.left < -tol || r.top < -tol || r.right > vw + tol || r.bottom > vh + tol) {
@@ -144,15 +162,44 @@ const measure = () => page.evaluate(({ minFont, tol }) => {
   return [...new Set(faults)];
 }, { minFont: MIN_FONT_PX, tol: TOLERANCE });
 
+/**
+ * A canvas is 300 by 150 for the instant between being attached and being sized
+ * by its renderer. Measuring in that instant reports a canvas covering 4 % of the
+ * viewport, which is a fact about the instant and not about the page. This waits
+ * for the sizing, and gives up quietly so a canvas that never fills the viewport
+ * is still reported by the measurement itself.
+ */
+const canvasSized = () => page.waitForFunction(() => {
+  const c = document.querySelector('.sy-twin canvas, .sy-landscene canvas');
+  return c && c.getBoundingClientRect().width >= window.innerWidth * 0.98;
+}, null, { timeout: 15000 }).catch(() => {});
+
+/** Scroll everything that can scroll to one end. Returns how many elements moved. */
+const scrollAll = (toEnd) => page.evaluate((end) => {
+  let moved = 0;
+  for (const el of document.querySelectorAll('.sy *')) {
+    if (el.scrollHeight - el.clientHeight <= 1) continue;
+    if (!/auto|scroll/.test(getComputedStyle(el).overflowY)) continue;
+    const before = el.scrollTop;
+    el.scrollTop = end ? el.scrollHeight : 0;
+    if (el.scrollTop !== before) moved += 1;
+  }
+  return moved;
+}, toEnd);
+
 const faults = [];
 const check = async (label) => {
   await settle();
   for (const f of await measure()) faults.push(`${label}  ${f}`);
+  if (await scrollAll(true) > 0) {
+    for (const f of await measure()) faults.push(`${label}, scrolled to the end  ${f}`);
+    await scrollAll(false);
+  }
 };
 
 /* The committed rehearsal state, with B-17 selected, flown and inspected, so the
    densest version of every screen is the one that gets measured. */
-await press('Rehearsal');
+await page.keyboard.press('s');
 await page.selectOption('[aria-label="Select array"]', 'B-17');
 await check('dark/Site, selected');
 await press('Dispatch drone');
@@ -185,11 +232,26 @@ for (const theme of ['dark', 'light']) {
 }
 await press('Switch to dark theme');
 
-/* The hero's state: a dropped hazard, and one in the hand. */
+/* The hero's state: a dropped hazard, and one in the hand. It is run from the
+   sandbox, the only screen that carries the hazard tools. */
+await press('Sandbox');
 await press('Heatwave');
 await press('Dust storm');
-await check('dark/Site, hazard held');
+await check('dark/Sandbox, hazard held');
 await page.keyboard.press('Escape');
+
+/* The 2D map by the operator's own choice, with the hazards still in force. */
+await press('Site');
+await press('Show the field in 2D');
+await page.waitForSelector('.sy-map', { timeout: 20000 });
+await settle();
+for (const f of await measure()) {
+  if (!f.startsWith('CANVAS')) faults.push(`dark/2D by choice  ${f}`);
+}
+await press('Show the field in 3D');
+await page.waitForSelector('canvas', { state: 'attached', timeout: 60000 });
+await canvasSized();
+await check('dark/Site, back in 3D');
 
 /* The 2D fallback has the same frame and the same rules, minus the canvas. */
 await page.goto(`${BASE}?twin=2d`, { waitUntil: 'load' });
@@ -203,6 +265,7 @@ for (const f of await measure()) {
 await page.goto(BASE.replace(/\/console$/, '/'), { waitUntil: 'load' });
 await page.waitForSelector('.sy-land', { timeout: 60000 });
 await page.waitForSelector('canvas', { state: 'attached', timeout: 60000 });
+await canvasSized();
 await check('landing');
 
 await browser.close();

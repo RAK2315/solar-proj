@@ -3,9 +3,14 @@
 /**
  * Field: all 120 arrays as instanced meshes, and the live status laid over them.
  *
- * Three draw calls: the lit modules, their posts, and one unlit plate per module
- * of every array that is not healthy. The plates carry per-instance colour, so an
- * array changing status rewrites a few matrices and never touches React's tree.
+ * Five draw calls: the lit modules, the rail each one is bolted to, its post and
+ * the post's footing, and one unlit plate per module of every array that is not
+ * healthy. The plates carry per-instance colour, so an array changing status
+ * rewrites a few matrices and never touches React's tree.
+ *
+ * The stand is drawn because without it the field read as flat strips lying on
+ * the ground: a 5 cm post is under a pixel from the resting camera. It is still
+ * instanced, one matrix per module per part.
  *
  * The array a drone is inspecting is left out and drawn by CrackedPanel, which
  * needs unique meshes to carry its defect.
@@ -31,6 +36,15 @@ const TINT = {
   warning: TWIN.warning, critical: TWIN.critical, scheduled: TWIN.scheduled, affected: TWIN.affected,
 } as const;
 
+/** The stand. Sized to be seen from the field camera, not to a datasheet. */
+const POST_RADIUS = 0.1;
+const FOOT_RADIUS = 0.26;
+const FOOT_HEIGHT = 0.12;
+const RAIL_DEPTH = 0.12;
+/** The rail sits against the underside of the glass, along the module's width. */
+const RAIL_DROP = 0.09;
+const MODULE_THICKNESS = 0.07;
+
 /** How far a plate floats off the glass, along the module's own normal. */
 const PLATE_LIFT = 0.07;
 const LIFT_Y = Math.cos(PANEL_TILT) * PLATE_LIFT;
@@ -55,6 +69,8 @@ export function Field({ dark, interactive = true }: {
 
   const glass = useRef<InstancedMesh>(null);
   const posts = useRef<InstancedMesh>(null);
+  const rails = useRef<InstancedMesh>(null);
+  const feet = useRef<InstancedMesh>(null);
   const plates = useRef<InstancedMesh>(null);
 
   useLayoutEffect(() => {
@@ -65,12 +81,20 @@ export function Field({ dark, interactive = true }: {
       o.updateMatrix();
       glass.current?.setMatrixAt(i, o.matrix);
 
+      o.position.set(p.pos.x, p.pos.y - Math.cos(PANEL_TILT) * RAIL_DROP, p.pos.z - Math.sin(PANEL_TILT) * RAIL_DROP);
+      o.updateMatrix();
+      rails.current?.setMatrixAt(i, o.matrix);
+
       o.position.set(p.pos.x, POST_HEIGHT / 2, p.pos.z);
       o.rotation.set(0, 0, 0);
       o.updateMatrix();
       posts.current?.setMatrixAt(i, o.matrix);
+
+      o.position.set(p.pos.x, FOOT_HEIGHT / 2, p.pos.z);
+      o.updateMatrix();
+      feet.current?.setMatrixAt(i, o.matrix);
     });
-    for (const mesh of [glass.current, posts.current]) {
+    for (const mesh of [glass.current, posts.current, rails.current, feet.current]) {
       if (!mesh) continue;
       mesh.count = modules.length;
       mesh.instanceMatrix.needsUpdate = true;
@@ -121,7 +145,7 @@ export function Field({ dark, interactive = true }: {
         onPointerOut={interactive ? () => { document.body.style.cursor = ''; } : undefined}
         raycast={interactive ? undefined : () => null}
       >
-        <boxGeometry args={[PANEL_W, 0.05, PANEL_H]} />
+        <boxGeometry args={[PANEL_W, MODULE_THICKNESS, PANEL_H]} />
         <meshStandardMaterial
           color={dark ? TWIN.panel : SCENE.panel}
           metalness={dark ? TWIN.panelMetalness : SCENE_MATERIAL.panelMetalness}
@@ -130,11 +154,29 @@ export function Field({ dark, interactive = true }: {
       </instancedMesh>
 
       <instancedMesh ref={posts} args={[undefined, undefined, CAPACITY]} frustumCulled={false} raycast={() => null}>
-        <cylinderGeometry args={[0.05, 0.05, POST_HEIGHT, 6]} />
+        <cylinderGeometry args={[POST_RADIUS, POST_RADIUS, POST_HEIGHT, 8]} />
         <meshStandardMaterial
-          color={SCENE.post}
+          color={dark ? TWIN.post : SCENE.post}
           metalness={SCENE_MATERIAL.postMetalness}
           roughness={SCENE_MATERIAL.postRoughness}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={rails} args={[undefined, undefined, CAPACITY]} frustumCulled={false} raycast={() => null}>
+        <boxGeometry args={[PANEL_W * 0.94, RAIL_DEPTH, RAIL_DEPTH]} />
+        <meshStandardMaterial
+          color={dark ? TWIN.post : SCENE.post}
+          metalness={SCENE_MATERIAL.postMetalness}
+          roughness={SCENE_MATERIAL.postRoughness}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={feet} args={[undefined, undefined, CAPACITY]} frustumCulled={false} raycast={() => null}>
+        <cylinderGeometry args={[FOOT_RADIUS, FOOT_RADIUS, FOOT_HEIGHT, 8]} />
+        <meshStandardMaterial
+          color={dark ? TWIN.footing : SCENE.footing}
+          metalness={0}
+          roughness={SCENE_MATERIAL.groundRoughness}
         />
       </instancedMesh>
 

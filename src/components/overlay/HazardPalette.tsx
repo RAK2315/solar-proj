@@ -19,7 +19,7 @@ import { twinProbe } from '@/components/twin/probe';
 import { clockOf, degC, hours, num, pctPlain } from '@/lib/format';
 import { DUST_WASH_WINDOW_H, HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
 import {
-  useHazardImpact, useHazards, useHeatwaveC, useScenarioEpochHour, useSiteFrame,
+  useFlatField, useHazardImpact, useHazards, useHeatwaveC, useScenarioEpochHour, useSiteFrame,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
@@ -76,7 +76,7 @@ export function HazardPalette() {
   const reset = useSession((s) => s.resetSession);
   const rehearse = useSession((s) => s.loadRehearsal);
   const setSiteSeconds = useSession((s) => s.setSiteSeconds);
-  const flat = useSession((s) => s.twinFallback !== null);
+  const flat = useFlatField();
   const heat = useHeatwaveC();
   const frame = useSiteFrame();
   /** Whether the pressed tool was already held, so a second click puts it back. */

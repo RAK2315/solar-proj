@@ -6,12 +6,12 @@
  */
 
 import {
-  Activity, Box, FlaskConical, ListOrdered, Map, Moon, Navigation, Pause, Play, ScanSearch,
-  Square, Sun,
+  Activity, Box, FlaskConical, Grid2x2, ListOrdered, Map, Moon, Navigation, Pause, Play, ScanSearch,
+  Sun,
 } from 'lucide-react';
 
 import { MW, num } from '@/lib/format';
-import { useSiteFrame } from '@/store/selectors';
+import { useFlatField, useSiteFrame } from '@/store/selectors';
 import { useSession, type ModuleId } from '@/store/session';
 
 export type ScreenId = 'site' | 'incident' | 'queue' | 'analytics' | 'drones' | 'sandbox';
@@ -65,20 +65,21 @@ function Kpis() {
 function Prefs() {
   const theme = useSession((s) => s.theme);
   const toggleTheme = useSession((s) => s.toggleTheme);
-  const view = useSession((s) => s.twinView);
-  const setView = useSession((s) => s.setTwinView);
-  const flat = useSession((s) => s.twinFallback !== null);
+  const setMode = useSession((s) => s.setTwinMode);
+  const flat = useFlatField();
+  // Without WebGL there is no 3D field to go back to.
+  const stuck = useSession((s) => s.twinFallback === 'webgl');
   return (
     <div className="prefs">
       <button type="button" className="tool" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={toggleTheme}>
         {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
       </button>
       <button
-        type="button" className="tool" disabled={flat}
-        aria-label={view === 'top' ? 'Tilt the field into perspective' : 'Look at the field from above'}
-        onClick={() => setView(view === 'top' ? 'perspective' : 'top')}
+        type="button" className="tool" disabled={stuck}
+        aria-label={flat ? 'Show the field in 3D' : 'Show the field in 2D'}
+        onClick={() => setMode(flat ? '3d' : '2d')}
       >
-        {view === 'top' ? <Box size={16} aria-hidden /> : <Square size={16} aria-hidden />}
+        {flat ? <Box size={16} aria-hidden /> : <Grid2x2 size={16} aria-hidden />}
       </button>
     </div>
   );

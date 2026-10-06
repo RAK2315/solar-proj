@@ -66,7 +66,7 @@ export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | nu
     const follow = s.followFlight && cue.active;
     const sample = follow
       ? cameraAt(cue.t, cue.target)
-      : fieldCameraAt(s.siteSeconds, s.timeScale, size.width / size.height, s.twinView);
+      : fieldCameraAt(s.siteSeconds, s.timeScale, size.width / size.height);
 
     want.set(sample.pos.x, sample.pos.y, sample.pos.z);
     wantLook.set(sample.look.x, sample.look.y, sample.look.z);

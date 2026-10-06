@@ -93,7 +93,7 @@ describe('only the operator’s own state is stored', () => {
     expect(keys.sort()).toEqual([
       'feedFilter', 'hazards', 'injected', 'missions', 'module', 'overrides',
       'running', 'selectedPanelId', 'showWorkings', 'siteSeconds',
-      'tariffInrPerKWh', 'theme', 'timeScale', 'workOrders',
+      'tariffInrPerKWh', 'theme', 'timeScale', 'twinMode', 'workOrders',
     ]);
   });
 

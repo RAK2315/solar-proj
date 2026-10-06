@@ -40,7 +40,6 @@ import { HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
 import { scenario, type ScenarioEvent } from '@/lib/live';
 import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
-import type { TwinView } from '@/lib/twinCamera';
 
 /**
  * The screens behind the icon rail. `site` is the map and the detail rail — the
@@ -54,6 +53,9 @@ export type ModuleId =
 
 /** Why the twin is showing the 2D map, when it is. Null means the twin is up. */
 export type TwinFallback = null | 'webgl' | 'fps';
+
+/** How the operator has asked to see the field. The fallback can still overrule 3D. */
+export type TwinMode = '3d' | '2d';
 
 /** Severity floor for the event feed. `all` is the default. */
 export type FeedFilter = 'all' | 'warning' | 'critical';
@@ -218,11 +220,15 @@ export interface SessionState {
   /** Set by the twin itself, never by an operator. See components/twin/Watchdog. */
   twinFallback: TwinFallback;
 
-  /** Perspective by default; the top view is the operator's to ask for. */
-  twinView: TwinView;
+  /**
+   * The operator's own choice of 2D or 3D, beside the automatic fallback. Asking
+   * for 3D after the frame-rate watchdog tripped is the operator overruling it,
+   * so it clears that fallback; a browser with no WebGL cannot be overruled.
+   */
+  twinMode: TwinMode;
 
   setFollowFlight: (follow: boolean) => void;
-  setTwinView: (view: TwinView) => void;
+  setTwinMode: (mode: TwinMode) => void;
   setTwinFallback: (why: TwinFallback) => void;
 
   setModule: (m: ModuleId) => void;
@@ -315,7 +321,7 @@ const initial = {
   theme: 'dark' as 'dark' | 'light',
   dossierOpen: false,
   followFlight: true,
-  twinView: 'perspective' as TwinView,
+  twinMode: '3d' as TwinMode,
   twinFallback: null as TwinFallback,
 };
 
@@ -330,7 +336,10 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   selectPanel: (selectedPanelId) => set({ selectedPanelId, dossierOpen: false }),
   setDossier: (dossierOpen) => set({ dossierOpen }),
   setFollowFlight: (followFlight) => set({ followFlight }),
-  setTwinView: (twinView) => set({ twinView }),
+  setTwinMode: (twinMode) => set((s) => ({
+    twinMode,
+    twinFallback: twinMode === '3d' && s.twinFallback === 'fps' ? null : s.twinFallback,
+  })),
   setTwinFallback: (twinFallback) => set({ twinFallback }),
   setTimeScale: (timeScale) => set({ timeScale }),
   setSiteSeconds: (siteSeconds) => set({ siteSeconds: Math.max(0, siteSeconds) }),
@@ -475,13 +484,14 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     ...initial,
     theme: s.theme,
     twinFallback: s.twinFallback,
+    twinMode: s.twinMode,
     module: s.module,
     siteSeconds: REHEARSAL_SEED.siteSeconds,
     injected: [...REHEARSAL_SEED.injected],
   })),
 
   /** Clears the operator's session. The site itself is not resettable — it is a site. */
-  resetSession: () => set((s) => ({ ...initial, theme: s.theme, twinFallback: s.twinFallback })),
+  resetSession: () => set((s) => ({ ...initial, theme: s.theme, twinFallback: s.twinFallback, twinMode: s.twinMode })),
 
   _tickLive: (dt) => {
     const { running, timeScale, siteSeconds } = get();
@@ -521,6 +531,7 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     tariffInrPerKWh: s.tariffInrPerKWh,
     showWorkings: s.showWorkings,
     theme: s.theme,
+    twinMode: s.twinMode,
   }),
 }));
 

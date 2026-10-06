@@ -13,10 +13,16 @@
  * THE SOLVER IS PASSED IN. This file never loads anything, so it is pure and the
  * tests can hand it the real HiGHS build under Node.
  *
+ * THE SOLVER HAS 50 MS. The site's own days solve in about ten. A day larger and
+ * looser than the site has yet posed can take several times the budget, and a
+ * replan that stalls the screen is worse than one that admits where it stopped.
+ * So the solve is cut off at the limit and reports what it holds: the best plan
+ * found and the gap to the bound the solver had proved by then. THAT PLAN IS
+ * NEVER CALLED OPTIMAL. Only a solve that finished is.
+ *
  * A PLAN IS A PROPOSAL. Nothing here creates a work order. That takes an operator.
  */
 
-import type { CauseId } from './causes';
 import { siteWeather, hazardsAt, type HazardEvent } from './hazard';
 import {
   buildModel, buildPooledModel, feasibleStarts, startValue, type Job, type Problem,
@@ -24,32 +30,62 @@ import {
 import { ambientAt } from './physics';
 import type { LiveTask } from './queue';
 import { priorityScore } from './ranking';
-import { CREW_COUNT, REPAIR_HOURS, TRAVEL_HOURS_BASE } from './schedule';
+import type { Repair } from './repair';
+import { CREW_COUNT, TRAVEL_HOURS_BASE } from './schedule';
 
 export { LATE_FACTOR, onTime } from './lpModel';
 export type { Job, Problem } from './lpModel';
 
 export interface Assignment { jobId: string; crew: number; startSlot: number }
 
+/**
+ * How far the plan can be trusted.
+ *
+ *   optimal    the solver finished: no better plan exists under these rules
+ *   limit      the solver ran out of time: this is the best plan found, and
+ *              `gapPct` says how far below the proved bound it sits
+ *   heuristic  the solver did not run or failed, and the plan is the heuristic's
+ */
+export type PlanStatus = 'optimal' | 'limit' | 'heuristic';
+
 export interface Plan {
   assignments: Assignment[];
   /** The plan's score. Equal to `baseline` when the heuristic is all there is. */
   objective: number;
-  /** The heuristic's score on the same problem, shown beside the optimum. */
+  /** The heuristic's score on the same problem, shown beside the plan's. */
   baseline: number;
   solveMs: number;
-  /** False when the solver did not run and the plan is the heuristic's. */
+  status: PlanStatus;
+  /** True only when the solver proved it. Shorthand for `status === 'optimal'`. */
   optimal: boolean;
+  /**
+   * For a solve stopped at the time limit: how far the best plan found sits below
+   * the bound HiGHS had proved, as a percentage of the plan's score. This is
+   * HiGHS's own definition of the MIP gap. Null for any other status.
+   */
+  gapPct: number | null;
 }
 
-/** The part of a HiGHS solution this needs. Structural, so a test can fake one. */
-export interface Solver {
-  solve(lp: string): {
-    Status: string;
-    ObjectiveValue: number;
-    Columns: Record<string, { Primal: number }>;
-  };
+export interface SolverResult {
+  /** `limit` is a solve stopped at the time limit; it may still hold a plan. */
+  status: 'optimal' | 'limit' | 'failed';
+  /** Column values by name. Empty when the solver holds no feasible plan. */
+  values: Record<string, number>;
+  /** The best objective the solver has proved possible, or null if it has none. */
+  bound: number | null;
 }
+
+/** What the scheduler needs of a solver. Structural, so a test can fake one. */
+export interface Solver {
+  solve(lp: string, timeLimitSeconds: number): SolverResult;
+}
+
+/** The whole replan's budget for the exact solve. Owner's ruling, 6 Oct 2026. */
+export const SOLVE_BUDGET_MS = 50;
+/** Less than this left after the first model and a second is not worth starting. */
+const MIN_SECOND_SOLVE_MS = 5;
+/** Scores closer than this are the same score. */
+const SAME_SCORE = 1e-9;
 
 /* ── The site's rules. Declared assumptions, printed behind the `?`. ──────── */
 
@@ -146,46 +182,79 @@ const byCrewThenStart = (a: Assignment, b: Assignment) =>
   a.crew - b.crew || a.startSlot - b.startSlot || a.jobId.localeCompare(b.jobId);
 
 /**
- * The plan. With a solver it is provably the best one; without, or if the solver
- * fails, it is the heuristic's, marked as such.
+ * The plan. With a solver that finishes it is provably the best one. With a
+ * solver stopped at the time limit it is the best found, with its gap. Without a
+ * solver, or if it fails, it is the heuristic's. Each is marked as what it is.
  */
-export function solve(problem: Problem, solver?: Solver | null, now: () => number = () => performance.now()): Plan {
+export function solve(
+  problem: Problem,
+  solver?: Solver | null,
+  /** The budget is a parameter so the exact model can be tested without a stopwatch deciding the result. */
+  { budgetMs = SOLVE_BUDGET_MS, now = () => performance.now() }: { budgetMs?: number; now?: () => number } = {},
+): Plan {
   const t0 = now();
   const fallback = greedy(problem).sort(byCrewThenStart);
   const baseline = objectiveOf(fallback, problem);
-  const heuristicOnly = (): Plan => ({
-    assignments: fallback, objective: baseline, baseline, solveMs: now() - t0, optimal: false,
+  const plan = (assignments: Assignment[], status: PlanStatus, gapPct: number | null = null): Plan => ({
+    assignments,
+    // Scored by the same function as the heuristic, not read off the solver, so
+    // the two figures on screen are the same arithmetic.
+    objective: objectiveOf(assignments, problem),
+    baseline, solveMs: now() - t0, status, optimal: status === 'optimal', gapPct,
   });
+  const heuristicOnly = (): Plan => plan(fallback, 'heuristic');
 
   if (!solver) return heuristicOnly();
 
   try {
     const pooled = buildPooledModel(problem);
-    if (pooled.vars.length === 0) return { ...heuristicOnly(), optimal: true };
-    const first = solver.solve(pooled.lp);
-    if (first.Status !== 'Optimal') return heuristicOnly();
+    if (pooled.vars.length === 0) return plan(fallback, 'optimal');
+    const first = solver.solve(pooled.lp, budgetMs / 1000);
+    if (first.status === 'failed') return heuristicOnly();
+
+    // The pooled model is a relaxation, so its bound holds for the real problem
+    // whichever model ends up supplying the plan.
+    let bound = first.bound;
+    let found: Assignment[] | null = null;
+    let proved = false;
 
     // The pooled answer is the optimum whenever its jobs deal out to crews
     // without one of them over its own shift. When they do not, the exact
-    // crew-by-crew model decides.
-    let assignments = dealToCrews(
+    // crew-by-crew model decides, in whatever is left of the budget.
+    const dealt = dealToCrews(
       pooled.vars
-        .filter((v) => (first.Columns[v.name]?.Primal ?? 0) > 0.5)
+        .filter((v) => (first.values[v.name] ?? 0) > 0.5)
         .map((v) => ({ job: problem.jobs[v.job], start: v.start })),
       problem,
     );
-    if (!assignments) {
-      const exact = buildModel(problem);
-      const second = solver.solve(exact.lp);
-      if (second.Status !== 'Optimal') return heuristicOnly();
-      assignments = exact.vars
-        .filter((v) => (second.Columns[v.name]?.Primal ?? 0) > 0.5)
-        .map((v) => ({ jobId: problem.jobs[v.job].id, crew: v.crew, startSlot: v.start }));
+    if (dealt) {
+      found = dealt;
+      proved = first.status === 'optimal';
+    } else {
+      const left = budgetMs - (now() - t0);
+      if (left >= MIN_SECOND_SOLVE_MS) {
+        const exact = buildModel(problem);
+        const second = solver.solve(exact.lp, left / 1000);
+        if (second.status !== 'failed') {
+          found = exact.vars
+            .filter((v) => (second.values[v.name] ?? 0) > 0.5)
+            .map((v) => ({ jobId: problem.jobs[v.job].id, crew: v.crew, startSlot: v.start }));
+          proved = second.status === 'optimal';
+          if (second.bound !== null) bound = bound === null ? second.bound : Math.min(bound, second.bound);
+        }
+      }
     }
-    assignments.sort(byCrewThenStart);
-    // Scored by the same function as the heuristic, not read off the solver, so
-    // the two figures on screen are the same arithmetic.
-    return { assignments, objective: objectiveOf(assignments, problem), baseline, solveMs: now() - t0, optimal: true };
+
+    if (proved && found) return plan(found.sort(byCrewThenStart), 'optimal');
+
+    // Out of time. The best plan in hand is the solver's unless the heuristic's
+    // is better, which it can be when the limit cut the search short.
+    const best = found && objectiveOf(found, problem) > baseline + SAME_SCORE
+      ? found.sort(byCrewThenStart)
+      : fallback;
+    if (bound === null) return plan(best, 'heuristic');
+    const score = objectiveOf(best, problem);
+    return plan(best, 'limit', score > 0 ? Math.max(0, ((bound - score) / score) * 100) : 0);
   } catch {
     return heuristicOnly();
   }
@@ -195,7 +264,8 @@ export function solve(problem: Problem, solver?: Solver | null, now: () => numbe
 
 export interface ScheduleContext {
   tasks: readonly LiveTask[];
-  causeFor: (panelId: string) => CauseId;
+  /** The repair an array needs, from its likely cause and the site record. */
+  repairFor: (panelId: string) => Repair;
   /** Hours since the scenario epoch, now. */
   nowOffsetH: number;
   /** The hour of day the scenario starts at. */
@@ -229,7 +299,7 @@ export function problemFrom(ctx: ScheduleContext): Problem {
   const lead = Math.ceil(ctx.nowOffsetH) - ctx.nowOffsetH;
   const jobs: Job[] = [];
   for (const t of ctx.tasks) {
-    const hours = REPAIR_HOURS[ctx.causeFor(t.panelId)];
+    const { hours } = ctx.repairFor(t.panelId);
     if (hours <= 0) continue;                       // nothing to repair: shading, or no fault
     jobs.push({
       id: t.id,

@@ -14,6 +14,7 @@
 
 import { create } from 'zustand';
 
+import { highsSolver } from '@/lib/highsSolver';
 import type { Solver } from '@/lib/scheduler';
 
 export type SolverStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -39,7 +40,7 @@ export const useSolver = create<SolverState>((set, get) => ({
     try {
       const { default: highsLoader } = await import('highs');
       const highs = await highsLoader({ locateFile: (file) => (file.endsWith('.wasm') ? WASM_URL : file) });
-      set({ status: 'ready', solver: highs as unknown as Solver });
+      set({ status: 'ready', solver: highsSolver(highs) });
     } catch (e) {
       set({ status: 'failed', solver: null, reason: e instanceof Error ? e.message : String(e) });
     }

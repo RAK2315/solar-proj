@@ -23,8 +23,9 @@ import { useFlightCue } from '@/store/flightCue';
 import {
   BEAT, siteClockAt, useAgentCache, useCellGrid, useDetection, useEvidence, useFollowingFlight,
   useHasCrackMechanism, useHazards, useInjected, useInspected, useInspectionClock, useInverterReadings,
-  useMatrixFillCount, usePanelStatus, useSelectedPanelId, useSiteSeconds,
+  useIsDark, useMatrixFillCount, useSelectedPanelId, useSiteSeconds, useTriageCondition,
 } from '@/store/selectors';
+import { useSession } from '@/store/session';
 import { useTriage } from '@/store/triage';
 import { Blk, Why } from './Block';
 
@@ -38,7 +39,10 @@ const DARK_TEXT_ABOVE = 0.45;
 export function CapturesPanel() {
   const panelId = useSelectedPanelId();
   const evidence = useEvidence();
-  const detection = useDetection();
+  // What the drone's own camera returned on this flight. The detector files the
+  // clearest frame of the pass against the array, so it is still here after the
+  // aircraft has landed.
+  const flown = useDetector((s) => s.byPanel[panelId]);
 
   if (!hasCapturedEvidence(panelId)) {
     return (
@@ -52,27 +56,34 @@ export function CapturesPanel() {
     );
   }
 
-  const rgb = evidence.rgbAnnotated ?? evidence.rgb;
+  const visibleDue = evidence.rgb !== null;
   return (
-    <Blk b="captures" title={<>Captured evidence<span className="count">drone capture</span></>}>
-      {!evidence.thermal && !rgb ? (
+    <Blk b="captures" title={<>Captured evidence<span className="count">this flight, and the committed thermal frame</span></>}>
+      {!evidence.thermal && !visibleDue ? (
         <p className="empty well">Nothing captured yet. The frames appear as the drone makes its two passes.</p>
       ) : (
-        <div className="caps">
+        <div className="caps" data-lead={Boolean(flown)}>
+          {flown ? (
+            <figure>
+              <DetectionBoxes result={flown} />
+              <figcaption>
+                Visible, the frame the drone&apos;s camera returned over <span className="id">{panelId}</span> on this
+                flight, with the box the detector drew on it in this browser.
+              </figcaption>
+            </figure>
+          ) : visibleDue && (
+            <p className="empty well">
+              No frame from this flight is held in this browser. The detector keeps one when it runs during a
+              followed pass; fly the array again and follow the drone to capture it.
+            </p>
+          )}
           {evidence.thermal && (
             <figure>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={evidence.thermal} alt="Thermal frame of the module" />
-              <figcaption>Thermal, ironbow, UAV frame</figcaption>
-            </figure>
-          )}
-          {rgb && (
-            <figure>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={rgb} alt="Visible-light frame with the detection box" />
+              <img className="raw" src={evidence.thermal} alt="Thermal frame of the module" />
               <figcaption>
-                Visible, {detection ? `${detection.label.toLowerCase()} ${confidence(detection.confidence)}, ` : ''}
-                dataset photo, not a drone frame
+                Thermal, ironbow, UAV frame. Committed, 24 × 40 pixels, from Raptor Maps&apos; open
+                dataset, enlarged and not smoothed.
               </figcaption>
             </figure>
           )}
@@ -191,6 +202,19 @@ export function DetectorPanel() {
           </button>
         )}
       </div>
+      {/* The photograph sits with the control that uses it. Beside the drone's
+          own frame it read as a second, unrelated capture of the same array. */}
+      {evidence.rgb && committed && hasCapturedEvidence(panelId) && (
+        <figure className="proof">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={evidence.rgbAnnotated ?? evidence.rgb} alt="The dataset photograph the committed figure was measured on" />
+          <figcaption className="one">
+            Where the committed {committed.label.toLowerCase()} {confidence(committed.confidence)} was measured: a
+            photograph from the held-out test split of the training dataset, not a drone frame. The control above
+            runs the same weights on it here.
+          </figcaption>
+        </figure>
+      )}
 
       {!onPanel && !result && (
         <p className="empty">Dispatch a drone and follow it. The detector runs itself during the pass and what it found is kept here.</p>
@@ -323,6 +347,8 @@ export function MatrixPanel() {
 
 /** Past this, the prose says it is describing an earlier moment. */
 const STALE_AFTER_SITE_HOURS = 0.5;
+/** A failed ask is offered again this often, in real seconds of a running clock. */
+const REASK_EVERY_SECONDS = 5;
 
 export function ReasoningPanel() {
   const panelId = useSelectedPanelId();
@@ -330,28 +356,50 @@ export function ReasoningPanel() {
   const entry = useTriage((s) => s.byPanel[panelId]);
   const request = useTriage((s) => s.request);
   const retry = useTriage((s) => s.retry);
-  const condition = usePanelStatus(panelId);
+  const condition = useTriageCondition(panelId);
+  const dark = useIsDark();
+  const timeScale = useSession((s) => s.timeScale);
   const injected = useInjected();
   const hazards = useHazards();
 
-  // Asked once per array and per condition. Site time is deliberately not a
+  // A transient failure is offered again as the site clock moves on. Derived from
+  // site time, so it is not a timer, and the store still refuses to ask before
+  // the provider's own wait is up.
+  const failed = entry?.status === 'unavailable' && entry.retriable === true;
+  const reask = failed ? Math.floor(siteSeconds / (REASK_EVERY_SECONDS * Math.max(1, timeScale))) : 0;
+
+  // Asked once per array and per cause. Site time is deliberately not a
   // dependency: the verdict is about the array, not about this second.
   useEffect(() => {
-    void request(panelId, siteSeconds, condition, injected, hazards);
+    if (condition) void request(panelId, siteSeconds, condition, injected, hazards);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panelId, condition, request]);
+  }, [panelId, condition, reask, request]);
 
   const t = entry?.triage;
+  const asking = condition ?? entry?.condition ?? null;
   const askedAt = entry?.requestedAt;
   const elapsedH = Math.max(0, (siteSeconds - (askedAt ?? siteSeconds)) / 3600);
 
   return (
     <Blk
       b="reasoning"
-      title={<>Agent triage{entry?.model && <span className="count id">{entry.model}</span>}</>}
+      title="Agent triage"
       aside={<Why />}
     >
-      {(!entry || entry.status === 'loading') && (
+      {entry?.model && (
+        <p className="one">
+          Asked of <span className="id">{entry.model}</span>
+          {askedAt !== undefined && <> at <span className="num">{siteClockAt(askedAt)}</span> site time</>}
+        </p>
+      )}
+      {!entry && !condition && (
+        <p className="empty well">
+          {dark
+            ? 'After sunset there is nothing for the agent to judge. It is asked again in daylight.'
+            : 'The fault is still developing. The agent is asked once, when the reading has settled.'}
+        </p>
+      )}
+      {((!entry && condition) || entry?.status === 'loading') && (
         <div className="skeleton" role="status" aria-label={`Triaging ${panelId}`}><i /><i /><i /></div>
       )}
       {entry?.status === 'unavailable' && (
@@ -359,10 +407,10 @@ export function ReasoningPanel() {
           <p className="one">
             <span className="chip" data-sev="warning">Agent unavailable</span> No reasoning for <span className="id">{panelId}</span>.
             Every reading on this screen comes from the site model, not from the agent.
-            {entry.retriable && ' It will ask again shortly.'}
+            {entry.retriable && ' It asks again on its own while the site clock runs.'}
           </p>
           <p className="work workings">{entry.reason}</p>
-          <button type="button" className="tool" onClick={() => void retry(panelId, siteSeconds, condition, injected, hazards)}>
+          <button type="button" className="tool" disabled={!asking} onClick={() => asking && void retry(panelId, siteSeconds, asking, injected, hazards)}>
             <RotateCw size={16} strokeWidth={1.75} aria-hidden />Ask again
           </button>
         </>
@@ -428,9 +476,10 @@ export function CommittedRunPanel() {
   return (
     <Blk
       b="committed"
-      title={<>Prognosis and recommendation<span className="count id">{cache.meta.model}</span></>}
+      title="Prognosis and recommendation"
       aside={<Why />}
     >
+      <p className="one">Committed run, <span className="id">{cache.meta.model}</span></p>
       <p>{typographic(cache.prognosis.reasoning)}</p>
       <ol className="steps">
         {cache.recommendation.steps.map((step) => (

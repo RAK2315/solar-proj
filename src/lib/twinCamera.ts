@@ -9,18 +9,17 @@
 
 import type { CameraSample } from './scene';
 
-export type TwinView = 'perspective' | 'top';
-
-/** The point on the ground both views look at. Zone B sits at z = 0..32. */
+/** The point on the ground the view looks at. Zone B sits at z = 0..32. */
 export const TWIN_LOOK = { x: 0, y: 0, z: 38 } as const;
 export const TWIN_FOV = 58;
 
-const HEIGHT = 84;
-const BACK = 84;
-/** Top view: high and almost overhead, with enough offset to keep north up. */
-const TOP_HEIGHT = 168;
-const TOP_BACK = 14;
-const TOP_LOOK_Z = 16;
+/**
+ * Lower and further back than a map view. From 45 degrees the modules read as
+ * flat strips; from here their tilt and the stands under them are visible, which
+ * is what makes the field read as a field.
+ */
+const HEIGHT = 74;
+const BACK = 126;
 
 const SWAY_RAD = 0.3;
 /** Real seconds per full sway at any site speed. */
@@ -39,18 +38,9 @@ export function fieldCameraAt(
   siteSeconds: number,
   timeScale: number,
   aspect: number,
-  view: TwinView = 'perspective',
 ): CameraSample {
   // A narrow box crops the field's width, so pull back until it fits again.
   const k = Math.max(1, MIN_ASPECT / Math.max(aspect, 0.1));
-
-  if (view === 'top') {
-    return {
-      pos: { x: 0, y: TOP_HEIGHT * k, z: TOP_LOOK_Z + TOP_BACK * k },
-      look: { x: 0, y: 0, z: TOP_LOOK_Z },
-      fov: TWIN_FOV,
-    };
-  }
 
   const phase = siteSeconds / (SWAY_SECONDS * Math.max(1, timeScale));
   const a = Math.sin(phase * Math.PI * 2) * SWAY_RAD;

@@ -40,6 +40,7 @@ const snap = (name) => page.screenshot({ path: `${OUT}/hero-${w}-${name}.png` })
 const text = (sel) => page.evaluate((s) => [...document.querySelectorAll(s)].map((e) => e.textContent.replace(/\s+/g, ' ').trim()), sel);
 
 await page.keyboard.press('s');                    // the committed rehearsal state
+await page.click('.sy-rail button:has-text("Sandbox")');   // the hero is run from the sandbox
 await page.waitForTimeout(1200);
 await snap('1-rest');
 console.log('queue at rest:', JSON.stringify(await text('.q li .pick')));
@@ -108,7 +109,7 @@ const cloud = await page.locator('button:has-text("Cloud bank")').boundingBox();
 await page.mouse.move(cloud.x + 40, cloud.y + 16);
 await page.mouse.down();
 await page.mouse.move(target.x, target.y + 80, { steps: 10 });
-await page.keyboard.press('r');                    // reset with the footprint in hand
+await page.keyboard.press('r');                    // reset with the footprint in hand, which also returns to Site
 await page.waitForTimeout(300);
 await page.mouse.up();
 await page.waitForTimeout(600);

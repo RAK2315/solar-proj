@@ -19,8 +19,8 @@ and deployed. This file selects only for the new layers.
 | State | `zustand` ^5.0.8 | keep |
 | Schema | `zod` ^4.1.11 | keep — sole schema owner |
 | Inference | `onnxruntime-web` ^1.19.2 | **keep, do not bump** — see DR-3 |
-| Motion | `framer-motion` ^12.23.12 | keep |
-| Charts | `recharts` ^2.15.4 | **candidate for removal** — see DR-5 |
+| Motion | `framer-motion` ^12.23.12 | **removed 6 Oct 2026** — see DR-8 |
+| Charts | `recharts` ^2.15.4 | **removed** — see DR-5 |
 | Icons | `lucide-react` ^0.544.0 | keep |
 
 ---
@@ -43,6 +43,12 @@ and deployed. This file selects only for the new layers.
   | harsh 16 / 2 / cap 4 / ban 5 | 98 | 39.82 | 38.20 | **4.1 %** | 21.9 ms |
   | extreme 20 / 3 / cap 4 / ban 6 | 123 | 45.78 | 42.48 | **7.2 %** | 32.5 ms |
 
+- **CORRECTION, 6 Oct 2026.** The reasoning below was drawn from synthetic
+  instances. On the site's own scenarios, with realistic job durations, the
+  heatwave does not open a gap: it closes so much of the day that one plan is
+  left and both planners find it. A 5.8 % difference appears on an ordinary
+  afternoon instead. The solver stays, for the declarative constraints and the
+  provable answer; the hero no longer leans on a gap. See `01-hero.md`.
 - **Chosen because:** greedy ties only when the schedule has slack. The moment
   constraints bind it loses 4 to 7 per cent — and *binding constraints is exactly what
   the heatwave hazard produces*, since it widens the no-field-work window. The hero
@@ -113,6 +119,42 @@ and deployed. This file selects only for the new layers.
 - `/api/triage` (Groq) remains the only runtime network call. Scheduler, classifier and
   hazards are all client-side. Satisfies R6; nothing new can cold-start on stage.
 
+### DR-8 — Remove four packages nothing imports (6 Oct 2026, owner ruling)
+
+- **Removed:** `framer-motion`, `clsx`, `class-variance-authority`, `tailwind-merge`.
+- **Why they were there:** the old console animated feed items with
+  framer-motion and composed class names with the other three, in the shadcn
+  pattern. Direction E's shell does neither: motion is CSS, and a block's classes
+  are written out. After P1 deleted `components/console/` no file in `src/`
+  imports any of them (checked by search on 6 Oct 2026).
+- **Why this is not a breach of the lock:** "stack locked" means no swaps and no
+  additions without a decision record. It does not mean shipping packages that
+  are dead weight. Nothing replaces them.
+- **Gives us:** a smaller install and four fewer things to audit.
+- **Costs us:** nothing at runtime. If spring motion is ever wanted again it is
+  a new decision record, not a revert.
+- `recharts` went the same way earlier under DR-5: the charts are SVG drawn by
+  hand in `components/overlay/AnalyticsPanels.tsx`.
+
+### DR-9 — The solver runs through HiGHS's persistent model API, with a time limit (6 Oct 2026)
+
+- **Requirement:** the owner's ruling that the solve is cut off at 50 ms and
+  reports "best found, gap X %" from HiGHS's own MIP gap, never "optimal".
+- **Finding:** the package's one-shot `solve()` returns a status and a solution
+  and nothing else. The gap and the proved bound are on a persistent model's info
+  store (`mip_gap`, `mip_dual_bound`), with `primal_solution_status` saying whether
+  the plan it holds is feasible. Verified under Node on 6 Oct 2026 against
+  `highs` 1.15.3: a 50 ms limit is honoured to within about 2 ms.
+- **Chosen:** `lib/highsSolver.ts` wraps the persistent API behind the one call
+  the scheduler makes, and disposes the model before returning, because garbage
+  collection does not free WebAssembly memory. No new package.
+- **The gap printed** is (bound − plan's score) ÷ plan's score, with the bound
+  HiGHS proved. That is HiGHS's own definition. The pooled model is a relaxation
+  of the crew-by-crew one, so its bound is valid for either.
+- **Costs us:** determinism on a day that hits the limit, since where the search
+  stops depends on the machine. Every day the site has posed finishes in under a
+  fifth of the budget, so this is confined to synthetic stress days.
+
 ---
 
 ## 3. Compatibility matrix
@@ -149,10 +191,13 @@ service because a cold start on stage is a demo failure. HiGHS is the same class
 exact solver compiled to WebAssembly, so it runs in the browser inside our
 single-clock model. We measured it: 32 ms worst case on our hardest instance.
 
-**Why an exact solver for eight jobs?** Because a greedy heuristic ties with it only
-while the schedule has slack. We measured a 4 to 7 per cent optimality gap once shift
-limits and the heat window bind — precisely the regime the heatwave scenario creates.
-We show both numbers so you can see the difference rather than take our word for it.
+**Why an exact solver for eight jobs?** Because a rule is then one line of a model
+and not a rewritten heuristic, and because the answer is provable. We show both
+scores on the same arithmetic, and we say so when they match, which on most of this
+site's days they do. On the afternoon the shift end binds with three cracks queued,
+the exact plan scores 5.8 per cent higher. On synthetic days with mixed job lengths
+the spike measured 4 to 7 per cent. *(Rewritten 6 Oct 2026: the earlier answer
+claimed the heatwave scenario creates that gap, and measured, it does not.)*
 
 **Why a second model instead of retraining the detector?** The detector scores 0.995
 AP@50 on `Cracked` on a held-out split. Retraining would risk the strongest number in
@@ -175,10 +220,10 @@ KEPT
   next 15.5.22 · react 19.1.0 · @react-three/fiber ^9.6.1 · three ^0.180.0
   @react-three/drei ^10.7.7 · @react-three/postprocessing ^3.0.4
   zustand ^5.0.8 · zod ^4.1.11 · onnxruntime-web ^1.19.2 (pinned, DR-3)
-  framer-motion ^12.23.12 · lucide-react ^0.544.0 · tailwind v4
+  lucide-react ^0.544.0 · tailwind v4
 
-UNDER REVIEW
-  recharts ^2.15.4 — drop at the 13 Oct milestone if the rework is on schedule (DR-5)
+REMOVED, each with a decision record
+  recharts (DR-5) · framer-motion · clsx · class-variance-authority · tailwind-merge (DR-8)
 
 REJECTED
   glpk.js       GPL-3.0

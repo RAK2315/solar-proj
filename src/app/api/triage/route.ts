@@ -106,6 +106,39 @@ const TriageRequest = z.object({
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MAX_ATTEMPTS = 3;
 
+/**
+ * A rate limit is waited out here, not handed straight to the console.
+ *
+ * Groq's free tier counts per minute and says how long to hold off. The route
+ * used to leave its retry loop on the first 429 with no wait, so one busy moment
+ * read as "Agent unavailable" on screen. It now waits what the provider asks for,
+ * or doubles a short delay when it does not say, as long as the whole exchange
+ * stays inside the console's own deadline for an answer. Past that budget it
+ * returns the 429 with the wait still owed, so the console knows when to ask again.
+ *
+ * This runs on the server and holds no state. It is not a second clock: nothing
+ * on screen reads it.
+ */
+const BACKOFF_FIRST_MS = 1000;
+const BACKOFF_BUDGET_MS = 10_000;
+
+class RateLimited extends Error {
+  constructor(readonly retryAfterMs: number | null) {
+    super('Groq returned 429');
+  }
+}
+
+/** `retry-after` is seconds, or an HTTP date. Null when absent or unreadable. */
+function retryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? null : Math.max(0, at - Date.now());
+}
+
+const pause = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); });
+
 const SYSTEM = `You are the triage stage of an autonomous solar-farm maintenance agent.
 You receive SCADA telemetry for ONE array and decide what is wrong, how severe it is,
 and critically - whether telemetry alone is sufficient to diagnose it, or whether
@@ -253,6 +286,7 @@ async function callGroq(
     }),
   });
 
+  if (res.status === 429) throw new RateLimited(retryAfterMs(res.headers.get('retry-after')));
   if (!res.ok) {
     throw new Error(`Groq returned ${res.status}`);
   }
@@ -298,6 +332,8 @@ export async function POST(request: Request) {
   ];
 
   let lastReason = 'unknown';
+  let waited = 0;
+  let backoff = BACKOFF_FIRST_MS;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
@@ -328,6 +364,20 @@ export async function POST(request: Request) {
           + 'correcting exactly that. JSON only.',
       });
     } catch (err) {
+      if (err instanceof RateLimited) {
+        const wait = err.retryAfterMs ?? backoff;
+        if (attempt < MAX_ATTEMPTS && waited + wait <= BACKOFF_BUDGET_MS) {
+          await pause(wait);
+          waited += wait;
+          backoff *= 2;
+          continue;
+        }
+        const seconds = Math.ceil(wait / 1000);
+        return NextResponse.json(
+          { error: 'rate-limited', reason: 'Rate limited by the model provider.', retryAfterSeconds: seconds },
+          { status: 429, headers: { 'Retry-After': String(seconds) } },
+        );
+      }
       lastReason = err instanceof Error ? err.message : 'request failed';
       break;
     }

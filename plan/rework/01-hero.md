@@ -69,8 +69,30 @@ CERC verification (see `02-stack.md` §7), so the hero moment must stand without
 | 0–1 s | Presenter drags the dust footprint onto Zone B. The region tints as it moves. | The hazard is a physical object with a position, not a slider. |
 | 1 s | Drop. Arrays under the footprint recolour. | Cause and effect are spatially legible. |
 | 1–2 s | Three arrays cross into warning. Queue reorders. B-17's deadline moves in. | The plan is derived, not stored. |
-| 2–3 s | Scheduler re-solves. Plan strip redraws. **Both scores shown: heuristic vs optimal.** | The optimizer visibly earns its place (spike: 4–7 % gap under binding constraints). |
+| 2–3 s | Scheduler re-solves. The plan's score is printed under the queue. | The plan is re-derived with everything else. **The "optimizer visibly earns its place" beat is DROPPED, 6 Oct 2026: see the note under this table.** |
 | +3 s | One line: "7 arrays affected, 2 jobs displaced, B-17 still first." | One sentence, per the copy rule. Detail behind `?`. |
+
+### The optimizer beat was dropped, 6 Oct 2026
+
+The owner's ruling was not to invent a gap: give jobs realistic durations by
+repair type and see whether the heatwave opens one. It does not. Measured on the
+site's own scenarios with the declared repair table (`lib/repair.ts`), solved
+untimed:
+
+- At the hero's state, and after a dust storm, a cloud or a heatwave dropped on
+  it, the heuristic and the exact solve score the same.
+- The heatwave closes nine or ten of the twelve slots. What is left takes two
+  washes and nothing else, so there is one sensible plan and both planners find
+  it. The five-hour crack repairs cannot be placed at all, which the screen says.
+- A real difference does appear, with no hazard involved: four hours into the
+  rehearsal (14:17 site time), with three cracks queued and the shift end closing
+  the day, the exact solve scores 44.42 against 42.00, **5.8 % better**. It is a
+  property of that afternoon, not of the hero moment.
+
+So the screen prints "the heuristic matched the optimum" at the hero, and the
+solver's case is made on the Queue screen later in the day, or not at all. The
+amplifier "Heuristic-vs-optimal score shown on replan" below is kept as a
+display, not as a claim that the optimizer is measurably better at that moment.
 
 ### What must be true for this to work
 
@@ -116,7 +138,7 @@ as a forbidden-phrase pass.
 | Amplifier | USP claim it proves |
 |---|---|
 | Printed ranking formula with live inputs | The ranking is arithmetic, not an LLM opinion |
-| Heuristic-vs-optimal score shown on replan | The optimizer is real and measurably better |
+| Heuristic-vs-optimal score shown on replan | The optimizer is real, and the screen reports the difference honestly, including none |
 | `?` toggle revealing provenance per number | Every number traces to physics or a cited source |
 | Seeded rehearsal reproducing B-17 exactly | Reproducible, not a scripted animation |
 | Held-out metric beside the sweep | The model is trained, not invoked |
