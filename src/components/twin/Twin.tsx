@@ -25,6 +25,7 @@ import { flightCueNow } from '@/store/flightCue';
 import { useFollowingFlight } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Field } from './Field';
+import { HazardLayer } from './HazardLayer';
 import { TwinCamera } from './TwinCamera';
 import { Watchdog } from './Watchdog';
 
@@ -77,6 +78,7 @@ export default function Twin({ overlay, watchdog, children }: {
         <CrackedPanel />
       </group>
       <Drone />
+      <HazardLayer />
       {children}
       <TwinCamera overlay={overlay} />
       {following && <ThermalPass />}

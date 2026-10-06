@@ -12,11 +12,12 @@ import { X } from 'lucide-react';
 
 import { BASIS_PHRASE, basisFor } from '@/lib/basis';
 import { getPanel } from '@/lib/data';
-import { MWh, degC, hours, kW, pct, sentence, wm2 } from '@/lib/format';
+import { MWh, degC, hours, kW, pct, pctPlain, sentence, wm2 } from '@/lib/format';
 import {
-  useActiveMissions, useIncident, useInspected, useIsDark, useLiveQueue, useOverride,
+  useActiveMissions, useHazardsOver, useIncident, useInspected, useIsDark, useLiveQueue, useOverride,
   usePanels, useProjectedLossMWh, useSiteFrame,
 } from '@/store/selectors';
+import { HAZARD_SPEC } from '@/lib/hazard';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 
@@ -99,6 +100,7 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
   const inspected = useInspected(panelId);
   const dark = useIsDark();
   const override = useOverride(panelId);
+  const over = useHazardsOver(panelId);
   const missions = useActiveMissions();
   const order = useSession((s) => s.workOrders.find((w) => w.panelId === panelId));
   const createWorkOrder = useSession((s) => s.createWorkOrder);
@@ -140,6 +142,12 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
           ? 'After sunset there is nothing to measure. The fault and its deadline stand.'
           : healthy ? `${BASIS_PHRASE[basis]}.` : `${BASIS_PHRASE[basis]}: ${cause.label.toLowerCase()}.`}
       </p>
+      {over.length > 0 && !dark && (
+        <p className="one">
+          Under the {HAZARD_SPEC[over[0].kind].label.toLowerCase()} footprint, which keeps {pctPlain(over[0].kept * 100)} of
+          irradiance off it{over[0].kind === 'cloud' ? '. Weather, not a fault.' : '.'}
+        </p>
+      )}
       <dl className="rows">
         <div><dt>Output</dt><dd className="num">{kW(reading.actualKW, 1)}</dd></div>
         <div><dt>Expected</dt><dd className="num">{kW(reading.expectedKW, 1)}</dd></div>

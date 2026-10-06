@@ -23,7 +23,7 @@ import {
 } from '@/lib/data';
 import {
   allEvents, eventFor, forecastOffset, inverterComparison, liveFrameAt,
-  referenceShortfallKW, scenario, type LiveFrame, type ScenarioEvent,
+  referenceShortfallKW, scenario, siteHour, type LiveFrame, type ScenarioEvent,
 } from '@/lib/live';
 import {
   CELL_TEMP_REF_C, F_SOIL, cellTemp, irradianceAt, isDark, soilFor,
@@ -32,6 +32,11 @@ import {
   liveQueueAt, projected72hLossMWh, REFERENCE_SHORTFALL_KW, type LiveQueue,
 } from '@/lib/queue';
 import { diagnose } from '@/lib/causes';
+import {
+  AFFECTED_THRESHOLD, HAZARD_SPEC, footprintWeight, hazardStrengthAt, hazardsAt,
+} from '@/lib/hazard';
+import { hazardImpact, type HazardImpact } from '@/lib/impact';
+import { arrayCentre } from '@/lib/scene';
 import {
   deferOutcomes, openCircuitShortfallKW, type DeferOutcome,
 } from '@/lib/defer';
@@ -590,13 +595,14 @@ export function useCurrentFrame(): {
   const siteSeconds = useSession((s) => s.siteSeconds);
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
   const demoFrame = useFrame();
 
   return useMemo(() => {
     if (mode === 'demo') {
       return { ...demoFrame, clock: demoFrame.timestamp };
     }
-    const live = sharedFrame(siteSeconds, workOrders, injected);
+    const live = sharedFrame(siteSeconds, workOrders, injected, hazards);
     return {
       panels: live.panels as unknown as Record<string, PanelReading>,
       ambientC: live.ambientC,
@@ -607,7 +613,7 @@ export function useCurrentFrame(): {
       farmHealth: live.farmHealth,
       clock: live.clock,
     };
-  }, [mode, siteSeconds, workOrders, injected, demoFrame]);
+  }, [mode, siteSeconds, workOrders, injected, hazards, demoFrame]);
 }
 
 /** Missions currently in the air, with their derived phase and progress. */
@@ -735,10 +741,13 @@ function sharedFrame(
   siteSeconds: number,
   workOrders: ReadonlyArray<{ panelId: string }>,
   injected: Parameters<typeof liveFrameAt>[2],
+  hazards: Parameters<typeof liveFrameAt>[3],
 ): LiveFrame {
-  const key = [siteSeconds, workOrders, injected] as const;
+  const key = [siteSeconds, workOrders, injected, hazards] as const;
   if (lastFrame && lastFrame.key.every((k, i) => k === key[i])) return lastFrame.frame;
-  const frame = liveFrameAt(siteSeconds, new Set(workOrders.map((w) => w.panelId)), injected);
+  const frame = liveFrameAt(
+    siteSeconds, new Set(workOrders.map((w) => w.panelId)), injected, hazards,
+  );
   lastFrame = { key, frame };
   return frame;
 }
@@ -748,10 +757,101 @@ export function useSiteFrame(): LiveFrame {
   const siteSeconds = useSession((s) => s.siteSeconds);
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
   return useMemo(
-    () => sharedFrame(siteSeconds, workOrders, injected),
-    [siteSeconds, workOrders, injected],
+    () => sharedFrame(siteSeconds, workOrders, injected, hazards),
+    [siteSeconds, workOrders, injected, hazards],
   );
+}
+
+/** The hazards dropped this session, in the order they were dropped. */
+export const useHazards = () => useSession((s) => s.hazards);
+
+/**
+ * What the hazards did to the plan: the queue as it stands against the queue the
+ * same site second would have had without them.
+ */
+export function useHazardImpact(): HazardImpact | null {
+  const frame = useSiteFrame();
+  const now = useLiveQueue();
+  const workOrders = useSession((s) => s.workOrders);
+  const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
+  return useMemo(() => {
+    // Nothing in force at this second, which is also what a seek to before the
+    // first drop looks like.
+    const inForce = hazardsAt(hazards, siteHour(frame.siteSeconds));
+    if (inForce.length === 0) return null;
+    const scheduled = new Set(workOrders.map((w) => w.panelId));
+    const baseFrame = liveFrameAt(frame.siteSeconds, scheduled, injected);
+    const base = liveQueueAt(baseFrame, scheduled, injected);
+    const siteWide = inForce.some((h) => h.kind === 'heatwave');
+    const affected = siteWide ? Object.keys(frame.panels).length : Object.keys(frame.affected).length;
+    return hazardImpact(base, now, affected, frame.farmOutputMW - baseFrame.farmOutputMW);
+  }, [frame, now, workOrders, injected, hazards]);
+}
+
+export interface FootprintMark {
+  id: string;
+  kind: 'dust' | 'cloud';
+  x: number;
+  z: number;
+  radius: number;
+  /** Still in the presenter's hand. */
+  draft: boolean;
+}
+
+/** Footprints to draw on the field: every one in force, plus the one being held. */
+export function useFootprints(): FootprintMark[] {
+  const hazards = useSession((s) => s.hazards);
+  const armed = useSession((s) => s.armedHazard);
+  const draft = useSession((s) => s.hazardDraft);
+  // A string, so this re-renders when a footprint starts or passes and not on
+  // every tick of site time in between.
+  const inForce = useSession((s) => {
+    const hour = siteHour(s.siteSeconds);
+    return s.hazards.filter((h) => hazardStrengthAt(h, hour) > 0).map((h) => h.id).join('|');
+  });
+  return useMemo(() => {
+    const live = new Set(inForce ? inForce.split('|') : []);
+    const out: FootprintMark[] = [];
+    for (const h of hazards) {
+      if (h.kind === 'heatwave' || !live.has(h.id)) continue;
+      out.push({ id: h.id, kind: h.kind, x: h.cx, z: h.cy, radius: h.radius, draft: false });
+    }
+    if (draft && armed && armed !== 'heatwave') {
+      out.push({
+        id: 'draft', kind: armed, x: draft.x, z: draft.z, radius: HAZARD_SPEC[armed].radius, draft: true,
+      });
+    }
+    return out;
+  }, [hazards, armed, draft, inForce]);
+}
+
+/** Degrees a heatwave is adding to ambient right now. Zero when there is none. */
+export const useHeatwaveC = (): number => useSession((s) => {
+  let add = 0;
+  for (const h of hazardsAt(s.hazards, siteHour(s.siteSeconds))) {
+    if (h.kind === 'heatwave') add += h.intensity;
+  }
+  return Math.round(add * 10) / 10;
+});
+
+/** The footprints over one array right now, strongest first. Empty for most arrays. */
+export function useHazardsOver(panelId: string): Array<{ kind: 'dust' | 'cloud'; kept: number }> {
+  const siteSeconds = useSession((s) => s.siteSeconds);
+  const hazards = useSession((s) => s.hazards);
+  return useMemo(() => {
+    if (hazards.length === 0) return [];
+    const c = arrayCentre(panelId);
+    const out: Array<{ kind: 'dust' | 'cloud'; kept: number }> = [];
+    for (const h of hazardsAt(hazards, siteHour(siteSeconds))) {
+      if (h.kind === 'heatwave') continue;
+      const kept = h.intensity * footprintWeight(h, c.x, c.z);
+      if (kept >= AFFECTED_THRESHOLD) out.push({ kind: h.kind, kept });
+    }
+    return out.sort((a, b) => b.kept - a.kept);
+  }, [panelId, siteSeconds, hazards]);
 }
 
 /** The hour of day the scenario starts at. Site time counts from here. */
@@ -775,13 +875,24 @@ export type ArrayTint = 'warning' | 'critical' | 'scheduled' | 'affected';
  */
 export function useArrayTints(): ReadonlyMap<string, ArrayTint> {
   const frame = useSiteFrame();
+  const armed = useSession((s) => s.armedHazard);
+  const draft = useSession((s) => s.hazardDraft);
   const key = useMemo(() => {
     const parts: string[] = [];
+    // The region under a held footprint tints as it moves. Geometry only: the
+    // physics does not run until the hazard is dropped.
+    const held = draft && armed && armed !== 'heatwave'
+      ? { cx: draft.x, cy: draft.z, radius: HAZARD_SPEC[armed].radius }
+      : null;
     for (const [id, r] of Object.entries(frame.panels)) {
       if (r.status !== 'healthy') parts.push(`${id}:${r.status}`);
+      else if (held && footprintWeight(held, arrayCentre(id).x, arrayCentre(id).z) > 0) parts.push(`${id}:affected`);
+      // Under a footprint but not yet past a threshold. Still worth showing: the
+      // hazard is a place, and its edge is part of what the presenter dropped.
+      else if (frame.affected[id] !== undefined) parts.push(`${id}:affected`);
     }
     return parts.join('|');
-  }, [frame]);
+  }, [frame, armed, draft]);
   return useMemo(
     () => new Map(key ? key.split('|').map((pair) => pair.split(':') as [string, ArrayTint]) : []),
     [key],
@@ -894,9 +1005,10 @@ export function useLiveQueue(): LiveQueue {
   const frame = useSiteFrame();
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
   return useMemo(
-    () => liveQueueAt(frame, new Set(workOrders.map((w) => w.panelId)), injected),
-    [frame, workOrders, injected],
+    () => liveQueueAt(frame, new Set(workOrders.map((w) => w.panelId)), injected, hazards),
+    [frame, workOrders, injected, hazards],
   );
 }
 
@@ -915,17 +1027,18 @@ export const DAY_SAMPLES_PER_HOUR = 4;
 export function useDayCurve(): DayPoint[] {
   const workOrders = useSession((s) => s.workOrders);
   const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
   return useMemo(() => {
     const scheduled = new Set(workOrders.map((w) => w.panelId));
     const n = 24 * DAY_SAMPLES_PER_HOUR;
     return Array.from({ length: n + 1 }, (_, i) => {
       const hourOffset = i / DAY_SAMPLES_PER_HOUR;
-      const f = liveFrameAt(hourOffset * 3600, scheduled, injected);
+      const f = liveFrameAt(hourOffset * 3600, scheduled, injected, hazards);
       let shortfallKW = 0;
       for (const r of Object.values(f.panels)) shortfallKW += r.expectedKW - r.actualKW;
       return { hourOffset, outputMW: f.farmOutputMW, shortfallKW };
     });
-  }, [workOrders, injected]);
+  }, [workOrders, injected, hazards]);
 }
 
 /** Where the site's lost energy is going, by mechanism. */
@@ -976,6 +1089,7 @@ export function useProjectedLossMWh(panelId: string): number {
   const mode = useSession((s) => s.mode);
   const siteSeconds = useSession((s) => s.siteSeconds);
   const injected = useSession((s) => s.injected);
+  const hazards = useSession((s) => s.hazards);
   const reading = usePanelReading(panelId);
 
   if (mode === 'demo') {
@@ -983,7 +1097,7 @@ export function useProjectedLossMWh(panelId: string): number {
     return forecast.projected72hLossMWh
       * clamp01((reading ? reading.expectedKW - reading.actualKW : 0) / REFERENCE_SHORTFALL_KW);
   }
-  return projected72hLossMWh(referenceShortfallKW(panelId, siteSeconds, injected));
+  return projected72hLossMWh(referenceShortfallKW(panelId, siteSeconds, injected, hazards));
 }
 
 /** The fault in force on an array, committed or injected — or nothing. */
@@ -1053,6 +1167,7 @@ export function useIncident(panelId: string): Incident {
   const mode = useMode();
   const siteSeconds = useSiteSeconds();
   const injected = useInjected();
+  const hazards = useHazards();
   const reading = usePanelReading(panelId);
   const fault = useArrayFault(panelId);
   const projectedLoss = useProjectedLossMWh(panelId);
@@ -1096,7 +1211,7 @@ export function useIncident(panelId: string): Incident {
       deviationPct: reading?.deviationPct ?? 0,
       referenceShortfallKW: mode === 'demo'
         ? Math.max(0, (reading?.expectedKW ?? 0) - (reading?.actualKW ?? 0))
-        : referenceShortfallKW(panelId, siteSeconds, injected),
+        : referenceShortfallKW(panelId, siteSeconds, injected, hazards),
       fault,
       inspectedAt,
       dispatchedAt,
@@ -1129,7 +1244,7 @@ export function useIncident(panelId: string): Incident {
       }),
     });
   }, [
-    panelId, mode, siteSeconds, injected, reading, fault, projectedLoss, override,
+    panelId, mode, siteSeconds, injected, hazards, reading, fault, projectedLoss, override,
     tasks, missions, workOrders, fleetMedianCellTemp, liveBest,
   ]);
 }
@@ -1150,6 +1265,7 @@ export function useDeferOutcomes(panelId: string): DeferOutcome[] {
   const mode = useMode();
   const siteSeconds = useSiteSeconds();
   const injected = useInjected();
+  const hazards = useHazards();
   const reading = usePanelReading(panelId);
   const fault = useArrayFault(panelId);
   const { tasks } = useLiveQueue();
@@ -1158,7 +1274,7 @@ export function useDeferOutcomes(panelId: string): DeferOutcome[] {
   return useMemo(() => {
     const shortfall = mode === 'demo'
       ? Math.max(0, (reading?.expectedKW ?? 0) - (reading?.actualKW ?? 0))
-      : referenceShortfallKW(panelId, siteSeconds, injected);
+      : referenceShortfallKW(panelId, siteSeconds, injected, hazards);
 
     const task = tasks.find((t) => t.panelId === panelId);
 
@@ -1178,7 +1294,7 @@ export function useDeferOutcomes(panelId: string): DeferOutcome[] {
         : null,
       nowH: mode === 'demo' ? 0 : forecastOffset(siteSeconds),
     });
-  }, [mode, panelId, siteSeconds, injected, reading, fault, tasks, incident]);
+  }, [mode, panelId, siteSeconds, injected, hazards, reading, fault, tasks, incident]);
 }
 
 /** The tariff the operator has set. Every rupee figure rests on it. */

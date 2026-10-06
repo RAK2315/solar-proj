@@ -24,6 +24,10 @@
 
 import { crackDeadlineHour, evaluateArray, irradianceAt, G_REF, T_AMB_REF } from './physics';
 import { rankQueue, type RepairTask } from './ranking';
+import {
+  DUST_WASH_WINDOW_H, crackDeadlineUnder, footprintWeight, type HazardEvent,
+} from './hazard';
+import { arrayCentre } from './scene';
 import { forecast, getPanel, repairQueue } from './data';
 import {
   allPanels, eventFor, referenceReadingAt, scenario,
@@ -90,9 +94,29 @@ const ACT_BEFORE_ELAPSED_H = (() => {
  * disagree the committed value wins and the divergence is a build failure
  * (queue.test.ts).
  */
-function crackDeadlineElapsedH(event: ScenarioEvent): number {
+function crackDeadlineElapsedH(event: ScenarioEvent, hazards: readonly HazardEvent[]): number {
   const startOffset = event.startHour - scenario.epochHour;
-  return crackDeadlineHour(startOffset) ?? ACT_BEFORE_ELAPSED_H;
+  // With no hazard this is the frozen physics function, unchanged. A hazard needs
+  // the weather-aware copy, which hazard.test.ts holds equal to it otherwise.
+  const hour = hazards.length === 0
+    ? crackDeadlineHour(startOffset)
+    : crackDeadlineUnder({ id: event.panelId }, startOffset, hazards, scenario.epochHour);
+  return hour ?? ACT_BEFORE_ELAPSED_H;
+}
+
+/**
+ * The wash deadline a dust storm puts on an array it soiled, in hours since the
+ * epoch: the declared window, counted from the earliest storm that reached it.
+ */
+function dustDeadlineElapsedH(panelId: string, hazards: readonly HazardEvent[]): number | undefined {
+  const c = arrayCentre(panelId);
+  let earliest: number | undefined;
+  for (const h of hazards) {
+    if (h.kind !== 'dust' || footprintWeight(h, c.x, c.z) <= 0) continue;
+    const start = h.startHour - scenario.epochHour;
+    if (earliest === undefined || start < earliest) earliest = start;
+  }
+  return earliest === undefined ? undefined : earliest + DUST_WASH_WINDOW_H;
 }
 
 export interface LiveTask extends RepairTask {
@@ -105,6 +129,8 @@ export interface LiveTask extends RepairTask {
   scheduled: boolean;
   /** True when the fault was injected by the operator rather than committed. */
   injected: boolean;
+  /** True when the job exists only because of a sandbox hazard. */
+  hazard: boolean;
 }
 
 export interface LiveQueue {
@@ -126,6 +152,7 @@ export function liveQueueAt(
   frame: LiveFrame,
   scheduledIds: ReadonlySet<string>,
   injected: readonly ScenarioEvent[] = [],
+  hazards: readonly HazardEvent[] = [],
 ): LiveQueue {
   const tasks: LiveTask[] = [];
   const unscheduled: string[] = [];
@@ -142,7 +169,7 @@ export function liveQueueAt(
     // REFERENCE conditions, not at the current hour. A cracked array is cracked
     // at midnight; reading it off the live frame emptied the whole queue at
     // sunset and refilled it at dawn.
-    const ref = referenceReadingAt(panelId, frame.siteSeconds, injected);
+    const ref = referenceReadingAt(panelId, frame.siteSeconds, injected, hazards);
     const shortfallKW = ref.expectedKW - ref.actualKW;
 
     if (ref.status === 'healthy' && !isScheduled) continue;
@@ -155,9 +182,10 @@ export function liveQueueAt(
     // Neither is guessed at, and an array with neither is reported rather than
     // given a made-up one. Floored just above zero so the urgency term stays
     // finite once a deadline is blown.
+    const dustDeadline = event || record ? undefined : dustDeadlineElapsedH(panelId, hazards);
     const deadlineElapsedH = event
-      ? crackDeadlineElapsedH(event)
-      : record?.hoursUntilDeadline;
+      ? crackDeadlineElapsedH(event, hazards)
+      : record?.hoursUntilDeadline ?? dustDeadline;
     if (deadlineElapsedH === undefined) { unscheduled.push(panelId); continue; }
 
     const accessCost = event?.accessCost ?? record?.accessCost ?? 1.0;
@@ -174,6 +202,7 @@ export function liveQueueAt(
       shortfallKW,
       scheduled: isScheduled,
       injected: Boolean(event?.injected),
+      hazard: dustDeadline !== undefined,
     });
   }
 

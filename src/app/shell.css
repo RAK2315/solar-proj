@@ -78,7 +78,7 @@
 
 .sy-twin { position: absolute; inset: 0; z-index: var(--z-twin); }
 .sy-anchors { position: absolute; inset: 0; pointer-events: none; overflow: clip; z-index: var(--z-overlay); }
-.sy-anchors[data-follow='true'] > [data-anchor] { display: none; }
+.sy-anchors[data-follow='true'] > * { display: none; }
 
 .glass {
   border: 1px solid var(--glass-line); background: var(--glass);
@@ -261,6 +261,25 @@
   position: absolute; left: 30px; top: -44px; padding: 2px 7px; white-space: nowrap;
   border: 1px solid var(--line-hi); border-radius: 6px; background: var(--panel); color: var(--ink);
 }
+
+.sy-anchor.tag .chip { position: absolute; left: 0; top: -58px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--sev); }
+
+.toolcol { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.toolcol .tool { justify-content: flex-start; touch-action: none; }
+.sep { height: 1px; margin: 4px 0; background: var(--glass-line); }
+.scrub { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.sy input[type='range'] { appearance: auto; width: 100%; height: 22px; accent-color: var(--live); cursor: pointer; }
+.impact { color: var(--ink); }
+.hazards li { grid-template-columns: 46px 1fr auto; align-items: center; }
+.hazards b { font-weight: 500; color: var(--ink); }
+.work p + p { margin-top: 4px; }
+.sy-stage[data-screen='sandbox'] { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
+.sy-stage[data-screen='sandbox'] > * { flex: none; }
+.sy-stage[data-screen='sandbox'] .inject { display: grid; grid-template-columns: 1fr 1fr; }
+.sy-stage[data-screen='sandbox'] .inject .tool { white-space: normal; text-align: left; line-height: 1.25; }
+.sy-stage[data-screen='sandbox'] .inject .tool:last-child { grid-column: 1 / -1; }
+.sy[data-dragging='true'] .sy-twin { cursor: crosshair; }
+.sy-map .cell[data-affected='true']:not([data-sev='warning'], [data-sev='critical'], [data-sev='scheduled']) { background: var(--i40); color: #ffffff; }
 
 /* ── 2D fallback ────────────────────────────────────────────────────────── */
 

@@ -8,6 +8,7 @@
  * way for the two views to disagree about the site.
  */
 
+import { arrayCentre } from '@/lib/scene';
 import { useFarm, useSiteFrame } from '@/store/selectors';
 import { useSession } from '@/store/session';
 
@@ -16,6 +17,15 @@ export function FieldMap() {
   const frame = useSiteFrame();
   const selected = useSession((s) => s.selectedPanelId);
   const select = useSession((s) => s.selectPanel);
+  const armed = useSession((s) => s.armedHazard);
+  const dropHazard = useSession((s) => s.dropHazard);
+
+  // With no camera to drag across, a held footprint is dropped on an array.
+  const press = (id: string) => {
+    if (!armed) { select(id); return; }
+    const c = arrayCentre(id);
+    dropHazard(armed, { x: c.x, z: c.z });
+  };
 
   return (
     <div className="sy-map" role="group" aria-label="Field map">
@@ -30,9 +40,10 @@ export function FieldMap() {
                 className="cell id"
                 data-panel-id={p.id}
                 data-sev={frame.panels[p.id]?.status}
+                data-affected={frame.affected[p.id] !== undefined}
                 aria-label={`Array ${p.id}`}
                 aria-pressed={p.id === selected}
-                onClick={() => select(p.id)}
+                onClick={() => press(p.id)}
               >
                 {p.id}
               </button>

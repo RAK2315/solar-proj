@@ -15,6 +15,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useRehearsalKeys } from '@/hooks/useDemoClock';
+import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { useDemoClock } from '@/store/demoClock';
 import { useSession } from '@/store/session';
 import { HeaderBar } from './HeaderBar';
@@ -83,17 +84,37 @@ describe('Shift+R — the panic key', () => {
     expect(useDemoClock.getState().approved).toBe(false);
   });
 
-  it('a plain R does NOT wipe the session — only the recording', () => {
-    // The distinction is the whole reason there are two keys. R is a rewind an
-    // operator might press mid-rehearsal; it must not throw away their work.
+  it('a plain R is the same reset: one key, from any state', () => {
+    // It used to rewind the recording only. With demo mode retired there is no
+    // recording, and plan/rework/09-risks.md R4 wants one key that undoes
+    // anything a judge can do, including with a hazard in hand.
     render(<Keys />);
-    useSession.getState().setMode('demo');
     useSession.getState().createWorkOrder('B-17', 'test');
-    useDemoClock.getState().seek(50);
+    useSession.getState().dropHazard('heatwave');
+    useSession.getState().armHazard('dust');
+    useSession.getState().moveHazardDraft({ x: 0, z: 0 });
 
     fireEvent.keyDown(window, { key: 'r' });
 
-    expect(useDemoClock.getState().t).toBe(0);
-    expect(useSession.getState().workOrders.length).toBe(1);
+    const s = useSession.getState();
+    expect(s.workOrders).toEqual([]);
+    expect(s.hazards).toEqual([]);
+    expect(s.armedHazard).toBeNull();
+    expect(s.hazardDraft).toBeNull();
+    expect(s.siteSeconds).toBe(0);
+  });
+
+  it('S loads the committed rehearsal state, and Escape puts a held hazard back', () => {
+    render(<Keys />);
+    useSession.getState().dropHazard('heatwave');
+    fireEvent.keyDown(window, { key: 's' });
+    expect(useSession.getState().siteSeconds).toBe(REHEARSAL_SEED.siteSeconds);
+    expect(useSession.getState().hazards).toEqual([]);
+
+    useSession.getState().selectPanel('B-17');
+    useSession.getState().armHazard('cloud');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(useSession.getState().armedHazard).toBeNull();
+    expect(useSession.getState().selectedPanelId).toBe('B-17');
   });
 });

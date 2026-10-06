@@ -101,6 +101,8 @@ export function Field({ dark }: { dark: boolean }) {
   const select = (e: ThreeEvent<MouseEvent>) => {
     if (e.instanceId === undefined) return;
     e.stopPropagation();
+    // A click while a hazard is held is the drop, not a selection.
+    if (useSession.getState().armedHazard) return;
     useSession.getState().selectPanel(arrayOf(modules[e.instanceId].id));
   };
 

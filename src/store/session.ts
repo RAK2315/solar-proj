@@ -38,7 +38,9 @@ import { persist } from 'zustand/middleware';
 
 import { useDemoClock } from './demoClock';
 
+import { HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
 import { scenario, type ScenarioEvent } from '@/lib/live';
+import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
 import type { TwinView } from '@/lib/twinCamera';
 
@@ -148,6 +150,19 @@ export interface SessionState {
   /** Faults the operator raised this session, on top of the committed scenario. */
   injected: ScenarioEvent[];
 
+  /**
+   * Sandbox hazards dropped this session. Scenario events like `injected`, kept
+   * in their own list because every reader of `injected` keys it by array and a
+   * heatwave has no array. One store, one clock: a hazard carries the hour it was
+   * dropped and everything it does is derived from site time.
+   */
+  hazards: HazardEvent[];
+
+  /** The hazard the presenter is holding, before it is dropped. Never persisted. */
+  armedHazard: HazardKind | null;
+  /** Where on the ground the held hazard is, in metres. Null while off the field. */
+  hazardDraft: { x: number; z: number } | null;
+
   feedFilter: FeedFilter;
 
   /**
@@ -247,6 +262,16 @@ export interface SessionState {
   injectFault: (panelId: string, kind: InjectableId) => void;
   clearInjected: (panelId?: string) => void;
 
+  armHazard: (kind: HazardKind | null) => void;
+  moveHazardDraft: (at: { x: number; z: number } | null) => void;
+  /** Drop a hazard. A footprint needs a place; a heatwave ignores it. */
+  dropHazard: (kind: HazardKind, at?: { x: number; z: number }) => void;
+  removeHazard: (id: string) => void;
+  clearHazards: () => void;
+
+  /** Put the site in the committed rehearsal state. One key, from any state. */
+  loadRehearsal: () => void;
+
   resetSession: () => void;
 
   /** Called ONLY by the single rAF driver. */
@@ -289,6 +314,9 @@ const initial = {
   workOrders: [] as WorkOrder[],
   overrides: [] as Override[],
   injected: [] as ScenarioEvent[],
+  hazards: [] as HazardEvent[],
+  armedHazard: null as HazardKind | null,
+  hazardDraft: null as { x: number; z: number } | null,
   feedFilter: 'all' as FeedFilter,
   tariffInrPerKWh: DEFAULT_TARIFF_INR_PER_KWH,
   showWorkings: false,
@@ -428,6 +456,47 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     injected: panelId ? s.injected.filter((e) => e.panelId !== panelId) : [],
   })),
 
+  armHazard: (armedHazard) => set({ armedHazard, hazardDraft: null }),
+  moveHazardDraft: (hazardDraft) => set({ hazardDraft }),
+
+  dropHazard: (kind, at) => set((s) => {
+    const spec = HAZARD_SPEC[kind];
+    const timing = {
+      // The sequence number keeps ids unique across drops and stable on reload.
+      id: `hz-${kind}-${s.hazards.length + 1}-${Math.round(s.siteSeconds)}`,
+      startHour: scenario.epochHour + s.siteSeconds / 3600,
+      rampMinutes: spec.rampMinutes,
+      durationHours: spec.durationHours,
+    };
+    if (kind === 'heatwave') {
+      // One heatwave is a heatwave. A second would stack to a number nobody declared.
+      if (s.hazards.some((h) => h.kind === 'heatwave')) return { armedHazard: null, hazardDraft: null };
+      return {
+        armedHazard: null, hazardDraft: null,
+        hazards: [...s.hazards, { kind, intensity: spec.intensity, ...timing }],
+      };
+    }
+    if (!at) return s;
+    return {
+      armedHazard: null, hazardDraft: null,
+      hazards: [...s.hazards, {
+        kind, cx: at.x, cy: at.z, radius: spec.radius, intensity: spec.intensity, ...timing,
+      }],
+    };
+  }),
+
+  removeHazard: (id) => set((s) => ({ hazards: s.hazards.filter((h) => h.id !== id) })),
+  clearHazards: () => set({ hazards: [], armedHazard: null, hazardDraft: null }),
+
+  loadRehearsal: () => set((s) => ({
+    ...initial,
+    theme: s.theme,
+    twinFallback: s.twinFallback,
+    module: s.module,
+    siteSeconds: REHEARSAL_SEED.siteSeconds,
+    injected: [...REHEARSAL_SEED.injected],
+  })),
+
   /** Clears the operator's session. The site itself is not resettable — it is a site. */
   resetSession: () => set((s) => ({ ...initial, theme: s.theme, twinFallback: s.twinFallback })),
 
@@ -459,6 +528,7 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
     workOrders: s.workOrders,
     overrides: s.overrides,
     injected: s.injected,
+    hazards: s.hazards,
     feedFilter: s.feedFilter,
     // The operator's own assumption. Retyping it after every reload would make
     // it feel like a toy rather than a setting they own.

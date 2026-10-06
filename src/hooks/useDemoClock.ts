@@ -78,6 +78,9 @@ export function useDemoClockDriver(): void {
  *
  * These write only to rehearsal state. Nothing the audience sees reads them.
  */
+/** Ten site minutes per arrow press. */
+const LIVE_SEEK_SECONDS = 600;
+
 export function useRehearsalKeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -91,22 +94,32 @@ export function useRehearsalKeys(): void {
       // array panel. Without the second half the only way back to a clear map was
       // to reload, which is not a thing an operator should have to discover.
       if (e.key === 'Escape') {
-        if (session.dossierOpen) session.setDossier(false);
+        // A held hazard is the topmost thing there is: put it back first.
+        if (session.armedHazard) session.armHazard(null);
+        else if (session.dossierOpen) session.setDossier(false);
         else if (session.mode === 'live' && session.selectedPanelId) session.selectPanel(null);
         return;
       }
 
-      // The panic key. Works in BOTH modes, and before the mode check, because
-      // the state it clears is exactly the state that makes a mode misbehave.
-      if (e.key === 'R' && e.shiftKey) {
+      // A key typed into a field belongs to the field. The site-time slider
+      // uses the arrow keys itself.
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+
+      // The panic key: one press, from any state, including with a hazard in
+      // hand. A judge cannot wedge the console further than this undoes.
+      if (e.key === 'r' || e.key === 'R') {
         session.resetSession();
         s.reset();
         return;
       }
 
       if (session.mode === 'live') {
-        // Live mode: space pauses site time rather than a recording.
         if (e.key === ' ') { e.preventDefault(); session.toggleRunning(); }
+        // The committed rehearsal state, also one press from anywhere.
+        if (e.key === 's' || e.key === 'S') session.loadRehearsal();
+        if (e.key === 'ArrowLeft') session.setSiteSeconds(session.siteSeconds - LIVE_SEEK_SECONDS);
+        if (e.key === 'ArrowRight') session.setSiteSeconds(session.siteSeconds + LIVE_SEEK_SECONDS);
         if (e.key === 'd' || e.key === 'D') s.toggleDebug();
         return;
       }

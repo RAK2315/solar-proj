@@ -15,13 +15,16 @@
  */
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useMemo, useRef, type RefObject } from 'react';
-import { Vector3 } from 'three';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 
 import { POST_HEIGHT, arrayCentre, cameraAt, type Vec3 } from '@/lib/scene';
 import { fieldCameraAt } from '@/lib/twinCamera';
 import { flightCueNow } from '@/store/flightCue';
 import { useSession } from '@/store/session';
+import { twinProbe } from './probe';
+
+const GROUND = new Plane(new Vector3(0, 1, 0), 0);
 
 const FIELD_SMOOTHING = 0.1;
 const FLIGHT_SMOOTHING = 0.14;
@@ -34,6 +37,20 @@ const SNAP_DISTANCE = 12;
 export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | null> }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  const canvas = useThree((s) => s.gl.domElement);
+
+  useEffect(() => {
+    const ray = new Raycaster();
+    const ndc = new Vector2();
+    const hit = new Vector3();
+    twinProbe.toGround = (clientX, clientY) => {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      return ray.ray.intersectPlane(GROUND, hit) ? { x: hit.x, z: hit.z } : null;
+    };
+    return () => { twinProbe.toGround = null; };
+  }, [camera, canvas]);
 
   const want = useMemo(() => new Vector3(), []);
   const wantLook = useMemo(() => new Vector3(), []);
@@ -87,11 +104,17 @@ export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | nu
     // Screen-fixed markers are sized for the field view. A few metres above one
     // array they would be the wrong scale entirely, so they stand down.
     root.dataset.follow = follow ? 'true' : 'false';
-    root.querySelectorAll<HTMLElement>('[data-anchor]').forEach((el) => {
-      const id = el.dataset.anchor ?? '';
-      let p = centres.get(id);
-      if (!p) { p = arrayCentre(id); centres.set(id, p); }
-      projected.set(p.x, POST_HEIGHT, p.z).project(camera);
+    root.querySelectorAll<HTMLElement>('[data-anchor], [data-at]').forEach((el) => {
+      const id = el.dataset.anchor;
+      if (id) {
+        let p = centres.get(id);
+        if (!p) { p = arrayCentre(id); centres.set(id, p); }
+        projected.set(p.x, POST_HEIGHT, p.z);
+      } else {
+        const [x, z] = (el.dataset.at ?? '0,0').split(',').map(Number);
+        projected.set(x, POST_HEIGHT, z);
+      }
+      projected.project(camera);
       const x = (projected.x * 0.5 + 0.5) * size.width;
       const y = (-projected.y * 0.5 + 0.5) * size.height;
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;

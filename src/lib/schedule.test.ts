@@ -22,6 +22,7 @@ const task = (over: Partial<LiveTask> & { id: string; panelId: string }): LiveTa
   severity: 'critical',
   hoursUntilDeadline: 24,
   accessCost: 1,
+  hazard: false,
   shortfallKW: 100,
   scheduled: false,
   injected: false,

@@ -15,6 +15,11 @@ import scenarioJson from '@data/scenario.json';
 
 import { farm } from './data';
 import {
+  AFFECTED_THRESHOLD, attenuationAt, hazardsAt, siteWeather, weatherFor,
+  type Hazard, type HazardEvent,
+} from './hazard';
+import { arrayCentre } from './scene';
+import {
   type ArrayReading, type PanelStatusValue, evaluateArray, fleetHealth,
   ambientAt, clockAt, irradianceAt, parkOutputMW, statusFor, G_REF, T_AMB_REF,
 } from './physics';
@@ -132,6 +137,40 @@ export interface LiveFrame {
   panels: Record<string, ArrayReading>;
   anomalies: number;
   critical: number;
+  /**
+   * Arrays a hazard is holding below the site reference, with the fraction of
+   * irradiance it keeps off them. Empty when no hazard is in force.
+   */
+  affected: Record<string, number>;
+}
+
+/**
+ * One array under a hazard.
+ *
+ * The array is evaluated at the weather it actually experiences. What it is
+ * EXPECTED to produce is still read off the site reference, because that is what
+ * a plant's model does: one pyranometer, one ambient sensor, one expectation.
+ * An array under a dust plume therefore reads as a shortfall, which is exactly
+ * the ambiguity the triage stage exists to resolve.
+ */
+function evaluateUnder(
+  panelId: string,
+  site: { g: number; tAmb: number },
+  hazards: readonly Hazard[],
+  conditions: Parameters<typeof evaluateArray>[2],
+): ArrayReading {
+  const local = hazards.length > 0 ? weatherFor({ id: panelId }, site.g, site.tAmb, hazards) : site;
+  const reading = evaluateArray(local.g, local.tAmb, conditions);
+  if (local.g === site.g) return reading;
+
+  const expectedKW = evaluateArray(site.g, site.tAmb).expectedKW;
+  const deviationPct = expectedKW > 0 ? ((reading.actualKW - expectedKW) / expectedKW) * 100 : 0;
+  return {
+    ...reading,
+    expectedKW,
+    deviationPct,
+    status: conditions?.scheduled ? 'scheduled' : statusFor(deviationPct),
+  };
 }
 
 /**
@@ -144,10 +183,14 @@ export function liveFrameAt(
   siteSeconds: number,
   scheduledIds: ReadonlySet<string> = new Set(),
   injected: readonly ScenarioEvent[] = [],
+  hazardEvents: readonly HazardEvent[] = [],
 ): LiveFrame {
   const offset = forecastOffset(siteSeconds);
-  const g = irradianceAt(offset);
-  const tAmb = ambientAt(offset);
+  const hazards = hazardsAt(hazardEvents, siteHour(siteSeconds));
+  // A heatwave is site-wide, so it moves the reference itself. Footprints are
+  // departures from it, applied per array below.
+  const { g, tAmb } = siteWeather(irradianceAt(offset), ambientAt(offset), hazards);
+  const affected: Record<string, number> = {};
 
   const panels: Record<string, ArrayReading> = {};
   const rollup: Array<{ terminalStatus: PanelStatusValue; progress: number }> = [];
@@ -160,13 +203,19 @@ export function liveFrameAt(
     const progress = event ? faultProgressAt(event, siteSeconds) : 0;
     const fSoil = SOIL.get(p.id);
 
-    const reading = evaluateArray(g, tAmb, {
+    const reading = evaluateUnder(p.id, { g, tAmb }, hazards, {
       faultProgress: progress,
       faultedStrings: event?.faultedStrings,
       terminalMismatch: event?.terminalMismatch,
       fSoil,
       scheduled: scheduledIds.has(p.id),
     });
+
+    if (hazards.length > 0) {
+      const c = arrayCentre(p.id);
+      const kept = attenuationAt(c.x, c.z, hazards);
+      if (kept >= AFFECTED_THRESHOLD) affected[p.id] = kept;
+    }
 
     panels[p.id] = reading;
     shortfall += reading.expectedKW - reading.actualKW;
@@ -215,6 +264,7 @@ export function liveFrameAt(
     panels,
     anomalies,
     critical,
+    affected,
   };
 }
 
@@ -234,10 +284,15 @@ export function referenceReadingAt(
   panelId: string,
   siteSeconds: number,
   injected: readonly ScenarioEvent[] = [],
+  hazardEvents: readonly HazardEvent[] = [],
 ): ArrayReading {
   const event = eventFor(panelId, injected);
   const progress = event ? faultProgressAt(event, siteSeconds) : 0;
-  return evaluateArray(G_REF, T_AMB_REF, {
+  // Only what stays on the array counts against it here. A cloud is weather and
+  // passes; dust is on the glass until someone washes it, so it is the one
+  // hazard that makes work.
+  const settled = hazardsAt(hazardEvents, siteHour(siteSeconds)).filter((h) => h.kind === 'dust');
+  return evaluateUnder(panelId, { g: G_REF, tAmb: T_AMB_REF }, settled, {
     faultProgress: progress,
     faultedStrings: event?.faultedStrings,
     terminalMismatch: event?.terminalMismatch,
@@ -249,8 +304,9 @@ export function referenceShortfallKW(
   panelId: string,
   siteSeconds: number,
   injected: readonly ScenarioEvent[] = [],
+  hazardEvents: readonly HazardEvent[] = [],
 ): number {
-  const r = referenceReadingAt(panelId, siteSeconds, injected);
+  const r = referenceReadingAt(panelId, siteSeconds, injected, hazardEvents);
   return Math.max(0, r.expectedKW - r.actualKW);
 }
 

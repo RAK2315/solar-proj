@@ -91,7 +91,7 @@ describe('only the operator’s own state is stored', () => {
     // a measurement, and it persists for the same reason a work order does —
     // retyping it after every reload would make it feel like a toy.
     expect(keys.sort()).toEqual([
-      'feedFilter', 'injected', 'missions', 'mode', 'module', 'overrides',
+      'feedFilter', 'hazards', 'injected', 'missions', 'mode', 'module', 'overrides',
       'running', 'selectedPanelId', 'showWorkings', 'siteSeconds',
       'tariffInrPerKWh', 'theme', 'timeScale', 'workOrders',
     ]);

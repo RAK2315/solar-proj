@@ -16,9 +16,12 @@ import { CurvePanel, LossPanel, ZonesPanel } from '@/components/overlay/Analytic
 import { ArrayPanel } from '@/components/overlay/ArrayPanel';
 import { FleetPanel, MissionsPanel } from '@/components/overlay/DronePanels';
 import { FeedPanel } from '@/components/overlay/FeedPanel';
+import { HazardPalette, HazardsPanel } from '@/components/overlay/HazardPalette';
 import { ChainPanel, DeferPanel } from '@/components/overlay/IncidentPanels';
 import { PlanPanel, QueuePanel } from '@/components/overlay/QueuePanel';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
+import { HAZARD_SPEC } from '@/lib/hazard';
+import { useFootprints } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Rail, screenOf, type ScreenId } from './Rail';
 
@@ -34,7 +37,7 @@ function Panels({ screen }: { screen: ScreenId }) {
     case 'queue': return <><QueuePanel /><PlanPanel /></>;
     case 'analytics': return <><CurvePanel /><LossPanel /><ZonesPanel /></>;
     case 'drones': return <><FleetPanel /><MissionsPanel /></>;
-    case 'sandbox': return <><InjectPanel /><ScenarioPanel /><QueuePanel /></>;
+    case 'sandbox': return <><HazardsPanel /><InjectPanel /><ScenarioPanel /><QueuePanel /></>;
   }
 }
 
@@ -56,6 +59,8 @@ export function Shell() {
   const selected = useSession((s) => s.selectedPanelId);
   const showWorkings = useSession((s) => s.showWorkings);
   const fallback = useSession((s) => s.twinFallback);
+  const holding = useSession((s) => s.armedHazard !== null);
+  const footprints = useFootprints();
   const overlay = useRef<HTMLDivElement>(null);
   const [probe, setProbe] = useState<{ ready: boolean; forced: Forced }>({ ready: false, forced: null });
 
@@ -73,6 +78,7 @@ export function Shell() {
       className={showWorkings ? 'sy' : 'sy hide-workings'}
       data-screen={screen}
       data-fallback={fallback ? 'true' : 'false'}
+      data-dragging={holding ? 'true' : 'false'}
     >
       <div className="sy-twin">
         {probe.ready && (fallback
@@ -82,6 +88,11 @@ export function Shell() {
           {selected && !fallback && (
             <div className="sy-anchor" data-anchor={selected}><i /><span className="id">{selected}</span></div>
           )}
+          {!fallback && footprints.map((f) => (
+            <div key={f.id} className="sy-anchor tag" data-at={`${f.x},${f.z}`} data-sev={f.kind === 'dust' ? 'warning' : undefined}>
+              <span className="chip">{HAZARD_SPEC[f.kind].label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -89,6 +100,7 @@ export function Shell() {
 
       {side && (
         <div className="sy-left">
+          <HazardPalette />
           <FeedPanel />
         </div>
       )}

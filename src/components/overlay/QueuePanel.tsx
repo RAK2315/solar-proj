@@ -12,6 +12,7 @@ import { scoreBreakdown } from '@/lib/ranking';
 import { useDayPlan, useLiveQueue, useWorkOrders } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
+import { ImpactLine } from './HazardPalette';
 
 export function QueuePanel({ footer = false }: { footer?: boolean }) {
   const { tasks, unscheduled } = useLiveQueue();
@@ -27,6 +28,7 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
       aside={<Why />}
     >
       <p className="one">Ranked by loss × severity × urgency ÷ access.</p>
+      <ImpactLine />
       {tasks.length === 0 ? (
         <p className="empty well">Nothing is off nominal. A job appears here when an array falls below the model.</p>
       ) : (
@@ -40,7 +42,7 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
                   <span className="rank num">{i + 1}</span>
                   <span className="job">
                     <span className="id">{t.panelId}</span>
-                    <span className="meta"><i className="dot" />{sentence(sev)}, {hours(t.hoursUntilDeadline)} left{t.injected ? ', rehearsal' : ''}</span>
+                    <span className="meta"><i className="dot" />{sentence(sev)}, {hours(t.hoursUntilDeadline)} left{t.injected ? ', rehearsal' : ''}{t.hazard ? ', dust' : ''}</span>
                   </span>
                   <span className="score num">{num(s.score, 2)}</span>
                 </button>
