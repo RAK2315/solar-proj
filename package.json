@@ -19,7 +19,9 @@
     "pack:telemetry": "tsx scripts/pack_telemetry.ts",
     "demo": "node scripts/serve.mjs",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "check:layout": "node scripts/check_layout.mjs 1920 1080 && node scripts/check_layout.mjs 1366 768"
+    "check:layout": "node scripts/check_layout.mjs 1920 1080 && node scripts/check_layout.mjs 1366 768",
+    "shoot": "node scripts/shoot.mjs",
+    "measure:hero": "node scripts/measure_hero.mjs 1366 768 && node scripts/measure_hero.mjs 1920 1080"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
