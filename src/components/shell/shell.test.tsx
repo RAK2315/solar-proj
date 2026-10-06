@@ -21,6 +21,7 @@ import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { M, arrayCentre } from '@/lib/scene';
 import { useDetector } from '@/store/detector';
 import { MISSION, useSession, type Mission, type SessionState } from '@/store/session';
+import { useSolver } from '@/store/solver';
 import { useTriage } from '@/store/triage';
 import { Shell } from './Shell';
 
@@ -60,6 +61,10 @@ beforeEach(() => {
   useSession.setState({ running: false, twinFallback: null, theme: 'dark', showWorkings: false });
   useDetector.getState().reset();
   useTriage.getState().clear();
+  // The shell asks for the solver on mount. Here that would race every test with
+  // a megabyte of WebAssembly, so loading is switched off and each test says
+  // which state it wants.
+  useSolver.setState({ status: 'failed', solver: null, reason: 'not loaded in tests', load: async () => {} });
   // The agent is a network call. Offline is a real state and the console has to
   // stay usable in it, so that is the state these tests run in.
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
@@ -447,5 +452,48 @@ describe('the keys', () => {
     expect(useSession.getState().running).toBe(false);
     fireEvent.keyDown(container.querySelector('input') as Element, { key: 'r' });
     expect(useSession.getState().siteSeconds).toBe(3000);
+  });
+});
+
+describe('the day plan', () => {
+  const planText = (container: Element) => text(container.querySelector('[data-b="plan"]') as Element);
+
+  it('falls back to the heuristic, and says so, when the solver cannot load', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    expect(planText(container)).toContain('Heuristic plan');
+    expect(planText(container)).toContain('did not load');
+    expect(container.querySelectorAll('.jobbar').length).toBeGreaterThan(0);
+  });
+
+  it('shows the optimum beside the heuristic once the solver is there', async () => {
+    const { default: highsLoader } = await import('highs');
+    const highs = await highsLoader();
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    act(() => useSolver.setState({ status: 'ready', solver: highs as never }));
+    expect(planText(container)).toMatch(/Optimal plan/);
+    expect(planText(container)).toMatch(/\d+ of \d+ jobs placed/);
+  });
+
+  it('proposes and never commits: a plan on screen creates no work order', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    expect(planText(container)).toContain('A proposal');
+    fireEvent.click(container.querySelector('.jobbar') as Element);
+    expect(useSession.getState().workOrders).toEqual([]);
+    // Clicking a job selects its array, which is where approval lives.
+    expect(useSession.getState().selectedPanelId).not.toBeNull();
+  });
+
+  it('closes more of the day to field work under a heatwave', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'queue' });
+    const closedByHeat = () => container.querySelectorAll('.slot[data-closed="heat"]').length;
+    const before = closedByHeat();
+    act(() => useSession.getState().dropHazard('heatwave'));
+    set({ siteSeconds: DEVELOPED + 1800 });
+    expect(closedByHeat()).toBeGreaterThan(before);
+  });
+
+  it('prints both scores on the site screen, where the hazard is dropped', () => {
+    const { container } = open({ siteSeconds: DEVELOPED });
+    expect(text(container.querySelector('[data-b="queue"]') as Element)).toMatch(/plan, score|plan scores/);
   });
 });

@@ -448,3 +448,22 @@
 @media (max-width: 900px) {
   .sy-stats { display: none; }
 }
+
+/* ── The day plan ────────────────────────────────────────────────────────── */
+
+.sched { display: grid; gap: 3px 2px; align-items: stretch; padding: 10px 12px; }
+.sched .hd { color: var(--ink-2); min-height: 20px; white-space: nowrap; }
+.sched .crew { grid-column: 1; align-self: center; color: var(--ink-2); }
+.sched .slot { min-height: 34px; border-radius: 3px; background: color-mix(in oklab, var(--ink) 5%, transparent); }
+.sched .slot[data-closed='shift'] { background: color-mix(in oklab, var(--ink) 2%, transparent); opacity: 0.5; }
+.sched .slot[data-closed='heat'] {
+  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--i80) 34%, transparent) 0 4px, transparent 4px 8px);
+}
+.sy .jobbar {
+  z-index: 1; margin: 3px 1px; padding: 0 6px; border-radius: 6px; min-width: 0;
+  background: var(--live); color: var(--on-live); font-size: var(--t1); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: box-shadow 140ms ease-out;
+}
+.sy .jobbar:hover { box-shadow: inset 0 0 0 99px rgb(0 0 0 / 0.14); }
+.sy .jobbar[data-late='true'] { background: var(--i60); color: var(--on-sev); }

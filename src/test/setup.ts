@@ -31,10 +31,14 @@ globalThis.matchMedia ??= ((query: string) => ({
 // WebGL probe in CinematicBackground cannot catch, and which buries real test
 // output in stack traces. Returning null is the truthful answer here: there is no
 // WebGL in jsdom, so the component correctly falls back to the video plate.
-HTMLCanvasElement.prototype.getContext = (() => null) as unknown as
-  typeof HTMLCanvasElement.prototype.getContext;
+// Guarded, because a test that runs under Node (the scheduler, against the real
+// solver) has no DOM at all and loads this file too.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = (() => null) as unknown as
+    typeof HTMLCanvasElement.prototype.getContext;
+}
 
 // jsdom has no layout, so it has no scrollIntoView either — INSPECT EVIDENCE
 // scrolls the rail to the inspection group. The assertion that matters is that the
 // target element exists; the scroll itself is the browser's job.
-Element.prototype.scrollIntoView ??= () => {};
+if (typeof Element !== 'undefined') Element.prototype.scrollIntoView ??= () => {};

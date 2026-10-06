@@ -45,3 +45,6 @@ docs/shots/
 
 # public/models/*.onnx WAS ignored. It is committed now: the deployed build has no
 # other way to get it, and the browser detector is the product's strongest claim.
+
+# The solver's WebAssembly, copied out of node_modules by sync:artefacts on every build.
+public/highs/

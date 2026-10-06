@@ -58,7 +58,7 @@ export const HAZARD_SPEC = {
   heatwave: {
     label: 'Heatwave',
     radius: 0,
-    intensity: 5,
+    intensity: 3.5,
     rampMinutes: 20,
     durationHours: null,
   },

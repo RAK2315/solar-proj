@@ -37,7 +37,9 @@ import {
   type ArrayReading,
 } from '@/lib/physics';
 import { liveQueueAt, projected72hLossMWh, type LiveQueue } from '@/lib/queue';
-import { jobsSavedByOneMoreCrew, planDay, type SitePlan } from '@/lib/schedule';
+import {
+  closedSlots, problemFrom, problemKey, slotStartOffsetH, solve, type Plan, type Problem,
+} from '@/lib/scheduler';
 import {
   FAULTED_ARRAY_ID, M, PAD, arrayCentre, droneAt, inspectionTarget,
 } from '@/lib/scene';
@@ -46,6 +48,7 @@ import type {
   PanelStatus, Severity, ZoneId,
 } from '@/lib/types';
 import { useDetector } from './detector';
+import { useSolver } from './solver';
 import { flightCueAt, flightTAt, useFlightCue } from './flightCue';
 import {
   MISSION, MISSION_TOTAL, missionPhaseAt, missionProgressAt, useSession,
@@ -643,21 +646,43 @@ export function useOverride(panelId: string) {
   return overrides.find((o) => o.panelId === panelId);
 }
 
+export interface DaySchedule {
+  problem: Problem;
+  plan: Plan;
+  /** Slots the heat rule closes, a subset of `problem.closed`. */
+  heat: ReadonlySet<number>;
+  /** The hour of day slot 0 starts at. */
+  firstSlotHour: number;
+  solver: 'ready' | 'loading' | 'failed';
+}
+
 /**
- * The ranked queue as a plan, with the crews and aircraft the site actually has.
- *
- * The cause decides the work: a soiled array skips the aircraft entirely and its
- * crew leaves immediately, which is the scheduling payoff of the triage stage.
- * Resolved here per array, so the scheduler stays a pure function of tasks and a
- * lookup.
+ * One remembered plan. The problem is rebuilt every tick, but it only CHANGES
+ * when a job's worth moves at the second decimal, a slot rolls over or a hazard
+ * lands, and the key says which. So the solver runs a few times a minute and
+ * never once per frame.
  */
-export function useDayPlan(): { plan: SitePlan; savedByOneMoreCrew: number } {
+let lastPlan: { key: string; plan: Plan } | null = null;
+
+/**
+ * The day's crew plan: the exact solve where the solver has loaded, the
+ * heuristic where it has not, and the heuristic's score beside it either way.
+ *
+ * The cause decides the work. A soiled array needs a wash crew for two hours and
+ * a cracked one needs a module replaced, which is the scheduling payoff of the
+ * triage stage. A PROPOSAL: nothing here creates a work order.
+ */
+export function useSchedule(): DaySchedule {
   const { tasks } = useLiveQueue();
   const siteSeconds = useSiteSeconds();
   const frame = useSiteFrame();
+  const hazards = useSession((s) => s.hazards);
+  const status = useSolver((s) => s.status);
+  const solver = useSolver((s) => s.solver);
 
   return useMemo(() => {
     const median = cellTemp(frame.ambientC, frame.irradiance);
+    const nowOffsetH = forecastOffset(siteSeconds);
     const causeFor = (panelId: string) => {
       const r = frame.panels[panelId];
       return diagnose({
@@ -666,14 +691,24 @@ export function useDayPlan(): { plan: SitePlan; savedByOneMoreCrew: number } {
         stringDeviationPct: r?.stringDeviationPct,
         cellTempC: r?.cellTempC ?? median,
         fleetMedianCellTempC: median,
-        hourOffset: forecastOffset(siteSeconds),
+        hourOffset: nowOffsetH,
         peakIrradiance: PEAK_IRRADIANCE,
       }).id;
     };
 
-    const input = { tasks, causeFor };
-    return { plan: planDay(input), savedByOneMoreCrew: jobsSavedByOneMoreCrew(input) };
-  }, [tasks, frame, siteSeconds]);
+    const ctx = { tasks, causeFor, nowOffsetH, epochHour: scenario.epochHour, hazards };
+    const problem = problemFrom(ctx);
+    const key = `${status}#${problemKey(problem)}`;
+    if (!lastPlan || lastPlan.key !== key) lastPlan = { key, plan: solve(problem, solver) };
+
+    return {
+      problem,
+      plan: lastPlan.plan,
+      heat: closedSlots(ctx).heat,
+      firstSlotHour: (scenario.epochHour + slotStartOffsetH(nowOffsetH, 0)) % 24,
+      solver: status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : 'loading',
+    };
+  }, [tasks, frame, siteSeconds, hazards, status, solver]);
 }
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */

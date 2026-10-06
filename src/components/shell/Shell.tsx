@@ -25,13 +25,15 @@ import {
 import { FeedPanel } from '@/components/overlay/FeedPanel';
 import { HazardPalette, HazardsPanel } from '@/components/overlay/HazardPalette';
 import { ChainPanel, DeferPanel } from '@/components/overlay/IncidentPanels';
-import { OrdersPanel, PlanPanel, QueuePanel } from '@/components/overlay/QueuePanel';
+import { PlanPanel } from '@/components/overlay/PlanPanel';
+import { OrdersPanel, QueuePanel } from '@/components/overlay/QueuePanel';
 import { FlightOverlay } from '@/components/twin/FlightOverlay';
 import { hasCapturedEvidence } from '@/lib/data';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
 import { HAZARD_SPEC } from '@/lib/hazard';
 import { useFollowingFlight, useFootprints, useSelectedPanelId } from '@/store/selectors';
 import { useSession } from '@/store/session';
+import { useSolver } from '@/store/solver';
 import { Rail, screenOf, type ScreenId } from './Rail';
 
 const Twin = dynamic(() => import('@/components/twin/Twin'), { ssr: false, loading: () => null });
@@ -118,6 +120,8 @@ export function Shell() {
     const forced: Forced = asked === '2d' || asked === '3d' ? asked : null;
     if (forced === '2d' || !canDrawWebGL()) useSession.getState().setTwinFallback('webgl');
     setProbe({ ready: true, forced });
+    // After first paint: the console is useful before the solver arrives.
+    void useSolver.getState().load();
   }, []);
 
   const side = SIDE.has(screen);

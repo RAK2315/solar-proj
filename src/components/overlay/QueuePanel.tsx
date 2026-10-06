@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The repair queue and the day plan built from it.
+ * The repair queue, and what a person decided about it.
  *
  * The order is arithmetic, never a language model's opinion, and the arithmetic
  * is one click away on every row: loss x severity x urgency / access.
@@ -9,12 +9,11 @@
 
 import { MWh, hours, num, sentence } from '@/lib/format';
 import { scoreBreakdown } from '@/lib/ranking';
-import {
-  siteClockAt, useDayPlan, useLiveQueue, useOverrideList, useWorkOrders,
-} from '@/store/selectors';
+import { siteClockAt, useLiveQueue, useOverrideList, useWorkOrders } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { ImpactLine } from './HazardPalette';
+import { PlanScores } from './PlanPanel';
 
 export function QueuePanel({ footer = false }: { footer?: boolean }) {
   const { tasks, unscheduled } = useLiveQueue();
@@ -59,6 +58,7 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
           Deviating with no deadline on file, so not ranked: <span className="id">{unscheduled.join(' ')}</span>.
         </p>
       )}
+      {footer && <PlanScores />}
       {footer && (
         <div className="foot-row">
           <span className="one">
@@ -104,37 +104,6 @@ export function OrdersPanel() {
           ))}
         </ol>
       )}
-    </Blk>
-  );
-}
-
-export function PlanPanel() {
-  const { plan, savedByOneMoreCrew } = useDayPlan();
-  const span = Math.max(plan.spanH, ...plan.jobs.map((j) => j.deadlineH), 1);
-  const at = (h: number) => `${Math.min(100, (h / span) * 100).toFixed(1)}%`;
-  return (
-    <Blk b="plan" title={<>Day plan<span className="count num">{plan.jobs.length} jobs over {hours(plan.spanH)}</span></>}>
-      <p className="one">
-        Greedy schedule for two crews and two drones: {plan.slipping.length} past deadline,
-        {' '}{savedByOneMoreCrew} recovered by one more crew.
-      </p>
-      {plan.jobs.length === 0 ? (
-        <p className="empty well">No jobs to schedule.</p>
-      ) : (
-        <ol className="plan">
-          {plan.jobs.map((j) => (
-            <li key={j.taskId} data-sev={j.onTime ? 'scheduled' : 'critical'}>
-              <span className="job"><span className="id">{j.panelId}</span><span className="meta">{sentence(j.assignedTo)}</span></span>
-              <span className="track">
-                <i className="bar" style={{ left: at(j.startH), width: `max(6px, calc(${at(j.endH)} - ${at(j.startH)}))` }} />
-                <i className="tick" style={{ left: at(j.deadlineH) }} />
-              </span>
-              <span className="fig num">{j.onTime ? `Done in ${hours(j.endH)}` : `${hours(j.lateByH)} late`}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-      <p className="work workings">The bar is travel plus repair for the assigned crew. The tick is the job&apos;s deadline.</p>
     </Blk>
   );
 }

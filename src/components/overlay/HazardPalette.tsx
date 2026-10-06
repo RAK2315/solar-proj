@@ -207,7 +207,7 @@ export function HazardsPanel() {
           Cloud bank: shades {pctPlain(HAZARD_SPEC.cloud.intensity * 100)} at its centre, {HAZARD_SPEC.cloud.radius} m
           radius, for {hours(HAZARD_SPEC.cloud.durationHours)}, then passes. It makes no repair work.
         </p>
-        <p>Heatwave: {degC(HAZARD_SPEC.heatwave.intensity, 0)} added to ambient across the whole site.</p>
+        <p>Heatwave: {degC(HAZARD_SPEC.heatwave.intensity)} added to ambient across the whole site.</p>
         <p>Expected output is read off the site reference, so an array under a footprint shows as a shortfall. Scenario starts at {clockOf(epoch)}.</p>
       </div>
       {hazards.length > 0 && <button type="button" className="tool" onClick={clear}>Clear hazards</button>}

@@ -16,6 +16,23 @@
  */
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+
+/**
+ * The solver's WebAssembly. HiGHS loads it at runtime by URL, so it has to be
+ * under /public; the bundler does not carry it. Copied from the installed
+ * package on every build, so the .wasm can never be a different version from
+ * the JavaScript that drives it.
+ */
+function syncSolver() {
+  const from = 'node_modules/highs/build/highs.wasm';
+  if (!existsSync(from)) {
+    console.log('sync:artefacts: highs.wasm not installed; the scheduler will use the heuristic');
+    return;
+  }
+  mkdirSync('public/highs', { recursive: true });
+  copyFileSync(from, 'public/highs/highs.wasm');
+}
+syncSolver();
 import { join } from 'node:path';
 
 const SRC = 'data/evidence';
