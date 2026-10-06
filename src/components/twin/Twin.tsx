@@ -57,6 +57,12 @@ export default function Twin({ overlay, watchdog, children }: {
 }) {
   const theme = useSession((s) => s.theme);
   const following = useFollowingFlight();
+  // THE DRONE'S CAMERA SEES DAYLIGHT, whatever theme the console is in. The dark
+  // ground is a way of drawing the field for an operator; it is not what the
+  // site looks like, and the detector was trained on photographs taken in the
+  // sun. Under the cool night-styled key light it found nothing on the same
+  // module it scores as cracked in daylight.
+  const day = theme === 'light' || following;
 
   return (
     <Canvas
@@ -68,8 +74,8 @@ export default function Twin({ overlay, watchdog, children }: {
       camera={{ fov: TWIN_FOV, near: 0.5, far: 600, position: [0, 84, 122] }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      {theme === 'light' ? <SceneEnvironment fog={DAY_FOG} /> : <DarkEnvironment />}
-      <Field dark={theme !== 'light'} />
+      {day ? <SceneEnvironment fog={following ? undefined : DAY_FOG} /> : <DarkEnvironment />}
+      <Field dark={!day} />
       <group onClick={(e) => {
         e.stopPropagation();
         useSession.getState().selectPanel(flightCueNow().targetId);

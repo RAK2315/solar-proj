@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Mounts the single rAF loop and the rehearsal key handler. Renders nothing.
+ * Mounts the single rAF loop and the console's key handler. Renders nothing.
  *
  * It lives in src/app/ rather than src/components/ on purpose: components/ is
  * where the lint rules ban timers, and this is the one place a timer is legal.
@@ -10,12 +10,12 @@
 
 import { useEffect } from 'react';
 
-import { useDemoClockDriver, useRehearsalKeys } from '@/hooks/useDemoClock';
+import { useConsoleKeys, useSiteClockDriver } from '@/hooks/useSiteClock';
 import { useSession } from '@/store/session';
 
 export function ClockDriver() {
-  useDemoClockDriver();
-  useRehearsalKeys();
+  useSiteClockDriver();
+  useConsoleKeys();
 
   // The theme is operator state, and the tokens that implement it hang off
   // `<html data-theme>`. Applying it in an effect rather than during render keeps

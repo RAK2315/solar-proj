@@ -9,7 +9,9 @@
 
 import { MWh, hours, num, sentence } from '@/lib/format';
 import { scoreBreakdown } from '@/lib/ranking';
-import { useDayPlan, useLiveQueue, useWorkOrders } from '@/store/selectors';
+import {
+  siteClockAt, useDayPlan, useLiveQueue, useOverrideList, useWorkOrders,
+} from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { ImpactLine } from './HazardPalette';
@@ -65,6 +67,42 @@ export function QueuePanel({ footer = false }: { footer?: boolean }) {
           </span>
           <button type="button" className="tool" onClick={() => setModule('queue')}>Open queue</button>
         </div>
+      )}
+    </Blk>
+  );
+}
+
+/** What a person decided: every approval and every refusal, with when and why. */
+export function OrdersPanel() {
+  const orders = useWorkOrders();
+  const overrides = useOverrideList();
+  const select = useSession((s) => s.selectPanel);
+  const clearOverride = useSession((s) => s.clearOverride);
+  return (
+    <Blk b="orders" title={<>Work orders<span className="count num">{orders.length} approved, {overrides.length} declined</span></>}>
+      <p className="one">Nothing reaches this list without an operator. The agent proposes; a person commits.</p>
+      {orders.length + overrides.length === 0 ? (
+        <p className="empty well">No decisions yet. Approve or decline a job from its array panel.</p>
+      ) : (
+        <ol className="events orders">
+          {orders.map((w) => (
+            <li key={w.id} data-sev="scheduled">
+              <span className="num">{siteClockAt(w.createdAt)}</span>
+              <button type="button" className="id link" onClick={() => select(w.panelId)}>{w.id}</button>
+              <span className="says">Approved. {w.note}</span>
+            </li>
+          ))}
+          {overrides.map((o) => (
+            <li key={o.panelId} data-sev="warning">
+              <span className="num">{siteClockAt(o.createdAt)}</span>
+              <button type="button" className="id link" onClick={() => select(o.panelId)}>{o.panelId}</button>
+              <span className="says">
+                Declined: {o.reason.toLowerCase()}.{' '}
+                <button type="button" className="link" onClick={() => clearOverride(o.panelId)}>Clear</button>
+              </span>
+            </li>
+          ))}
+        </ol>
       )}
     </Blk>
   );

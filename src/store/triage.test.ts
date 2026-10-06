@@ -125,8 +125,10 @@ describe('when the agent cannot answer', () => {
     await useTriage.getState().request('B-17', 1234, 'critical');
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(Object.keys(body).sort()).toEqual(['injected', 'panelId', 'siteSeconds']);
+    // Hazards joined the list on 6 Oct: causes on the same terms as injections.
+    expect(Object.keys(body).sort()).toEqual(['hazards', 'injected', 'panelId', 'siteSeconds']);
     expect(body.injected).toEqual([]);
+    expect(body.hazards).toEqual([]);
   });
 
   it('passes the operator\u2019s injected faults through', async () => {

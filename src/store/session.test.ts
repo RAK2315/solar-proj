@@ -32,7 +32,7 @@ async function reload() {
 }
 
 const fresh = {
-  mode: 'live' as const, module: 'site' as const, siteSeconds: 0, running: true,
+  module: 'site' as const, siteSeconds: 0, running: true,
   timeScale: 60, selectedPanelId: null, missions: [], workOrders: [],
 };
 
@@ -91,7 +91,7 @@ describe('only the operator’s own state is stored', () => {
     // a measurement, and it persists for the same reason a work order does —
     // retyping it after every reload would make it feel like a toy.
     expect(keys.sort()).toEqual([
-      'feedFilter', 'hazards', 'injected', 'missions', 'mode', 'module', 'overrides',
+      'feedFilter', 'hazards', 'injected', 'missions', 'module', 'overrides',
       'running', 'selectedPanelId', 'showWorkings', 'siteSeconds',
       'tariffInrPerKWh', 'theme', 'timeScale', 'workOrders',
     ]);
@@ -115,15 +115,15 @@ describe('only the operator’s own state is stored', () => {
   });
 });
 
-describe('entering the demo does not destroy live work', () => {
-  it('keeps missions and orders when the mode flips', () => {
+describe('changing screens does not destroy the operator’s work', () => {
+  it('keeps missions and orders across every screen', () => {
     useSession.getState().dispatch('B-17');
     useSession.getState().createWorkOrder('B-17', 'x');
 
-    useSession.getState().setMode('demo');
+    for (const screen of ['incident', 'queue', 'analytics', 'drones', 'sandbox', 'site'] as const) {
+      useSession.getState().setModule(screen);
+    }
     expect(useSession.getState().workOrders).toHaveLength(1);
-
-    useSession.getState().setMode('live');
     expect(useSession.getState().missions).toHaveLength(1);
   });
 });

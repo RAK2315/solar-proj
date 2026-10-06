@@ -36,15 +36,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { useDemoClock } from './demoClock';
-
 import { HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
 import { scenario, type ScenarioEvent } from '@/lib/live';
 import { REHEARSAL_SEED } from '@/lib/rehearsal';
 import { DEFAULT_TARIFF_INR_PER_KWH } from '@/lib/money';
 import type { TwinView } from '@/lib/twinCamera';
-
-export type Mode = 'live' | 'demo';
 
 /**
  * The screens behind the icon rail. `site` is the map and the detail rail — the
@@ -129,8 +125,6 @@ export const INJECTABLE = {
 export type InjectableId = keyof typeof INJECTABLE;
 
 export interface SessionState {
-  mode: Mode;
-
   /** Which screen the operator is on. */
   module: ModuleId;
 
@@ -231,7 +225,6 @@ export interface SessionState {
   setTwinView: (view: TwinView) => void;
   setTwinFallback: (why: TwinFallback) => void;
 
-  setMode: (m: Mode) => void;
   setModule: (m: ModuleId) => void;
   selectPanel: (id: string | null) => void;
   setTimeScale: (s: number) => void;
@@ -304,7 +297,6 @@ export function missionProgressAt(m: Mission, siteSeconds: number): number {
 }
 
 const initial = {
-  mode: 'live' as Mode,
   module: 'site' as ModuleId,
   siteSeconds: 0,
   timeScale: scenario.defaultTimeScale,
@@ -332,10 +324,6 @@ const FILTER_CYCLE: FeedFilter[] = ['all', 'warning', 'critical'];
 export const useSession = create<SessionState>()(persist((set, get) => ({
   ...initial,
 
-  // Demo mode plays a scripted incident over the map, so entering it returns to
-  // the map. Otherwise pressing M mid-demo would play the beats behind a screen
-  // that cannot show them.
-  setMode: (mode) => set(mode === 'demo' ? { mode, module: 'site' } : { mode }),
   setModule: (module) => set({ module, dossierOpen: false }),
   // Selecting a different array behind an open dossier would leave the operator
   // reading one array's evidence under another's heading. Close it.
@@ -372,11 +360,6 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
       (m) => missionPhaseAt(m, s.siteSeconds) !== 'complete',
     ).length;
     if (busy >= 2) return s;                    // two drones on the site, both real
-
-    // Clear any held view override, so this mission cuts to the cinematic rather
-    // than being silently suppressed by a decision the operator made two missions
-    // ago. Sending a drone is a request to watch it.
-    useDemoClock.getState().clearViewOverride();
 
     return {
       // Sending a drone is a request to watch it.
@@ -507,10 +490,14 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   },
 }), {
   name: 'surya-session',
-  // Demo mode was retired on 5 Oct 2026 and nothing on screen can enter it any
-  // more, so a session saved while it was showing must not strand the operator there.
-  version: 2,
-  migrate: (persisted) => ({ ...(persisted as object), mode: 'live' }) as unknown as SessionState,
+  // Demo mode was retired on 5 Oct 2026 and its field went on 6 Oct. A session
+  // saved by either earlier build carries a `mode` this store no longer has.
+  version: 3,
+  migrate: (persisted) => {
+    const saved = { ...(persisted as Record<string, unknown>) };
+    delete saved.mode;
+    return saved as unknown as SessionState;
+  },
   // Hydrated explicitly after mount by ClockDriver. Reading storage during render
   // would make the server and client disagree on the very first paint.
   skipHydration: true,
@@ -518,7 +505,6 @@ export const useSession = create<SessionState>()(persist((set, get) => ({
   // Nothing derived is stored: readings, statuses, mission phases and the event
   // feed are all recomputed from these.
   partialize: (s) => ({
-    mode: s.mode,
     module: s.module,
     siteSeconds: s.siteSeconds,
     timeScale: s.timeScale,

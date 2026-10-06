@@ -1,66 +1,68 @@
 /**
  * scripts/check_layout.mjs — `npm run check:layout`
  *
- * Measures every screen in a real browser and fails when a box is smaller than
- * what is inside it.
+ * Opens the console in a real browser at one viewport, walks every screen in both
+ * themes, and fails when the layout or the type breaks a rule the design system
+ * states as a rule.
  *
- * WHY THIS IS A SCRIPT AND NOT A TEST. jsdom has no layout: every element is
- * 0x0, so a component whose content overflows its box renders identically to one
- * that fits and 507 unit tests stay green through it. This bug has now shipped
- * twice — the module bodies in Phase 19, where a slab holding 400px sat in a
- * 135px row and painted over the block beneath, and the site KPI strip in Phase
- * 22, whose cells measured 137px inside a 118px row and spilled the anomaly bars
- * down over the map. Both were found by looking. This is looking, automatically.
+ * WHY THIS IS A SCRIPT AND NOT A TEST. jsdom has no layout: every element is 0x0
+ * and every computed font size is whatever the stylesheet did not get to say. A
+ * panel that overflows its sheet renders identically to one that fits. This is
+ * looking, automatically.
  *
- * It reports OVERFLOW (content taller than a box that does not scroll) and SPILL
- * (something painting outside the console shell). Scrollable containers are
- * exempt: a scroll region is meant to be taller than its box.
+ * WHAT IT HOLDS THE CONSOLE TO, per screen (plan/rework/06-design-system.md):
+ *
+ *   TYPE      no text under 14 px
+ *   CASE      no `text-transform: uppercase` anywhere
+ *   MONO      the monospace face only on identifiers (`.id`)
+ *   CLIPPED   no block wider than the sheet it sits in, and none taller than a
+ *             sheet that cannot scroll
+ *   FRAME     the rail and every sheet inside the viewport
+ *   CANVAS    the twin's canvas fills the viewport
+ *
+ * It also proves the console is alive: every step presses a real control, and a
+ * control that is not there fails the run instead of being skipped.
+ *
+ *   node scripts/check_layout.mjs 1920 1080
+ *   node scripts/check_layout.mjs 1366 768
+ *
+ * Needs the app served on :3000 (`npm run demo`).
  */
 
 import { chromium } from 'playwright-core';
 
-const URL = process.env.CONSOLE_URL ?? 'http://localhost:3000/console';
-const W = Number(process.argv[2] ?? 1512);
-const H = Number(process.argv[3] ?? 900);
+const BASE = process.env.CONSOLE_URL ?? 'http://localhost:3000/console';
+const W = Number(process.argv[2] ?? 1366);
+const H = Number(process.argv[3] ?? 768);
 
-/**
- * Under this many pixels is not a layout fault.
- *
- * A display figure set at line-height 1.0 reports 6-7px of `scrollHeight` over
- * its `clientHeight` from glyph metrics alone — the descender of a font is
- * outside its line box by design. Both real instances of this bug were an order
- * of magnitude larger: +19px for the KPI strip, +265px for the module bodies.
- */
-const TOLERANCE = 12;
+/** The design system's floor. */
+const MIN_FONT_PX = 14;
+/** Sub-pixel rounding and glyph overhang are not layout faults. */
+const TOLERANCE = 2;
 
 const browser = await chromium.launch({
   executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   headless: true,
+  // A software renderer, so this runs anywhere. It is far below the frame budget,
+  // which is why the URL below tells the twin's watchdog to stand down.
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 const page = await (await browser.newContext({ viewport: { width: W, height: H } })).newPage();
 
 const errors = [];
-page.on('pageerror', (e) => errors.push(`page error: ${e.message.slice(0, 160)}`));
+page.on('pageerror', (e) => errors.push(`page error: ${e.message.slice(0, 200)}`));
 
-await page.goto(URL, { waitUntil: 'load' });
-await page.waitForFunction(
-  () => !document.body.innerText.includes('NOT READY'), null, { timeout: 30000 },
-);
+await page.goto(`${BASE}?twin=3d`, { waitUntil: 'load' });
+await page.waitForSelector('.sy-rail', { timeout: 60000 });
+await page.waitForSelector('canvas', { state: 'attached', timeout: 60000 });
 
-/**
- * Press a control, and fail loudly when it is not there.
- *
- * The return value used to be discarded at every call site, so a renamed label
- * meant the script measured the previous screen and still printed "every box
- * fits what is inside it, both themes, six screens". A gate that cannot tell you
- * it did not run is worse than no gate.
- */
+/** Press a control by its accessible name, and fail loudly when it is not there. */
 const press = async (...names) => {
   for (const name of names) {
     const hit = await page.evaluate((n) => {
       const all = [...document.querySelectorAll('button, [role="button"]')];
       const b = all.find((x) => ((x.getAttribute('aria-label') ?? x.textContent) ?? '').trim().startsWith(n));
-      b?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      b?.click();
       return !!b;
     }, name);
     if (hit) return;
@@ -68,145 +70,141 @@ const press = async (...names) => {
   throw new Error(`no control matching ${names.map((n) => `"${n}"`).join(' or ')}`);
 };
 
-const measure = (tolerance) => page.evaluate((tol) => {
-  const scrolls = (cs) => /auto|scroll/.test(cs.overflow + cs.overflowY + cs.overflowX);
-  const name = (el) => {
-    const cls = typeof el.className === 'string' ? el.className : '';
-    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 44);
-    return `${el.tagName.toLowerCase()}${cls ? `.${cls.split(/\s+/).join('.')}` : ''} "${text}"`;
-  };
-
-  const out = { overflow: [], spill: [] };
-  // The console draws at a fixed 1920x1080 and is SCALED into the window, so the
-  // shell itself is legitimately taller than its clipped box. Everything inside
-  // it is measured against its own parent instead.
-  const shell = document.querySelector('.console-root') ?? document.body;
-
-  for (const el of shell.querySelectorAll('*')) {
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.position === 'fixed') continue;
-    if (scrolls(cs)) continue;
-    if (el.clientHeight < 24) continue;
-    // Only containers. A text node overflowing its own span is typography;
-    // a BOX overflowing and painting over the thing beneath it is the bug.
-    if (!el.firstElementChild) continue;
-    const over = el.scrollHeight - el.clientHeight;
-    if (over > tol) out.overflow.push({ el: name(el), over });
-  }
-
-  // Inside a scroll region, extending past the shell is how scrolling works.
-  // Only content in a box that CANNOT scroll is painting where nobody can reach
-  // it — which is the KPI strip's anomaly bars over the map.
-  const inScrollRegion = (el) => {
-    for (let p = el.parentElement; p && p !== shell.parentElement; p = p.parentElement) {
-      if (scrolls(getComputedStyle(p))) return true;
-    }
-    return false;
-  };
-
-  const sr = shell.getBoundingClientRect();
-  for (const el of shell.querySelectorAll('*')) {
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.position === 'fixed') continue;
-    if (inScrollRegion(el)) continue;
-    const r = el.getBoundingClientRect();
-    if (r.height < 2 || r.width < 2) continue;
-    const below = r.bottom - sr.bottom;
-    const right = r.right - sr.right;
-    if (below > tol || right > tol) {
-      out.spill.push({ el: name(el), below: Math.round(below), right: Math.round(right) });
-    }
-  }
-
-  const dedupe = (rows) => {
-    const seen = new Set();
-    return rows.filter((r) => (seen.has(r.el) ? false : seen.add(r.el)));
-  };
-  return { overflow: dedupe(out.overflow).slice(0, 12), spill: dedupe(out.spill).slice(0, 12) };
-}, tolerance);
-
-const screens = ['Site', 'Drones', 'Missions', 'Repairs', 'Analytics', 'Rehearsal'];
-const faults = [];
-
-// Run the site forward so the faulted arrays exist and the strip has real chips.
-await press('Run site time at 600');
-await page.waitForTimeout(8000);
-await press('Run site time at 60');
-
-for (const theme of ['dark', 'light']) {
-  if (theme === 'light') { await press('Switch to light theme'); await page.waitForTimeout(500); }
-  for (const screen of screens) {
-    await press(screen);
-    await page.waitForTimeout(900);
-    const m = await measure(TOLERANCE);
-    for (const o of m.overflow) faults.push(`${theme}/${screen}  OVERFLOW +${o.over}px  ${o.el}`);
-    for (const s of m.spill) faults.push(`${theme}/${screen}  SPILL ${s.below}px below  ${s.el}`);
-  }
-}
-
-// The array panel and the incident file, which are the densest surfaces here.
-await press('Switch to dark theme');
-await press('Site');
-await page.waitForTimeout(500);
-await press('Array B-17');
-await page.waitForTimeout(1000);
-for (const o of (await measure(TOLERANCE)).overflow) {
-  faults.push(`array panel  OVERFLOW +${o.over}px  ${o.el}`);
-}
-await press('Open incident file', 'Open inspection dossier');
-await page.waitForTimeout(1200);
-for (const o of (await measure(TOLERANCE)).overflow) {
-  faults.push(`incident file  OVERFLOW +${o.over}px  ${o.el}`);
-}
-
 /**
- * THE 3D CANVAS AGAINST THE BOX IT IS IN.
- *
- * Not an overflow — an UNDERFLOW, and the only one that matters. R3F measures its
- * container with getBoundingClientRect(), which returns POST-transform pixels, so
- * under the console's fit-to-window scale it sized the canvas to `scale x 1920`
- * and the wrapper shrank it again: at 1512x900 the scene covered 62% of the frame
- * and the rest was black. Every screenshot harness runs at 1920x1080, where the
- * scale is 1 and the fault is invisible. This runs at whatever viewport it was
- * given, which is the point.
+ * Wait for the screen to stop moving. Under a software renderer a CSS animation
+ * may not advance during a fixed wait, and a measurement taken mid-rise reads a
+ * panel six pixels from where it will be.
  */
-await press('Site');
-await page.waitForTimeout(500);
-await press('Array B-17');
-await page.waitForTimeout(800);
-await press('DISPATCH DRONE', 'FLY ANYWAY');
-await page.waitForTimeout(9000);
+const settle = () => page.waitForFunction(
+  () => document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
+  null, { timeout: 15000 },
+);
 
-const canvas = await page.evaluate(() => {
-  const c = document.querySelector('canvas');
-  if (!c) return null;
-  const cr = c.getBoundingClientRect();
-  const pr = c.parentElement.getBoundingClientRect();
-  return {
-    coverage: (cr.width * cr.height) / (pr.width * pr.height),
-    canvas: [Math.round(cr.width), Math.round(cr.height)],
-    container: [Math.round(pr.width), Math.round(pr.height)],
+const measure = () => page.evaluate(({ minFont, tol }) => {
+  const faults = [];
+  const root = document.querySelector('.sy');
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const name = (el) => {
+    const cls = typeof el.className === 'string' && el.className ? `.${el.className.trim().split(/\s+/).join('.')}` : '';
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    return `${el.tagName.toLowerCase()}${cls} "${text}"`;
   };
-});
+  const visible = (el) => {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+  const ownText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 0);
 
-if (!canvas) {
-  faults.push('cinematic  the 3D canvas is not in the document after a dispatch');
-} else if (canvas.coverage < 0.98) {
-  faults.push(
-    `cinematic  CANVAS UNDERFLOW ${Math.round(canvas.coverage * 100)}% of its box  `
-    + `canvas ${canvas.canvas.join('x')} in container ${canvas.container.join('x')}`,
-  );
+  for (const el of root.querySelectorAll('*')) {
+    if (!visible(el) || el.closest('.sy-anchors') || el.tagName === 'OPTION') continue;
+    const cs = getComputedStyle(el);
+    if (cs.textTransform === 'uppercase') faults.push(`CASE  uppercase on ${name(el)}`);
+    if (!ownText(el)) continue;
+    const size = parseFloat(cs.fontSize);
+    if (size < minFont) faults.push(`TYPE  ${size}px on ${name(el)}`);
+    if (/mono/i.test(cs.fontFamily.split(',')[0]) && !el.closest('.id')) {
+      faults.push(`MONO  monospace outside an identifier: ${name(el)}`);
+    }
+  }
+
+  const scrolls = (el) => /auto|scroll/.test(getComputedStyle(el).overflowY);
+  for (const frame of root.querySelectorAll('.sy-rail, .sy-stage, .sy-left > *, .sy-flightbar')) {
+    if (!visible(frame)) continue;
+    const r = frame.getBoundingClientRect();
+    if (r.left < -tol || r.top < -tol || r.right > vw + tol || r.bottom > vh + tol) {
+      faults.push(`FRAME ${name(frame)} leaves the viewport: ${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)}`);
+    }
+    if (!scrolls(frame) && frame.scrollHeight - frame.clientHeight > tol + 10) {
+      faults.push(`CLIPPED ${name(frame)} holds ${frame.scrollHeight - frame.clientHeight}px more than it shows and cannot scroll`);
+    }
+    for (const el of frame.querySelectorAll('.blk, .blk-bd > *, .tool, .approve, .chip')) {
+      if (!visible(el)) continue;
+      const e = el.getBoundingClientRect();
+      if (e.right > r.right + tol || e.left < r.left - tol) {
+        faults.push(`CLIPPED ${name(el)} is wider than its sheet by ${Math.round(Math.max(e.right - r.right, r.left - e.left))}px`);
+      }
+      if (el.scrollWidth - el.clientWidth > tol && !/auto|scroll/.test(getComputedStyle(el).overflowX)
+        && getComputedStyle(el).textOverflow !== 'ellipsis' && el.clientWidth > 0) {
+        faults.push(`CLIPPED ${name(el)} holds ${el.scrollWidth - el.clientWidth}px more than its width`);
+      }
+    }
+  }
+
+  const canvas = document.querySelector('.sy-twin canvas');
+  if (canvas) {
+    const c = canvas.getBoundingClientRect();
+    const cover = (c.width * c.height) / (vw * vh);
+    if (cover < 0.98) faults.push(`CANVAS covers ${Math.round(cover * 100)}% of the viewport`);
+  } else {
+    faults.push('CANVAS the twin is not in the document');
+  }
+  return [...new Set(faults)];
+}, { minFont: MIN_FONT_PX, tol: TOLERANCE });
+
+const faults = [];
+const check = async (label) => {
+  await settle();
+  for (const f of await measure()) faults.push(`${label}  ${f}`);
+};
+
+/* The committed rehearsal state, with B-17 selected, flown and inspected, so the
+   densest version of every screen is the one that gets measured. */
+await press('Rehearsal');
+await page.selectOption('[aria-label="Select array"]', 'B-17');
+await check('dark/Site, selected');
+await press('Dispatch drone');
+await check('dark/Site, following a flight');
+await press('Run site time at 600');
+await page.waitForFunction(
+  () => [...document.querySelectorAll('button')].some((b) => b.textContent.trim().startsWith('Approve work order')),
+  null, { timeout: 180000 },
+);
+await press('Run site time at 60');
+await press('Pause site clock');
+await press('Back to the field');
+
+const SCREENS = ['Site', 'Incident', 'Queue', 'Analytics', 'Drones', 'Sandbox'];
+for (const theme of ['dark', 'light']) {
+  if (theme === 'light') await press('Switch to light theme');
+  for (const screen of SCREENS) {
+    await press(screen);
+    await check(`${theme}/${screen}`);
+    if (screen === 'Incident') {
+      await press('Dossier');
+      await check(`${theme}/Dossier`);
+      await press('Summary');
+    }
+  }
+  await press('Site');
+  await press('Show the working', 'Hide the working');
+  await check(`${theme}/Site, working shown`);
+  await press('Show the working', 'Hide the working');
+}
+await press('Switch to dark theme');
+
+/* The hero's state: a dropped hazard, and one in the hand. */
+await press('Heatwave');
+await press('Dust storm');
+await check('dark/Site, hazard held');
+await page.keyboard.press('Escape');
+
+/* The 2D fallback has the same frame and the same rules, minus the canvas. */
+await page.goto(`${BASE}?twin=2d`, { waitUntil: 'load' });
+await page.waitForSelector('.sy-map', { timeout: 60000 });
+await settle();
+for (const f of await measure()) {
+  if (!f.startsWith('CANVAS')) faults.push(`dark/2D fallback  ${f}`);
 }
 
 await browser.close();
 
 for (const e of errors) console.log(`  ${e}`);
 if (faults.length || errors.length) {
-  console.log(`\ncheck:layout — ${faults.length} boxes smaller than their contents\n`);
+  console.log(`\ncheck:layout at ${W}x${H}: ${faults.length} faults\n`);
   for (const f of faults) console.log(`  ${f}`);
   process.exit(1);
 }
-console.log(`
-check:layout — every box fits what is inside it, both themes, six screens.`);
-console.log(`  the 3D canvas fills ${Math.round((canvas?.coverage ?? 0) * 100)}% of its box at ${W}x${H} — ${canvas?.canvas.join('x')} in ${canvas?.container.join('x')}
-`);
+console.log(`check:layout at ${W}x${H}: every screen in both themes holds the type floor, sentence case, mono for identifiers only, and fits its frame.`);

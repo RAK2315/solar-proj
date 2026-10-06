@@ -12,16 +12,25 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 
 import { FieldMap } from '@/components/fallback/FieldMap';
-import { CurvePanel, LossPanel, ZonesPanel } from '@/components/overlay/AnalyticsPanels';
+import {
+  CurvePanel, LossPanel, ModelPanel, WeatherPanel, ZonesPanel,
+} from '@/components/overlay/AnalyticsPanels';
 import { ArrayPanel } from '@/components/overlay/ArrayPanel';
-import { FleetPanel, MissionsPanel } from '@/components/overlay/DronePanels';
+import {
+  CapturesPanel, CommittedRunPanel, DetectorPanel, InverterPanel, MatrixPanel, ReasoningPanel,
+} from '@/components/overlay/DossierPanels';
+import {
+  CommsPanel, FleetPanel, MissionProfilePanel, MissionsPanel,
+} from '@/components/overlay/DronePanels';
 import { FeedPanel } from '@/components/overlay/FeedPanel';
 import { HazardPalette, HazardsPanel } from '@/components/overlay/HazardPalette';
 import { ChainPanel, DeferPanel } from '@/components/overlay/IncidentPanels';
-import { PlanPanel, QueuePanel } from '@/components/overlay/QueuePanel';
+import { OrdersPanel, PlanPanel, QueuePanel } from '@/components/overlay/QueuePanel';
+import { FlightOverlay } from '@/components/twin/FlightOverlay';
+import { hasCapturedEvidence } from '@/lib/data';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
 import { HAZARD_SPEC } from '@/lib/hazard';
-import { useFootprints } from '@/store/selectors';
+import { useFollowingFlight, useFootprints, useSelectedPanelId } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Rail, screenOf, type ScreenId } from './Rail';
 
@@ -30,13 +39,51 @@ const Twin = dynamic(() => import('@/components/twin/Twin'), { ssr: false, loadi
 /** Screens where the field is the subject and the sheet stays to one side. */
 const SIDE: ReadonlySet<ScreenId> = new Set(['site', 'sandbox']);
 
+/** The incident screen holds two views of one array: the summary and the dossier. */
+function IncidentBar({ dossier }: { dossier: boolean }) {
+  const panelId = useSelectedPanelId();
+  const setDossier = useSession((s) => s.setDossier);
+  return (
+    <header className="screenbar">
+      <h1><span className="id">{panelId}</span> incident</h1>
+      <div className="seg" role="group" aria-label="Incident view">
+        <button type="button" className="tool quiet" aria-pressed={!dossier} onClick={() => setDossier(false)}>Summary</button>
+        <button type="button" className="tool quiet" aria-pressed={dossier} onClick={() => setDossier(true)}>Dossier</button>
+      </div>
+    </header>
+  );
+}
+
+function Incident() {
+  const dossier = useSession((s) => s.dossierOpen);
+  const panelId = useSelectedPanelId();
+  return dossier ? (
+    <>
+      <IncidentBar dossier />
+      <ChainPanel />
+      <div className="col"><CapturesPanel /><DetectorPanel /></div>
+      {/* The matrix is the signature element and is never dropped for space.
+          It is dropped for an array we hold no capture of, because it would be
+          another array's measurement. */}
+      {hasCapturedEvidence(panelId) ? <MatrixPanel /> : <ReasoningPanel />}
+    </>
+  ) : (
+    <>
+      <IncidentBar dossier={false} />
+      <div className="col"><ArrayPanel linkToIncident={false} /><InverterPanel /></div>
+      <ChainPanel />
+      <div className="col"><DeferPanel /><ReasoningPanel /><CommittedRunPanel /></div>
+    </>
+  );
+}
+
 function Panels({ screen }: { screen: ScreenId }) {
   switch (screen) {
     case 'site': return <><ArrayPanel /><QueuePanel footer /></>;
-    case 'incident': return <><ArrayPanel linkToIncident={false} /><ChainPanel /><DeferPanel /></>;
-    case 'queue': return <><QueuePanel /><PlanPanel /></>;
-    case 'analytics': return <><CurvePanel /><LossPanel /><ZonesPanel /></>;
-    case 'drones': return <><FleetPanel /><MissionsPanel /></>;
+    case 'incident': return <Incident />;
+    case 'queue': return <><QueuePanel /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
+    case 'analytics': return <><CurvePanel /><WeatherPanel /><LossPanel /><ZonesPanel /><ModelPanel /></>;
+    case 'drones': return <><div className="col"><FleetPanel /><CommsPanel /></div><div className="col"><MissionsPanel /><MissionProfilePanel /></div></>;
     case 'sandbox': return <><HazardsPanel /><InjectPanel /><ScenarioPanel /><QueuePanel /></>;
   }
 }
@@ -61,6 +108,8 @@ export function Shell() {
   const fallback = useSession((s) => s.twinFallback);
   const holding = useSession((s) => s.armedHazard !== null);
   const footprints = useFootprints();
+  const dossier = useSession((s) => s.dossierOpen);
+  const following = useFollowingFlight();
   const overlay = useRef<HTMLDivElement>(null);
   const [probe, setProbe] = useState<{ ready: boolean; forced: Forced }>({ ready: false, forced: null });
 
@@ -79,6 +128,7 @@ export function Shell() {
       data-screen={screen}
       data-fallback={fallback ? 'true' : 'false'}
       data-dragging={holding ? 'true' : 'false'}
+      data-follow={following ? 'true' : 'false'}
     >
       <div className="sy-twin">
         {probe.ready && (fallback
@@ -94,6 +144,7 @@ export function Shell() {
             </div>
           ))}
         </div>
+        {!fallback && <FlightOverlay />}
       </div>
 
       <Rail screen={screen} />
@@ -105,7 +156,7 @@ export function Shell() {
         </div>
       )}
 
-      <main className="sy-stage" data-layout={side ? 'side' : 'wide'} data-screen={screen}>
+      <main className="sy-stage" data-layout={side ? 'side' : 'wide'} data-screen={screen === 'incident' && dossier ? 'dossier' : screen}>
         <Panels screen={screen} />
       </main>
     </div>

@@ -41,6 +41,7 @@ import { z } from 'zod';
 
 import { allowedNumbers, checkProse, checkTriage, type TriageFacts } from '@/lib/agentCheck';
 import { farm, forecast } from '@/lib/data';
+import type { HazardEvent } from '@/lib/hazard';
 import { liveFrameAt, type ScenarioEvent } from '@/lib/live';
 import { CELL_TEMP_REF_C, cellTemp } from '@/lib/physics';
 import { LiveTriageOutput } from '@/lib/types';
@@ -73,11 +74,33 @@ const InjectedEvent = z.object({
   injected: z.literal(true).optional(),
 }).strict();
 
+/**
+ * A sandbox hazard, on the same terms as an injected fault: a CAUSE, strictly
+ * shaped. What it does to any reading is computed here by lib/hazard.ts. Without
+ * it the agent would be describing a site the operator is no longer looking at.
+ */
+const HazardTiming = {
+  id: z.string().max(80),
+  startHour: z.number().finite(),
+  rampMinutes: z.number().finite().min(0).max(600),
+  durationHours: z.number().finite().min(0).max(200).nullable(),
+};
+const Footprint = {
+  cx: z.number().finite(), cy: z.number().finite(),
+  radius: z.number().min(0).max(500), intensity: z.number().min(0).max(1),
+};
+const HazardInput = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('dust'), ...Footprint, ...HazardTiming }).strict(),
+  z.object({ kind: z.literal('cloud'), ...Footprint, ...HazardTiming }).strict(),
+  z.object({ kind: z.literal('heatwave'), intensity: z.number().min(0).max(20), ...HazardTiming }).strict(),
+]);
+
 const TriageRequest = z.object({
   panelId: z.string().min(1).max(12),
   siteSeconds: z.number().finite(),
   /** Faults the operator raised this session. Capped so a request cannot be huge. */
   injected: z.array(InjectedEvent).max(20).optional(),
+  hazards: z.array(HazardInput).max(12).optional(),
 }).strict();
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -179,6 +202,7 @@ function buildFacts(
   panelId: string,
   siteSeconds: number,
   injected: ScenarioEvent[] = [],
+  hazards: HazardEvent[] = [],
 ): TriageFacts | null {
   const panel = farm.zones.flatMap((z) => z.panels).find((p) => p.id === panelId);
   if (!panel) return null;
@@ -187,7 +211,7 @@ function buildFacts(
   // console merges them, so the agent and the screen are looking at one world.
   // Second argument is the set of arrays with approved work orders, which the
   // server has no business knowing; the injections are the third.
-  const frame = liveFrameAt(siteSeconds, new Set(), injected);
+  const frame = liveFrameAt(siteSeconds, new Set(), injected, hazards);
   const reading = frame.panels[panelId];
   if (!reading) return null;
 
@@ -260,9 +284,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { panelId, siteSeconds, injected = [] } = parsed.data;
+  const { panelId, siteSeconds, injected = [], hazards = [] } = parsed.data;
 
-  const facts = buildFacts(panelId, siteSeconds, injected);
+  const facts = buildFacts(panelId, siteSeconds, injected, hazards);
   if (!facts) {
     return NextResponse.json({ error: 'unknown-array' }, { status: 404 });
   }

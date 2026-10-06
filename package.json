@@ -16,12 +16,10 @@
     "sync:artefacts": "node scripts/sync_artefacts.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "shoot": "node scripts/shoot.mjs",
     "pack:telemetry": "tsx scripts/pack_telemetry.ts",
-    "check:live": "node scripts/check_live.mjs",
     "demo": "node scripts/serve.mjs",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "check:layout": "node scripts/check_layout.mjs"
+    "check:layout": "node scripts/check_layout.mjs 1920 1080 && node scripts/check_layout.mjs 1366 768"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -36,7 +34,6 @@
     "onnxruntime-web": "^1.19.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "recharts": "^2.15.4",
     "tailwind-merge": "^3.3.1",
     "three": "^0.180.0",
     "zod": "^4.1.11",

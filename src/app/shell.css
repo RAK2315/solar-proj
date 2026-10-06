@@ -57,6 +57,10 @@
   --well: rgb(16 21 31 / 0.05);
 }
 
+/* Dark glass over the drone's daylit view. Measured at the design gate: secondary
+   text needs the backdrop darkened by half to hold 4.5:1 over the bright ground. */
+:root:not([data-theme='light']) .sy[data-follow='true'] { --glass: rgb(12 16 23 / 0.76); }
+
 .sy [data-sev='info'], .sy [data-sev='healthy'] { --sev: var(--line-hi); --sev-ink: var(--ink); }
 .sy [data-sev='critical'] { --sev: var(--i60); --sev-ink: var(--crit-ink); }
 .sy [data-sev='warning'] { --sev: var(--i80); --sev-ink: var(--warn-ink); }
@@ -126,7 +130,12 @@
 }
 .sy-stage > * { min-width: 0; }
 
-.sy-stage[data-layout='side'] { width: 404px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+/* It scrolls as a last resort: with the working shown at 768 high, the array
+   panel and a usable queue do not both fit, and clipping either hides a reading. */
+.sy-stage[data-layout='side'] {
+  width: 404px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
+}
 .sy-stage[data-layout='wide'] {
   left: var(--stage-left); padding: 26px 30px;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 22px 32px;
@@ -334,3 +343,73 @@
 .sy-stage[data-screen='incident'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr); }
 .sy-stage[data-screen='queue'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
 .sy-stage[data-screen='analytics'] > [data-b='curve'] { grid-column: 1 / -1; }
+
+/* ── Screens with more than one view, and columns inside a sheet ─────────── */
+
+.col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.screenbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.screenbar h1 { font-size: var(--t3); font-weight: 500; line-height: 1.2; }
+.seg { display: flex; gap: 4px; }
+.seg .tool { padding: 8px 14px; }
+.sy-stage[data-screen='dossier'] { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr); }
+.sy-stage[data-screen='analytics'] > [data-b='model'] { grid-column: 1 / -1; }
+.sy-stage[data-screen='incident'] .blk-hd h2, .sy-stage[data-screen='dossier'] .blk-hd h2 { font-size: var(--t2); }
+
+/* ── Dossier ─────────────────────────────────────────────────────────────── */
+
+.caps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.caps figure { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.caps img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; border: 1px solid var(--glass-line); }
+.caps figcaption { color: var(--ink-2); }
+.media { display: flex; flex-direction: column; gap: 4px; }
+.media audio { width: 100%; height: 34px; }
+.media video { width: 100%; border-radius: 6px; }
+
+.detframe { position: relative; line-height: 0; }
+.detframe img { display: block; width: 100%; border-radius: 6px; border: 1px solid var(--glass-line); }
+.detframe[data-bare='true'] { width: 100%; height: 100%; }
+.detframe .box { position: absolute; border: 2px solid var(--live); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.55); }
+.detframe .tag {
+  position: absolute; left: -2px; bottom: 100%; padding: 2px 6px; white-space: nowrap; line-height: 1.3;
+  background: var(--live); color: var(--on-live); font-weight: 500;
+}
+.runs { display: flex; flex-direction: column; gap: 2px; color: var(--ink-2); }
+.runs [data-latest='true'] { color: var(--ink); }
+.one b, .work b { font-weight: 600; color: var(--ink); }
+
+.matrix { display: grid; grid-template-columns: 30px repeat(7, minmax(0, 1fr)); gap: 2px; padding: 8px; border-radius: 10px; background: var(--well); }
+.matrix span { display: grid; place-items: center; min-height: 40px; border-radius: 3px; }
+.matrix .hd { color: var(--ink-2); min-height: 24px; }
+.matrix span:first-child { min-height: 24px; }
+.matrix .cell { background: color-mix(in oklab, var(--ink) 6%, transparent); font-weight: 600; }
+.matrix .cell[data-ink='dark'] { color: #070a0f; }
+.matrix .cell[data-ink='light'] { color: #ffffff; }
+.matrix .cell[data-defect='true'] { outline: 2px solid #fff3d6; outline-offset: -2px; }
+.defects { padding: 4px 12px; border-radius: 10px; background: var(--well); }
+.defects li { display: flex; align-items: center; gap: 10px; padding: var(--row) 0; }
+.defects li > span:nth-child(2) { flex: 1; }
+
+/* Skeleton at the final dimensions, never a centred spinner. */
+.skeleton { display: flex; flex-direction: column; gap: 8px; }
+.skeleton i { height: 14px; border-radius: 4px; background: var(--well); animation: sy-breathe 1.2s ease-in-out infinite alternate; }
+.skeleton i:nth-child(2) { width: 92%; }
+.skeleton i:nth-child(3) { width: 64%; }
+@keyframes sy-breathe { from { opacity: 0.5; } to { opacity: 1; } }
+
+.tbl tr[data-hot='true'] td { color: var(--sev-ink); font-weight: 500; }
+.orders li, .legs li { grid-template-columns: 46px 76px 1fr; }
+.plan.legs li { grid-template-columns: minmax(0, 1.4fr) 1fr auto; }
+.rules { display: flex; flex-direction: column; gap: 4px; }
+.formula { font-size: var(--t1); overflow-wrap: anywhere; }
+.curve.short { height: 64px; }
+
+/* ── Following a flight ──────────────────────────────────────────────────── */
+
+.sy-flight { position: absolute; inset: 0; z-index: var(--z-overlay); pointer-events: none; }
+.sy-reticle { position: absolute; }
+.sy-flightbar {
+  position: absolute; left: var(--stage-left); bottom: var(--edge); max-width: calc(100% - var(--stage-left) - 452px);
+  display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 12px; border-radius: 18px; pointer-events: auto;
+}
+.sy-flightbar .says { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.sy-flightbar .tool { padding: 8px 12px; }

@@ -11,23 +11,23 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
  * The rules below are not style. They are the invariants that protect the demo,
  * and they are the cheapest insurance in the project — see plan/02 §7.
  *
- * ONE CLOCK. `t` in src/store/demoClock.ts is the only source of time, advanced by
- * the single rAF loop in src/hooks/useDemoClock.ts. A second timer anywhere is what
- * desyncs the console from the cinematic, and CLAUDE.md §17 ranks it the most likely
- * failure in the whole build. Presentational CSS animation is fine — anything a
- * selector READS must come from `t`.
+ * ONE CLOCK. `siteSeconds` in src/store/session.ts is the only source of time,
+ * advanced by the single rAF loop in src/hooks/useSiteClock.ts. A second timer
+ * anywhere is what desyncs the panels from the twin, and CLAUDE.md §17 ranks it the
+ * most likely failure in the whole build. Presentational CSS animation is fine;
+ * anything a selector READS must come from site time.
  */
 const ONE_CLOCK_GLOBALS = [
-  { name: "setInterval", message: "One clock only. Derive from t — see src/store/demoClock.ts." },
-  { name: "setTimeout", message: "One clock only. Derive from t — see src/store/demoClock.ts." },
-  { name: "requestAnimationFrame", message: "The only rAF loop lives in src/hooks/useDemoClock.ts." },
+  { name: "setInterval", message: "One clock only. Derive from site time. See src/store/session.ts." },
+  { name: "setTimeout", message: "One clock only. Derive from site time. See src/store/session.ts." },
+  { name: "requestAnimationFrame", message: "The only rAF loop lives in src/hooks/useSiteClock.ts." },
 ];
 
 const NO_SECOND_TIMER = {
   selector:
     "CallExpression[callee.name=/^(setInterval|setTimeout|requestAnimationFrame)$/]",
   message:
-    "One clock only. The single rAF loop is in src/hooks/useDemoClock.ts; everything visible is a pure function of t.",
+    "One clock only. The single rAF loop is in src/hooks/useSiteClock.ts; everything visible is a pure function of t.",
 };
 
 const NO_RANDOM = {
@@ -55,7 +55,7 @@ const eslintConfig = [
 
   {
     // Components may not own time. useFrame is allowed only in scene/, and only to
-    // READ useDemoClock.getState().t — never to accumulate.
+    // READ site time from the session, never to accumulate it.
     files: ["src/components/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-globals": ["error", ...ONE_CLOCK_GLOBALS],
@@ -65,7 +65,7 @@ const eslintConfig = [
 
   {
     // The one legal exception, written as an exception so it stays visible.
-    files: ["src/hooks/useDemoClock.ts"],
+    files: ["src/hooks/useSiteClock.ts"],
     rules: {
       "no-restricted-globals": "off",
       "no-restricted-syntax": ["error", NO_RANDOM, NO_STORAGE],

@@ -98,6 +98,8 @@ interface TriageState {
     condition: string,
     /** Faults the operator injected this session — causes, never readings. */
     injected?: readonly unknown[],
+    /** Sandbox hazards in force. Causes too: the route computes what they do. */
+    hazards?: readonly unknown[],
   ) => Promise<void>;
   /** Ask again for an array that failed. The only way past an `unavailable`. */
   retry: (
@@ -105,6 +107,7 @@ interface TriageState {
     siteSeconds: number,
     condition: string,
     injected?: readonly unknown[],
+    hazards?: readonly unknown[],
   ) => Promise<void>;
   clear: () => void;
 }
@@ -122,7 +125,7 @@ export const AGENT_TIMEOUT_MS = 20_000;
 export const useTriage = create<TriageState>((set, get) => ({
   byPanel: {},
 
-  request: async (panelId, siteSeconds, condition, injected = []) => {
+  request: async (panelId, siteSeconds, condition, injected = [], hazards = []) => {
     const existing = get().byPanel[panelId];
     // One request per array PER CONDITION. Already loading, already answered,
     // already known to be unavailable — all mean do not ask again, unless the
@@ -145,7 +148,7 @@ export const useTriage = create<TriageState>((set, get) => ({
         // A panel id, a time, and the operator's own injected CAUSES. Never a
         // reading — the route recomputes every figure from these and rejects any
         // extra key outright.
-        body: JSON.stringify({ panelId, siteSeconds, injected }),
+        body: JSON.stringify({ panelId, siteSeconds, injected, hazards }),
         signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
       });
 
@@ -218,7 +221,7 @@ export const useTriage = create<TriageState>((set, get) => ({
     }
   },
 
-  retry: async (panelId, siteSeconds, condition, injected = []) => {
+  retry: async (panelId, siteSeconds, condition, injected = [], hazards = []) => {
     // Drop the entry first: `request` refuses to ask again for anything that is
     // not idle, which is what stops it re-asking on every render.
     set((s) => {
@@ -227,7 +230,7 @@ export const useTriage = create<TriageState>((set, get) => ({
       return { byPanel: rest };
     });
 
-    await get().request(panelId, siteSeconds, condition, injected);
+    await get().request(panelId, siteSeconds, condition, injected, hazards);
   },
 
   clear: () => set({ byPanel: {} }),

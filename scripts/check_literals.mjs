@@ -53,6 +53,23 @@ const FORBIDDEN = [
   ['38.1', 'peak ambient — useForecast()'],
 ];
 
+/**
+ * THE VOCABULARY RULE, as a build failure. CLAUDE.md rule 5, in words.
+ *
+ * We hold one real thermal capture, of B-17. So one array can be DIAGNOSED and
+ * the other 119 are FLAGGED FROM MODELLED SIGNATURE, however sure the model is.
+ * The word may be written in exactly one place: src/lib/basis.ts, which decides
+ * per array whether it has been earned. Anywhere else, a component is choosing
+ * the verb for itself, and that is how one array's evidence ends up described
+ * under another's name.
+ *
+ * The function `diagnose()` in lib/causes.ts is a different word: it names what
+ * the triage does with instrument readings, and it never reaches the screen.
+ */
+const FORBIDDEN_PHRASES = [
+  { pattern: /\bdiagnosed\b/i, only: 'src/lib/basis.ts', why: 'the verb is chosen per array by basisFor() in src/lib/basis.ts' },
+];
+
 function walk(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {
@@ -90,15 +107,20 @@ for (const path of walk(ROOT)) {
         findings.push({ rel, line: i + 1, literal, source, text: original[i].trim() });
       }
     }
+    for (const { pattern, only, why } of FORBIDDEN_PHRASES) {
+      if (rel !== only && pattern.test(line)) {
+        findings.push({ rel, line: i + 1, literal: line.match(pattern)[0], source: why, text: original[i].trim() });
+      }
+    }
   });
 }
 
 if (findings.length === 0) {
-  console.log('check:literals — clean. No headline number is hardcoded in src/.');
+  console.log('check:literals — clean. No headline number is hardcoded in src/, and "diagnosed" is written only where it is earned.');
   process.exit(0);
 }
 
-console.error('\x1b[31mcheck:literals FAILED\x1b[0m — hardcoded demo numbers found:\n');
+console.error('\x1b[31mcheck:literals FAILED\x1b[0m — hardcoded numbers or a forbidden phrase found:\n');
 for (const f of findings) {
   console.error(`  ${f.rel}:${f.line}  "${f.literal}"`);
   console.error(`    ${f.text}`);

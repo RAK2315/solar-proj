@@ -166,7 +166,7 @@ describe('once evidence is back', () => {
   });
 
   it('is diagnosed', () => {
-    expect(buildIncident(inspected).state).toBe('diagnosed');
+    expect(buildIncident(inspected).state).toBe('assessed');
   });
 });
 

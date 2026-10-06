@@ -1,18 +1,15 @@
 /**
- * The flight cue — the thing that makes one inspection sequence serve both modes.
+ * The flight cue: a real mission, placed on the scene's own timeline.
  *
- * The bug this was written for: dispatching a drone in live mode did nothing to
- * the cinematic, because the scene read the demo clock and the demo clock does not
- * move in live mode. So the assertions that matter are (a) a real mission produces
- * a cue that sits on the scene's own timeline, (b) the mapping lands each mission
- * leg exactly on its beat rather than approximately, and (c) flying somewhere
- * other than B-17 does not carry B-17's defect along with the camera.
+ * The assertions that matter are (a) a mission produces a cue that sits on that
+ * timeline, (b) the mapping lands each leg exactly on its mark rather than
+ * approximately, and (c) flying somewhere other than B-17 does not carry B-17's
+ * defect along with the camera.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { M, inspectionTarget, FAULTED_ARRAY_ID, DAMAGED_MODULE } from '@/lib/scene';
-import { useDemoClock } from './demoClock';
 import { flightCueAt, flightCueNow, flightTAt } from './flightCue';
 import { MISSION, MISSION_TOTAL, useSession, type Mission } from './session';
 
@@ -22,10 +19,9 @@ const mission = (panelId: string, startedAt = 0): Mission => ({
 
 beforeEach(() => {
   useSession.setState({
-    mode: 'live', module: 'site', siteSeconds: 0, running: true,
-    selectedPanelId: null, missions: [], workOrders: [],
+    module: 'site', siteSeconds: 0, running: true,
+    selectedPanelId: null, missions: [], workOrders: [], followFlight: false,
   });
-  useDemoClock.setState({ t: 0, playing: false, approved: false, viewOverride: null });
 });
 
 describe('a live mission lands on the scene’s own timeline', () => {
@@ -39,44 +35,41 @@ describe('a live mission lands on the scene’s own timeline', () => {
   });
 
   it('is inactive with nothing in the air', () => {
-    expect(flightCueAt('live', 0, 0, []).active).toBe(false);
+    expect(flightCueAt(0, []).active).toBe(false);
   });
 
   it('activates the moment a drone is dispatched', () => {
-    const cue = flightCueAt('live', 0, 0, [mission('C-31')]);
+    const cue = flightCueAt(0, [mission('C-31')]);
     expect(cue.active).toBe(true);
     expect(cue.t).toBe(M.dispatch);
     expect(cue.targetId).toBe('C-31');
   });
 
-  it('advances with site time, not with the demo clock', () => {
+  it('advances with site time', () => {
     const ms = [mission('C-31')];
-    expect(flightCueAt('live', 0, MISSION.outbound, ms).t).toBe(M.lock);
-    // The demo clock is untouched throughout — that was the whole bug.
-    expect(flightCueAt('live', 0, MISSION.outbound, ms).t)
-      .toBe(flightCueAt('live', 999, MISSION.outbound, ms).t);
+    expect(flightCueAt(MISSION.outbound, ms).t).toBe(M.lock);
   });
 
   it('goes inactive again once the drone is home', () => {
     const ms = [mission('C-31')];
-    expect(flightCueAt('live', 0, MISSION_TOTAL + 1, ms).active).toBe(false);
+    expect(flightCueAt(MISSION_TOTAL + 1, ms).active).toBe(false);
   });
 
   it('rewinds rather than accumulating when site time is scrubbed back', () => {
     const ms = [mission('C-31', 600)];
-    expect(flightCueAt('live', 0, 300, ms).active).toBe(false);
-    expect(flightCueAt('live', 0, 600, ms).t).toBe(M.dispatch);
+    expect(flightCueAt(300, ms).active).toBe(false);
+    expect(flightCueAt(600, ms).t).toBe(M.dispatch);
   });
 
   it('follows the most recent launch when two drones are up', () => {
     const ms = [mission('A-08', 0), { ...mission('C-31', 120), id: 'MSN-002' }];
-    expect(flightCueAt('live', 0, 200, ms).targetId).toBe('C-31');
+    expect(flightCueAt(200, ms).targetId).toBe('C-31');
   });
 });
 
 describe('the camera goes where the drone was actually sent', () => {
   it('aims at the array the operator picked, not at B-17', () => {
-    const cue = flightCueAt('live', 0, 60, [mission('C-31')]);
+    const cue = flightCueAt(60, [mission('C-31')]);
     expect(cue.target).toEqual(inspectionTarget('C-31'));
     expect(cue.target).not.toEqual(DAMAGED_MODULE);
   });
@@ -88,36 +81,22 @@ describe('the camera goes where the drone was actually sent', () => {
     expect(seen.size).toBe(4);
   });
 
-  it('still puts the scripted run over B-17', () => {
-    const cue = flightCueAt('demo', 40, 0, []);
+  it('rests on B-17 when nothing is flying, which is the array drawn apart', () => {
+    const cue = flightCueAt(0, []);
     expect(cue.targetId).toBe(FAULTED_ARRAY_ID);
     expect(cue.target).toEqual(DAMAGED_MODULE);
-    expect(cue.t).toBe(40);
+    expect(cue.active).toBe(false);
   });
 });
 
 describe('the defect does not travel with the camera', () => {
   it('marks B-17 as cracked', () => {
-    expect(flightCueAt('live', 0, 60, [mission('B-17')]).cracked).toBe(true);
+    expect(flightCueAt(60, [mission('B-17')]).cracked).toBe(true);
   });
 
   it('does NOT mark a soiled array as cracked just because we flew there', () => {
-    expect(flightCueAt('live', 0, 60, [mission('A-08')]).cracked).toBe(false);
-    expect(flightCueAt('live', 0, 60, [mission('C-31')]).cracked).toBe(false);
-  });
-});
-
-describe('the demo is unchanged', () => {
-  it('is active exactly across the scripted cinematic window', () => {
-    expect(flightCueAt('demo', 17, 0, []).active).toBe(false);
-    expect(flightCueAt('demo', 18, 0, []).active).toBe(true);
-    expect(flightCueAt('demo', 73, 0, []).active).toBe(true);
-    expect(flightCueAt('demo', 74, 0, []).active).toBe(false);
-  });
-
-  it('ignores live missions entirely', () => {
-    const cue = flightCueAt('demo', 40, 5000, [mission('C-31')]);
-    expect(cue.targetId).toBe(FAULTED_ARRAY_ID);
+    expect(flightCueAt(60, [mission('A-08')]).cracked).toBe(false);
+    expect(flightCueAt(60, [mission('C-31')]).cracked).toBe(false);
   });
 });
 
@@ -133,11 +112,9 @@ describe('flightCueNow reads the live stores', () => {
     expect(cue.t).toBe(M.lock);
   });
 
-  it('clears a held view override, so the next mission is not suppressed', () => {
-    useDemoClock.getState().forceView('console');
-    expect(useDemoClock.getState().viewOverride).toBe('console');
-
+  it('follows the new flight even if the operator had taken the field back', () => {
+    useSession.getState().setFollowFlight(false);
     useSession.getState().dispatch('A-22');
-    expect(useDemoClock.getState().viewOverride).toBeNull();
+    expect(useSession.getState().followFlight).toBe(true);
   });
 });

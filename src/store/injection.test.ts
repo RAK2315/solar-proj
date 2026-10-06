@@ -17,7 +17,7 @@ import { liveQueueAt } from '@/lib/queue';
 import { INJECTABLE, useSession } from '@/store/session';
 
 const blank = () => useSession.setState({
-  mode: 'live', module: 'site', siteSeconds: 0, running: false,
+  module: 'site', siteSeconds: 0, running: false,
   selectedPanelId: null, missions: [], workOrders: [],
   overrides: [], injected: [], feedFilter: 'all',
 });

@@ -39,7 +39,7 @@ const LIFT_Z = Math.sin(PANEL_TILT) * PLATE_LIFT;
 export function Field({ dark }: { dark: boolean }) {
   // CrackedPanel draws this array even at rest, so it is excluded even at rest.
   const drawnApart = useSession(
-    (s) => flightCueAt('live', 0, s.siteSeconds, s.missions).targetId,
+    (s) => flightCueAt(s.siteSeconds, s.missions).targetId,
   );
   const inspecting = useFlightTargetId();
   const tints = useArrayTints();

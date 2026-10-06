@@ -103,7 +103,7 @@ export type IncidentState =
   | 'clear'          // nothing wrong with this array
   | 'detected'       // telemetry says something is wrong, cause unknown
   | 'investigating'  // a drone is on its way or on station
-  | 'diagnosed'      // evidence is back and a cause is proposed
+  | 'assessed'      // evidence is back and a cause is proposed
   | 'scheduled'      // an operator approved work
   | 'declined';      // an operator declined, with a reason
 
@@ -386,7 +386,7 @@ export function buildIncident(input: IncidentInput): Incident {
   const state: IncidentState = !deviating ? 'clear'
     : workOrderAt !== null ? 'scheduled'
       : override ? 'declined'
-        : inspected ? 'diagnosed'
+        : inspected ? 'assessed'
           : flying ? 'investigating'
             : 'detected';
 
