@@ -19,8 +19,8 @@ Repairs and Scenario screens, that thing no longer exists and the entry is histo
    `cracked_v1_middle` returns no box; `cracked_v2_top_left_corner` returns
    Cracked 0.795, and 0.80 on a real-time flight of B-17 (against 0.90 with the
    current texture); `not cracked` returns Cracked 0.838, so
-   `make_panel_textures.mts` refuses it as an intact texture. Waiting on the
-   owner's choice and on where the images came from.
+   `make_panel_textures.mts` refuses it as an intact texture. The owner ruled on
+   7 Oct 2026 to leave the textures as they are, so this is closed.
 3. **Prognosis and recommendation have no live path** (section 4).
 4. **A repair has no completion step** (section 6f).
 5. **The dust figure in the sandbox is a declared assumption** with no primary

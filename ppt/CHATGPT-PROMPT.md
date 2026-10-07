@@ -1,7 +1,7 @@
 # Prompt for ChatGPT
 
-Attach `slides.md`, `SOURCES.md`, every file in `images/`, and, if you want it
-restyled and not rebuilt, `SURYA-AGENT-Round1.pptx`. Then paste the prompt below.
+Attach `slides.md`, `SOURCES.md`, every file in `images/` and `images/icons/`,
+and, if you want it restyled and not rebuilt, `SURYA-AGENT-Round1.pptx`. Then paste the prompt below.
 
 ---
 
@@ -12,11 +12,11 @@ presenter, so every slide has to make sense on its own.
 
 **What you are given**
 
-- `slides.md` has one section per slide: the section label, the title, every
-  piece of text on the slide in reading order, which picture goes where, and the
-  speaker notes.
+- `slides.md` has one section per slide: the title, which of the organisers'
+  sections it covers, every piece of text on the slide in reading order, which
+  picture and which icon goes where, and the speaker notes.
 - `images/` holds the pictures, named by slide number. They are screenshots of
-  the working prototype.
+  the working prototype. `images/icons/` holds the icons, one per icon row.
 - `SOURCES.md` says where every figure comes from. Use it to check yourself. Do
   not put it on a slide.
 
@@ -41,24 +41,31 @@ presenter, so every slide has to make sense on its own.
 7. Do not stretch, recolour, redraw or retouch a picture. Keep each one's own
    proportions. You may crop one only to show part of the screen more clearly.
    Do not generate new images.
-8. Keep all 15 slides, in order, and keep the section label above each title.
-   The seven numbered labels are the seven things the organisers ask for.
+8. Keep all eight slides, in order, with their titles. Between them they cover
+   the seven things the organisers ask for; `slides.md` says which slide covers
+   which. Slides 2, 4, 6 and 8 carry no picture, on purpose: do not add one.
 9. Put the speaker notes from `slides.md` into each slide's notes pane, not on
    the slide.
-10. Slide 11 is an architecture diagram. Draw it from boxes and arrows, following
-    the description in `slides.md`.
+10. Slide 4 has a flow diagram and slide 2 a small one. Draw them from boxes and
+    arrows, following the description in `slides.md`.
 
 **Design**
 
-- 16:9. The screenshots are dark, so use a dark background that they sit into,
-  near black, with one warm accent (orange to amber) and one cool accent (teal).
-  Red is for the critical figure and the operator's approval only.
-- Titles about 28 pt, body text no smaller than 14 pt, captions no smaller than
-  10 pt. Left-align body text. One plain sans-serif font throughout.
-- No decorative stripes, no lines under titles, no clip art, no stock photos.
-- Leave at least half an inch of margin. Nothing may overflow its box or run off
-  the slide. If text does not fit, shorten the sentence, do not shrink it below
-  the sizes above.
+- 16:9, light: white slides. The format is a dense idea-submission sheet, not a
+  talk deck. Every slide has the same frame: a "Sigmoid" mark top left, the
+  slide title centred in bold serif capitals, "JSS AI FORGE 36 / AI for Industry
+  4.0" top right, a thin rule under them, and a blue footer band with the slide
+  number.
+- Inside the frame: blue section bars with white text, blocks in a thin navy
+  outline, pale blue boxes for figures, and rows made of an icon, a bold line
+  and a sentence. Navy and blue carry the structure; orange marks a figure, red
+  marks the critical figure and the operator's approval, teal marks what is
+  real.
+- Body text about 11 pt, never smaller than 10 pt; captions and sources 9 to
+  10 pt. Left-align body text. One plain sans-serif for body text.
+- No clip art, no stock photos, no decoration that carries no meaning.
+- Nothing may overflow its box or run off the slide. If text does not fit,
+  shorten the sentence; do not shrink it below the sizes above.
 
 **Before you hand it back**
 

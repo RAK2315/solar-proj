@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SURYA AGENT: one-page description of the problem and solution</title>
+<style>
+  /* One A4 page, exactly. make_onepage.mjs fails if the content runs past it. */
+  @page { size: A4; margin: 0; }
+  :root { --navy: #0B3C6F; --blue: #1565C0; --tint: #EAF2FB; --ink: #111827; --muted: #55606F; --red: #C62828; --orange: #D9730D; --teal: #00796B; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { width: 210mm; height: 297mm; padding: 9mm 12mm 7mm; font-family: Calibri, Arial, sans-serif; font-size: 9.3pt; line-height: 1.24; color: var(--ink); background: #fff; }
+  header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1.5pt solid var(--navy); padding-bottom: 2.5mm; }
+  .mark { background: var(--navy); color: #fff; font-weight: 700; font-size: 15pt; padding: 1.5mm 5mm; border-radius: 2mm; }
+  header h1 { margin: 0; font-family: Cambria, Georgia, serif; font-size: 21pt; color: var(--navy); letter-spacing: 0.3pt; }
+  .event { text-align: right; font-size: 9.5pt; color: var(--muted); }
+  .event b { display: block; color: var(--navy); font-size: 11.5pt; }
+  .lede { margin: 2.2mm 0 1.8mm; font-size: 10.4pt; }
+  .lede b { color: var(--navy); }
+  h2 { margin: 2mm 0 1.2mm; padding: 0.7mm 2.5mm; background: var(--blue); color: #fff; font-size: 10.2pt; }
+  p { margin: 0 0 1.6mm; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5mm; margin: 1.5mm 0 2mm; }
+  .stat { background: var(--tint); border: 0.75pt solid var(--navy); border-radius: 1.2mm; padding: 1mm 2mm; font-size: 8.6pt; }
+  .stat b { display: block; font-size: 12.5pt; }
+  ol.loop { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1.2mm; list-style: none; margin: 1.5mm 0 2mm; padding: 0; counter-reset: s; }
+  ol.loop li { counter-increment: s; background: var(--tint); border: 0.75pt solid var(--navy); border-radius: 1.2mm; padding: 1.2mm 1.4mm; font-size: 8.6pt; font-weight: 700; line-height: 1.18; }
+  ol.loop li::before { content: counter(s); display: block; color: var(--orange); font-size: 10pt; }
+  ol.loop li:last-child { background: var(--red); color: #fff; border-color: var(--red); }
+  ol.loop li:last-child::before { color: #fff; }
+  ul { margin: 0 0 1.6mm; padding-left: 4.2mm; }
+  li { margin-bottom: 0.7mm; }
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; border: 0.75pt solid var(--navy); }
+  figcaption { font-size: 8.4pt; color: var(--muted); margin-top: 0.8mm; }
+  .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin-bottom: 1.4mm; }
+  th, td { border: 0.75pt solid var(--navy); padding: 0.8mm 1.6mm; text-align: left; vertical-align: top; }
+  th { background: var(--navy); color: #fff; }
+  .note { background: var(--tint); border: 0.75pt solid var(--navy); border-radius: 1.2mm; padding: 1.3mm 2.2mm; font-size: 8.8pt; margin-top: 1.5mm; }
+  .k { color: var(--navy); font-weight: 700; }
+  .r { color: var(--red); font-weight: 700; }
+  footer { margin-top: 1.8mm; padding-top: 1.2mm; border-top: 0.75pt solid var(--navy); font-size: 7.6pt; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <span class="mark">Sigmoid</span>
+  <h1>SURYA AGENT</h1>
+  <div class="event"><b>JSS AI FORGE 36</b>AI for Industry 4.0 &nbsp;|&nbsp; Team SIGMOID</div>
+</header>
+
+<p class="lede"><b>The plan, not the picture.</b> An AI agent that watches a 500 MW block of Bhadla Solar Park, sends a drone to verify what telemetry cannot, and hands the operator a ranked repair plan with a computed deadline. A person approves it before anything is scheduled.</p>
+
+<h2>THE PROBLEM</h2>
+<p>A utility-scale solar plant knows when its output falls. Its monitoring (SCADA) reports that an inverter or a string is short, but not <b>which module</b>, whether it is <b>dirt or damage</b>, or <b>how urgent</b> it is. So someone drives out to look, or the fault waits for the next aerial infrared survey, and that survey is usually flown once a year.</p>
+<div class="stats">
+  <div class="stat"><b style="color:var(--navy)">Annual</b>the usual cadence of aerial infrared inspection at utility-scale PV [1]</div>
+  <div class="stat"><b style="color:var(--orange)">Weeks to months</b>how long faults below the inverter go undetected between surveys [1]</div>
+  <div class="stat"><b style="color:var(--red)">&minus;41.7 %</b>one cracked array in our model: 3.07 MWh and &#8377;7,509 lost over 72 h if nobody acts</div>
+</div>
+<p><span class="k">Existing gaps.</span> Drone and AI inspection platforms (Raptor Maps, Zeitview, Sitemark) already do thermal imaging with AI defect classification, and are building 3D twins. What they hand over is a report of defects: no deadline, no crew plan, and no re-plan when conditions change. We do not claim the twin or the detection as new.
+<span class="k">Who benefits.</span> Plant operators and O&amp;M crews, asset owners, and the grid off-taker who is owed the energy.</p>
+
+<h2>THE SOLUTION</h2>
+<p>One closed loop, from a telemetry anomaly to an approved work order. Seven steps run unattended; the eighth is a person.</p>
+<ol class="loop">
+  <li>Telemetry anomaly</li><li>Agent triage</li><li>Drone dispatch</li><li>Evidence capture</li><li>Vision analysis</li><li>Prognosis and deadline</li><li>Ranked plan</li><li>Human approval</li>
+</ol>
+
+<div class="cols">
+  <div>
+    <ul>
+      <li><span class="k">Watches every array</span> against a physics model (NREL PVWatts [2]) of what it should produce in the current sun and heat.</li>
+      <li><span class="k">Sends a drone only when imaging adds something.</span> A soiled array gets a wash crew and no flight.</li>
+      <li><span class="k">Reads the drone's frames with a detector we trained:</span> YOLOv8n on 921 labelled photographs, Cracked AP@50 0.995 on the held-out test split. It runs in the browser, and returned Cracked 0.89 on the drone's own frame of array B-17.</li>
+      <li><span class="k">Computes a deadline,</span> "act before 14:00", from the defect, its mechanism and the 72 h forecast.</li>
+      <li><span class="k">Ranks the work by a fixed formula</span> shown on screen (loss &times; severity &times; urgency &divide; access), and plans the crew day with an exact solver (HiGHS) capped at 50 ms.</li>
+      <li><span class="k">Re-derives the plan live.</span> Drag a dust storm onto the field and the queue, the deadlines and the crew day are worked out again, in 31 to 40 ms, with the cost in rupees.</li>
+    </ul>
+  </div>
+  <div>
+    <div class="pics">
+      <figure><img src="../images/03-drone-detection.png" alt=""><figcaption>The detector's box on the frame the drone's camera returned.</figcaption></figure>
+      <figure><img src="../images/03-thermal-pass.png" alt=""><figcaption>The thermal pass. A rendering of the simulated scene.</figcaption></figure>
+    </div>
+    <p style="margin-top:1.8mm"><span class="k">Why it is different.</span> Others detect and report. This hands over a computed deadline, a plan that re-derives when conditions change, the arithmetic behind every number, and a human gate.</p>
+  </div>
+</div>
+
+<div class="cols">
+  <div>
+    <h2>WHAT IS BUILT, MEASURED</h2>
+    <table>
+      <tr><th>What</th><th>Result</th></tr>
+      <tr><td>Automated tests</td><td>453 passing, on every build</td></tr>
+      <tr><td>3D twin of 120 arrays</td><td>60.1 fps in Chrome</td></tr>
+      <tr><td>Hazard drop to re-planned frame</td><td>31 to 40 ms (budget 150 ms)</td></tr>
+      <tr><td>Crew-plan solve, the site's own days</td><td>10.8 ms</td></tr>
+    </table>
+    <p>Next.js, React, TypeScript, three.js, ONNX Runtime Web, HiGHS in WebAssembly. One server call, to a language model (openai/gpt-oss-120b on Groq) that writes words and never numbers.</p>
+  </div>
+  <div>
+    <h2>IMPACT, WITH ITS WORKING</h2>
+    <p>Lost energy is priced at <b>&#8377;2.446/kWh</b>: (200 MW &times; &#8377;2.44 + 300 MW &times; &#8377;2.45) &divide; 500 MW, the two SECI Bhadla Phase-III lots blended by capacity [3]. One cracked array loses 3.07 MWh, &#8377;7,509, over 72 h. Left 30 days at 1.01 MWh a day it is &#8377;74,114: an illustration that assumes a constant loss, not a measurement.</p>
+    <p>More of the installed clean capacity delivered; crews kept out of the field above 40 &deg;C; no drone flown where imaging adds nothing.</p>
+  </div>
+</div>
+
+<div class="note"><span class="r">What is real and what is not.</span> The detector is trained and measured, and the thermal evidence for array B-17 is measured from a real UAV frame (Raptor Maps' open dataset [4]). Telemetry for the 120 arrays is <b>simulated</b> on a published PV model with stated coefficients, and the drone flight is a 3D simulation. Hazard strengths, crew hours and the forecast band are declared assumptions, labelled on screen. A thermal classifier is in progress: no model is trained and no result is claimed. Nothing is connected to a real plant yet. No deviation settlement charge is computed.</div>
+
+<footer>
+[1] Turbine Logic and EPRI, <i>Field Experience Detecting PV Underperformance in Real Time Using Existing Instrumentation</i>, osti.gov/servlets/purl/1960134. [2] NREL/TP-6A20-60272. [3] SECI auction, Bhadla Phase-III, 2017: iea.org/policies/6373-auction-of-solar-corporation-of-india-seci. [4] github.com/RaptorMaps/InfraredSolarModules (MIT). Training data: Roboflow Solar Panel Fault Detection v2 (CC BY 4.0). The loop follows the RAISE-winning Robinsun solar agent.
+Team SIGMOID: Rehaan Ahmad Khan, Shantanu Singh, Lakshita Rawat, Krishna Agarwal. Code: github.com/RAK2315/solar-proj
+</footer>
+</body>
+</html>

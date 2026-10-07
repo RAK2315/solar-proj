@@ -63,6 +63,11 @@ const openConsole = async (query = '') => {
   await wait(2500);
   await page.keyboard.press('s');                   // the committed rehearsal state
   await wait(1200);
+  // THEME=light takes the pictures in the product's light theme, for a light deck.
+  if (process.env.THEME === 'light' && await click('Switch to light theme')) await wait(1500);
+  // The rehearsal keeps whichever screen an earlier phase left open.
+  await page.click('.sy-rail button:has-text("Site")');
+  await wait(800);
 };
 
 if (want('static')) {
