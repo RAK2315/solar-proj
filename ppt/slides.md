@@ -5,18 +5,20 @@ JSS AI FORGE 36, AI for Industry 4.0 track, team SIGMOID. 8 slides, 16:9 (13.333
 Written by `ppt/build/build_deck.cjs` together with `SURYA-AGENT-Round1.pptx`, so the two agree.
 Edit the script and rebuild; an edit made here alone will be overwritten.
 
-Every slide has the same frame: a "Sigmoid" mark top left, the slide title centred, "JSS AI FORGE 36 /
-AI for Industry 4.0" top right, a rule under them, and a blue footer band with the slide number.
+Every slide has the same frame: a "Sigmoid" mark in an outlined oval top left, the slide title centred in a
+black serif, "JSS AI FORGE 36 / AI for Industry 4.0" top right, and a blue footer band with the slide number.
+Blocks sit in heavy rounded outlines: navy by default, red for risks, green for how each is answered.
 
 For each slide: the title, which of the seven Round 1 sections it covers, every piece of text in
 reading order, the pictures and where each sits, and the speaker notes. A line in [SQUARE BRACKETS]
-is a blue section bar. A line starting "(icon: name)" is an icon row: the icon is
-`images/icons/name.png`. Text is exact: do not reword a figure, round it, or add one. Where every
+is the heading of an outlined block. A line starting "(icon: name-colour)" is an icon row: the icon is
+`images/icons/name-colour.png`. Text is exact: do not reword a figure, round it, or add one. Where every
 figure comes from is in `SOURCES.md`.
 
 Pictures are in `images/`, named by slide number. All are captures of the running prototype in its
 light theme, taken on 7 Oct 2026 at 1920 by 1080; most are cropped so the subject can be seen.
-Slides 2, 4, 6 and 8 carry no picture on purpose.
+Slides 2, 4, 6 and 8 carry no picture on purpose. Slide 7 has one native chart.
+Fonts: Montserrat throughout, Times New Roman for the slide title.
 
 ---
 
@@ -82,7 +84,7 @@ Fifteen seconds. Surya watches a 500 MW block of Bhadla Solar Park, sends a dron
 ### Text on the slide
 
 ```
-[THE PROBLEM: the plant knows its output fell, not why or how long it can wait]
+THE PROBLEM:  the plant knows its output fell, not why, or how long it can wait.
 ```
 
 ```
@@ -90,22 +92,22 @@ PLANT TELEMETRY (SCADA)
 ```
 
 ```
-What it says
+WHAT IT SAYS
 An inverter or a string is producing less than it should
 ```
 
 ```
-What it cannot say
-Which module?   Dirt or damage?   How urgent?
+WHAT IT CANNOT SAY
+Which module?    Dirt or damage?    How urgent?
 ```
 
 ```
-So someone drives out to look, or the fault waits for the next aerial survey. In our model, soiling and a cracked cell look the same from telemetry: only imaging separates them.
+SO THE FAULT WAITS  Someone drives out to look, or it sits until the next aerial survey. In our model, soiling and a cracked cell look the same from telemetry: only imaging separates them.
 ```
 
 ```
 Annual
-usual cadence of aerial infrared inspection
+the usual cadence of aerial infrared inspection
 ```
 
 ```
@@ -115,11 +117,11 @@ faults below the inverter go undetected
 
 ```
 −41.7 %
-one cracked array in our model: 3.07 MWh, ₹7,509 in 72 h
+one cracked array in our model: 3.07 MWh, ₹7,509 lost in 72 h
 ```
 
 ```
-Sources: first two, Turbine Logic and EPRI, osti.gov/servlets/purl/1960134. Third, our PV model at ₹2.446/kWh.
+Sources: Turbine Logic and EPRI, osti.gov/servlets/purl/1960134; third figure, our PV model.
 ```
 
 ```
@@ -127,45 +129,43 @@ Sources: first two, Turbine Logic and EPRI, osti.gov/servlets/purl/1960134. Thir
 ```
 
 ```
-(icon: tools) O&M crews
-Which array, what repair, in what order, by when
+(icon: tools-navy) O&M crews
+Which array, what repair, by when
 ```
 
 ```
-(icon: rupee) Asset owners
-Loss stated in MWh and rupees at the plant’s tariff
+(icon: rupee-green) Asset owners
+Loss in MWh and in rupees
 ```
 
 ```
-(icon: bolt) Grid off-taker
-More of the contracted energy actually delivered
+(icon: bolt-purple) Grid off-taker
+More contracted energy delivered
 ```
 
 ```
-EXISTING GAPS
+[EXISTING GAPS]
 ```
 
 | Approach | What it gives | What is still missing |
 |---|---|---|
-| Plant SCADA | Output fell, at an inverter or string | Which module, why, how urgent |
-| Annual aerial infrared survey | A thermal map of the field | Flown once a year, so faults sit for weeks to months |
-| Drone and AI platforms (Raptor Maps, Zeitview, Sitemark) | Thermal imaging, AI defect classes, 3D twins under way | A report of defects. No deadline, no crew plan, no re-plan |
+| Plant SCADA and inverter monitoring | Output fell, at an inverter or a string | Which module, why, and how urgent |
+| Annual aerial infrared survey | A thermal map of the whole field | Flown once a year, so faults sit for weeks to months |
+| Drone and AI inspection platforms (Raptor Maps, Zeitview, Sitemark) | Thermal imaging, AI defect classes, 3D twins under way | A report of defects. No deadline, no crew plan, no re-plan when conditions change |
+| SURYA AGENT | A ranked work order with a computed deadline, re-derived live, arithmetic on screen | A prototype on simulated telemetry. Not yet connected to a real plant |
 
 ```
-FROM EACH GAP TO WHAT WE BUILT
+(icon: search-red) What nobody hands over
+A defect report tells you a panel is bad. It does not tell you when the damage stops being recoverable, which job the crew should do first, or what changes when the weather turns.
 ```
 
-| Actual problem | How SURYA AGENT answers it |
-|---|---|
-| Faults wait for a yearly survey | Every array watched continuously against a physics model |
-| Telemetry cannot tell dirt from damage | A drone is sent only when imaging would add something |
-| A defect report has no deadline | A deadline computed from the defect and the 72 h forecast |
-| Priority is a judgement call | One fixed formula, with its arithmetic on screen |
-| A plan goes stale when the weather turns | The queue and the crew day re-derive live |
-| Automation nobody signed off | Nothing is scheduled until an operator approves |
+```
+(icon: scale-navy) What we do not claim
+The twin and the detection already exist elsewhere, and our thermal evidence comes from Raptor Maps’ own open dataset. What we add is the step after the picture.
+```
 
 ```
-Gaps from our prior-art sweep of 4 Oct 2026, read from each company’s public material. We do not claim the twin or the detection as new.
+Gaps from our prior-art sweep of 4 Oct 2026, read from each company’s public material. Not a benchmark.
 ```
 
 ### Pictures
@@ -185,7 +185,7 @@ The framing is continuous against annual, not fast against slow. The two quoted 
 ### Text on the slide
 
 ```
-[PROPOSED SOLUTION: one closed loop, from a telemetry anomaly to an approved work order]
+PROPOSED SOLUTION:  one closed loop, from a telemetry anomaly to an approved work order.
 ```
 
 ```
@@ -193,63 +193,79 @@ Loop, left to right: 1 Telemetry anomaly > 2 Agent triage > 3 Drone dispatch > 4
 ```
 
 ```
-Dispatch
-Drone 01 leaves the pad for B-17 when telemetry cannot settle the cause.
+Actual problem
 ```
 
 ```
-Detection, in the browser
-Cracked 0.89 on the frame the drone’s camera returned. The box is the model’s own.
+Proposed solution
 ```
 
-```
-Thermal pass
-The same module in false colour. A rendering of the simulated scene, not a capture.
-```
+| Actual problem | Proposed solution |
+|---|---|
+| Faults wait for a yearly aerial survey | Every array watched continuously against a physics model |
+| Telemetry cannot tell dirt from damage | A drone is sent only when imaging would add something |
+| A defect report carries no deadline | A deadline computed from the defect and the 72 h forecast |
+| What to fix first is a judgement call | One fixed formula, with its arithmetic on screen |
+| A plan goes stale when the weather turns | The queue and the crew day re-derive live |
+| Automation nobody signed off | Nothing is scheduled until an operator approves |
 
 ```
-Measured thermal evidence: from a real UAV thermal frame (Raptor Maps, MIT), four hot cells in row 2, columns 3 to 6, about +2.8 °C, one connected band: the signature of a bypassed substring.
 Honest wording: B-17 is diagnosed from a real thermal capture. The other 119 arrays are flagged from modelled signature. The build fails if the two are mixed.
 ```
 
 ```
-WHERE THE AI IS
+The running prototype
+Not a mock-up. The detector we trained runs in the browser on the frame the drone’s camera returned: Cracked 0.89 on B-17. The thermal pass beside it is a rendering of the simulated scene.
 ```
 
 ```
-(icon: eye) Vision detector, trained by us
-YOLOv8n fine-tuned on 921 labelled photographs. Cracked AP@50 0.995, held-out test split. Runs in the browser: no server, no GPU.
+github.com/RAK2315/solar-proj
 ```
 
 ```
-(icon: robot) Agent reasoning, a language model
-openai/gpt-oss-120b on Groq writes the triage in words. It never supplies a number: the server recomputes every fact and cross-checks.
+Detection, in the browser
 ```
 
 ```
-(icon: clock) Prognosis that ends in an hour
-A thermal-dose model and the 72 h forecast give "act before 14:00". Computed, never looked up.
+Thermal pass, rendered
 ```
 
 ```
-(icon: calc) Crew plan, exact optimisation
-A mixed-integer program solved by HiGHS in WebAssembly, capped at 50 ms, beside a heuristic scored the same way.
+[WHERE THE AI IS]
 ```
 
 ```
-Not AI, on purpose: the queue order is a fixed formula, never a model’s opinion.
-In progress, no result claimed: a thermal classifier on Raptor Maps’ InfraredSolarModules. No model is trained and no metric is quoted.
+(icon: eye-navy) Vision detector, trained by us
+YOLOv8n on 921 labelled photographs. Cracked AP@50 0.995, held-out test split.
+```
+
+```
+(icon: robot-purple) Agent reasoning
+openai/gpt-oss-120b on Groq writes the triage. It never supplies a number.
+```
+
+```
+(icon: clock-orange) Prognosis that ends in an hour
+A thermal-dose model and the 72 h forecast give "act before 14:00".
+```
+
+```
+(icon: calc-green) Crew plan, exact optimisation
+A mixed-integer program, HiGHS in WebAssembly, capped at 50 ms.
+```
+
+```
+Not AI, on purpose: the queue order is a fixed formula.  In progress, no result claimed: a thermal classifier on Raptor Maps’ InfraredSolarModules.
 ```
 
 ### Pictures
 
-- `images/03-drone-in-flight.png`: left: the drone in flight toward B-17
-- `images/03-drone-detection.png`: middle: the drone’s camera frame over B-17 with the detector’s box
-- `images/03-thermal-pass.png`: right: the thermal pass over the same module
+- `images/03-drone-detection.png`: right, upper block: the drone’s camera frame over B-17 with the detector’s box
+- `images/03-thermal-pass.png`: right, upper block, beside it: the thermal pass over the same module
 
 ### Speaker notes
 
-This is the product. Seven of the eight steps run without a person; the eighth is a person on purpose. The drone is not the product: it is how the agent gets evidence it cannot infer from telemetry. The three pictures are from the running prototype on 7 October 2026, flown at 60 times site speed. Left: drone 01 on its way to B-17. Middle: the frame the drone's camera returned over B-17, with the box our detector drew on it in the browser. On this flight it returned Cracked at 0.89. On the photograph the committed figure was measured on, the same weights return 0.91 against a committed 0.9084. Right: the same pass in false colour; it is a rendering of the simulated scene, not a thermal capture. The real thermal evidence is a UAV frame from Raptor Maps' open dataset, processed into the panel's 5 by 7 cells: four hot cells in row 2, columns 3 to 6, about 2.8 degrees above the rest, one connected band. The detector: YOLOv8n fine-tuned on 921 images, CC BY 4.0. Cracked AP at 50 is 0.995 on the held-out test split. The language model, openai/gpt-oss-120b on Groq, writes the triage in words and never supplies a number: the server recomputes every fact and cross-checks the reply. The queue order is deliberately not AI. The thermal classifier is in progress: a notebook and 119 modelled frames exist, no model is trained and no score is quoted. Vocabulary: B-17 is diagnosed, because it has a real capture. The other 119 arrays are flagged from modelled signature. The loop follows the RAISE-winning Robinsun solar agent, credited on the last slide.
+This is the product. Seven of the eight steps run without a person; the eighth is a person on purpose. The drone is not the product: it is how the agent gets evidence it cannot infer from telemetry. The two pictures are from the running prototype on 7 October 2026, flown at 60 times site speed. First: the frame the drone's camera returned over B-17, with the box our detector drew on it in the browser. On this flight it returned Cracked at 0.89. On the photograph the committed figure was measured on, the same weights return 0.91 against a committed 0.9084. Second: the same pass in false colour; it is a rendering of the simulated scene, not a thermal capture. The real thermal evidence is a UAV frame from Raptor Maps' open dataset, processed into the panel's 5 by 7 cells: four hot cells in row 2, columns 3 to 6, about 2.8 degrees above the rest, one connected band. The detector: YOLOv8n fine-tuned on 921 images, CC BY 4.0. Cracked AP at 50 is 0.995 on the held-out test split. The language model, openai/gpt-oss-120b on Groq, writes the triage in words and never supplies a number: the server recomputes every fact and cross-checks the reply. The queue order is deliberately not AI. The thermal classifier is in progress: a notebook and 119 modelled frames exist, no model is trained and no score is quoted. Vocabulary: B-17 is diagnosed, because it has a real capture. The other 119 arrays are flagged from modelled signature. The loop follows the RAISE-winning Robinsun solar agent, credited on the last slide.
 
 ---
 
@@ -260,7 +276,7 @@ This is the product. Seven of the eight steps run without a person; the eighth i
 ### Text on the slide
 
 ```
-A physics model, a trained detector and an exact solver, all running in the browser behind a build that fails if a number drifts.
+A physics model, a trained detector and an exact solver, all running in the browser, behind a build that fails if a number drifts.
 ```
 
 ```
@@ -268,11 +284,11 @@ Flow diagram, top to bottom, with a label at the left of each row:
 ```
 
 ```
-BEFORE THE BUILD: PV model and data generators, Python | Detector training, YOLOv8n to ONNX, Colab | Thermal cell grid, classical image processing
+BEFORE THE BUILD: PV model and generators, Python | Detector training, YOLOv8n to ONNX, on Colab | Thermal cell grid, classical image processing
 ```
 
 ```
-BUILD GATE: Zod schemas and 16 invariants > scan for hardcoded numbers and wording > 453 tests, physics golden-tested against Python > compile
+BUILD GATE: Zod schemas and 16 invariants > scan for hardcoded numbers and wording > 457 tests, physics golden-tested against Python > compile
 ```
 
 ```
@@ -287,37 +303,48 @@ WHAT LEAVES IT: ONE NETWORK CALL, /api/triage to Groq. The server recomputes the
 [TECHNOLOGY STACK]
 ```
 
-| Frontend | Next.js 15, React 19, TypeScript |
-|---|---|
-| 3D twin | three.js, React Three Fiber |
-| Vision | YOLOv8n, run on ONNX Runtime Web |
-| Optimiser | HiGHS, compiled to WebAssembly |
-| Agent | openai/gpt-oss-120b on Groq |
-| State, schema | Zustand, Zod |
-| Offline | Python; training on a Colab T4 |
+```
+(icon: react-blue) Frontend: Next.js 15 + React 19 + TypeScript
+```
+
+```
+(icon: cube-blue) 3D twin: three.js + React Three Fiber
+```
+
+```
+(icon: eye-blue) Vision: YOLOv8n on ONNX Runtime Web
+```
+
+```
+(icon: calc-blue) Optimiser: HiGHS in WebAssembly
+```
+
+```
+(icon: robot-blue) Agent: openai/gpt-oss-120b on Groq
+```
+
+```
+(icon: python-blue) Offline: Python + Colab T4 for training
+```
 
 ```
 [WHY THESE CHOICES]
 ```
 
 ```
-(icon: globe) Everything in the browser
-No GPU and no model server, so nothing can cold-start in front of a judge.
+(icon: globe-navy) Everything in the browser no GPU and no model server, so nothing can cold-start in front of a judge.
 ```
 
 ```
-(icon: scale) An exact solver beside a heuristic
-A new rule is one line of a model, and the answer is provable. Both scores are shown.
+(icon: scale-green) An exact solver beside a heuristic a new rule is one line of a model, and the answer is provable.
 ```
 
 ```
-(icon: shield) The model writes words, not numbers
-Every figure comes from the physics and is cross-checked on the server.
+(icon: shield-purple) The model writes words, not numbers every figure comes from the physics and is cross-checked.
 ```
 
 ```
-(icon: sync) One clock
-Seek backwards and every screen is correct. The same input gives the same site.
+(icon: sync-teal) One clock seek backwards and every screen is correct. Same input, same site.
 ```
 
 ### Pictures
@@ -326,7 +353,7 @@ None. This slide is native shapes, text, tables and icons only.
 
 ### Speaker notes
 
-Read the left side top to bottom. Before the build: Python scripts hold the PV model and generate the site and its telemetry; a Colab notebook trained the detector and exported it to ONNX; an image-processing script turned a real thermal frame into the cell grid. The build gate runs in order: validate every data file against its Zod schema and 16 invariants, scan the source for hardcoded numbers and forbidden wording, run 453 tests, then compile. The TypeScript physics is golden-tested against the Python. If a headline figure moves, the build fails, not the demo. At run time, in the browser, there is one clock, the site time. Everything on screen is a pure function of that clock and the scenario events, which is why you can seek backwards and a dropped hazard un-happens. The detector and the solver both run as WebAssembly on the operator's machine. There is exactly one network call: the triage route, which calls Groq and cross-checks the reply against the physics on the server. There is no database. A work order is created only by the operator's click. On the choices: we refused a second service because a cold start on stage is a demo failure, so the solver is HiGHS compiled to WebAssembly and not OR-Tools behind a Python server. This diagram is drawn from native shapes so it can be edited.
+Read the left side top to bottom. Before the build: Python scripts hold the PV model and generate the site and its telemetry; a Colab notebook trained the detector and exported it to ONNX; an image-processing script turned a real thermal frame into the cell grid. The build gate runs in order: validate every data file against its Zod schema and 16 invariants, scan the source for hardcoded numbers and forbidden wording, run 457 tests, then compile. The TypeScript physics is golden-tested against the Python. If a headline figure moves, the build fails, not the demo. At run time, in the browser, there is one clock, the site time. Everything on screen is a pure function of that clock and the scenario events, which is why you can seek backwards and a dropped hazard un-happens. The detector and the solver both run as WebAssembly on the operator's machine. There is exactly one network call: the triage route, which calls Groq and cross-checks the reply against the physics on the server. There is no database. A work order is created only by the operator's click. On the choices: we refused a second service because a cold start on stage is a demo failure, so the solver is HiGHS compiled to WebAssembly and not OR-Tools behind a Python server. This diagram is drawn from native shapes so it can be edited.
 
 ---
 
@@ -337,37 +364,42 @@ Read the left side top to bottom. Before the build: Python scripts hold the PV m
 ### Text on the slide
 
 ```
-[THE PLAN, NOT THE PICTURE: others detect and report. We hand over a deadline and a plan]
+THE PLAN, NOT THE PICTURE:  others detect and report. We hand over a deadline and a plan.
 ```
 
 ```
-FOUR THINGS A DEFECT REPORT DOES NOT GIVE
+[INNOVATION AND UNIQUENESS]
 ```
 
 ```
-(icon: clock) A computed deadline
+(icon: clock-navy) A computed deadline
 Not a flagged defect: an hour, worked out from the defect, its mechanism and the 72 h forecast.
 ```
 
 ```
-(icon: sync) A plan that re-derives live
+(icon: sync-teal) A plan that re-derives live
 Change the conditions and the queue, the deadlines and the crew day are worked out again.
 ```
 
 ```
-(icon: calc) Arithmetic on screen
-The ranking formula with its inputs, and a ? on every number for where it came from.
+(icon: calc-purple) Arithmetic on screen
+The ranking formula with its inputs on every job, and a ? on every number for its source.
 ```
 
 ```
-(icon: user) A human gate
+(icon: user-red) A human gate
 The agent proposes. Only an operator’s click creates a work order.
+```
+
+```
+(icon: plane-green) It says no
+A dirty array gets a wash crew and no flight: imaging it would add nothing.
 ```
 
 ```
 score = loss per day × severity × urgency ÷ access
 B-17 as captured: 1.01 MWh × 3.0 × 7.69 ÷ 1.0 = 23.29
-Urgency is 1 + 24 ÷ hours left, so the score climbs as the deadline closes. Next is A-08 at 0.81.
+Urgency is 1 + 24 ÷ hours left. Next is A-08 at 0.81.
 ```
 
 ```
@@ -375,11 +407,15 @@ Every job shows its working.
 ```
 
 ```
-What-if sandbox: a dust storm dropped on Zone B.
+The what-if sandbox: a dust storm dropped on Zone B.
 ```
 
 ```
-[THE LIVE DEMONSTRATION: name a hazard, drag it onto the field, the plan re-derives]
+[THE LIVE DEMONSTRATION]
+```
+
+```
+Name a hazard, drag it onto the field, and the whole plan re-derives.
 ```
 
 ```
@@ -394,17 +430,17 @@ What it costs, in rupees
 
 ```
 31 to 40 ms
-from drop to the re-planned frame, measured in Chrome. Budget 150 ms. 60.1 fps.
+from drop to the re-planned frame, in Chrome. Budget 150 ms. 60.1 fps.
 ```
 
 ### Pictures
 
-- `images/05-queue-arithmetic.png`: middle: the repair queue on the Queue screen, each job with its arithmetic
-- `images/05-sandbox-hazard.png`: right: the Sandbox screen after a dust storm was dropped on Zone B
+- `images/05-queue-arithmetic.png`: right, upper block: the repair queue on the Queue screen, each job with its arithmetic
+- `images/05-sandbox-hazard.png`: right, upper block, beside it: the Sandbox screen after a dust storm was dropped on Zone B
 
 ### Speaker notes
 
-Our difference is deliberately not the twin and not the detection. It is what happens after the picture: a deadline, a plan that re-derives, the arithmetic, and a human gate. The left picture is the Queue screen. Every job prints its own working. At the moment captured, B-17 reads 1.01 MWh a day, times 3.0 for critical, times 7.69 urgency, divided by 1.0 access, equals 23.29. Urgency is 1 plus 24 over the hours left, so the score rises as the deadline closes and reads differently at a different minute. If a judge asks how it prioritises, open src/lib/ranking.ts. The right picture is the live demonstration. A judge names a hazard; we drag it onto the field. Here a dust storm was dropped over part of Zone B. The screen reads: 8 arrays affected, 6 jobs added, 1 displaced, B-17 still first. Over the next 72 hours the dust costs the modelled arrays 5.61 MWh, 13,714 rupees at 2.446 rupees per kWh, forecast band 12,518 to 14,880. Measured in Chrome on our laptop: from releasing the pointer to the re-planned frame being painted takes 31 to 40 milliseconds against a budget of 150, and the twin holds 60.1 frames a second. Be straight about three things. The hazard strengths are declared assumptions; none is a measurement of Bhadla. The forecast band is a declared plus or minus 5 to 15 per cent on irradiance, not a fitted error model. And at this moment the heuristic matched the optimum; we do not claim the solver beats it here. A 5.8 per cent difference does exist on one ordinary afternoon, 14:17 site time.
+Our difference is deliberately not the twin and not the detection. It is what happens after the picture: a deadline, a plan that re-derives, the arithmetic, and a human gate. The first picture is the Queue screen. Every job prints its own working. At the moment captured, B-17 reads 1.01 MWh a day, times 3.0 for critical, times 7.69 urgency, divided by 1.0 access, equals 23.29. Urgency is 1 plus 24 over the hours left, so the score rises as the deadline closes and reads differently at a different minute. If a judge asks how it prioritises, open src/lib/ranking.ts. The second picture is the live demonstration. A judge names a hazard; we drag it onto the field. Here a dust storm was dropped over part of Zone B. The screen reads: 8 arrays affected, 6 jobs added, 1 displaced, B-17 still first. Over the next 72 hours the dust costs the modelled arrays 5.61 MWh, 13,714 rupees at 2.446 rupees per kWh, forecast band 12,518 to 14,880. Measured in Chrome on our laptop: from releasing the pointer to the re-planned frame being painted takes 31 to 40 milliseconds against a budget of 150, and the twin holds 60.1 frames a second. Be straight about three things. The hazard strengths are declared assumptions; none is a measurement of Bhadla. The forecast band is a declared plus or minus 5 to 15 per cent on irradiance, not a fitted error model. And at this moment the heuristic matched the optimum; we do not claim the solver beats it here. A 5.8 per cent difference does exist on one ordinary afternoon, 14:17 site time.
 
 ---
 
@@ -415,74 +451,83 @@ Our difference is deliberately not the twin and not the detection. It is what ha
 ### Text on the slide
 
 ```
-[FEASIBILITY: it is built, and these are measurements, not targets]
-```
-
-| What | Result | How it was measured |
-|---|---|---|
-| Automated tests | 453 passing | Every build, before it compiles |
-| 3D twin frame rate | 60.1 fps, no frame over 20 ms | Chrome at 1366×768 and 1920×1080 |
-| Hazard drop to re-planned frame | 31 to 40 ms | Real pointer, Chrome. Budget 150 ms |
-| Crew-plan solve, the site’s own days | 10.8 ms; 1.1 ms in a heatwave | HiGHS, WebAssembly. Cut off at 50 ms |
-| Detector, class Cracked | AP@50 0.995 | Held-out test split, 42 images |
-| Detector on the drone’s own frame | Cracked 0.89 | Real-time flight of B-17, in browser |
-| Physics in the browser | Matches the Python model | Golden test, on every build |
-
-```
-[VIABILITY: how far it can go]
+[FEASIBILITY]
 ```
 
 ```
-(icon: cubes) Scales by design
-Every array is evaluated by the same function: a larger plant is more rows, not a new design. Tested to 120 arrays; no larger figure claimed.
+(icon: code-navy) Technical: it is built. 457 tests on every build, 60.1 fps, a hazard re-planned in 31 to 40 ms, detector AP@50 0.995 on a held-out split.
 ```
 
 ```
-(icon: globe) Nothing to host per site
-The reasoning runs in the browser, so a new site needs no new server. The simulator is the one part to replace, with the plant’s own SCADA feed.
+(icon: coins-green) Financial: no GPU and no model server. The detector and the solver run in the browser; the one outside call is to a language model.
 ```
 
 ```
-(icon: industry) A route to a product
-Likely users are O&M contractors and plant owners. Commercial use needs a permissively licensed detector: today’s is AGPL-3.0 through Ultralytics.
+(icon: desktop-purple) Operational: one view in any modern browser. It is built to sit beside existing SCADA: the simulator is the one part to replace.
 ```
 
 ```
-[WHAT IS REAL, AND WHAT IS NOT]
+[VIABILITY]
 ```
 
 ```
-Real
-Detector trained by us, measured on a held-out split
-Thermal band measured from a real UAV frame
-Tariffs as awarded by SECI
-PV equations from NREL PVWatts
+(icon: users-navy) Adoption: for O&M contractors and plant owners. Nothing to install, and every figure is in MWh and in rupees at the plant’s own tariff.
 ```
 
 ```
-Simulated
-Telemetry for all 120 arrays, from the PV model with stated coefficients
-The drone flight, in the 3D scene
-The 72 h weather forecast
+(icon: calendar-green) Sustained: a build gate of 16 invariants fails the build, not the demo, if a number drifts. The same input always gives the same site.
 ```
 
 ```
-Declared assumption
-Hazard strengths in the sandbox
-Crew hours for each kind of repair
-Forecast band, ±5 % widening to ±15 %
-Thermal span and the dose threshold behind the deadline
+(icon: puzzle-purple) Grows: every array is evaluated by the same function, so a larger plant is more rows, not a new design. Tested to 120 arrays.
 ```
 
 ```
-Not built
-Thermal classifier: no model, no metric
-Connection to a real SCADA system or drone
-Any deviation settlement charge
+[POTENTIAL CHALLENGES AND RISKS]
 ```
 
 ```
-Evidence stays with the array it was captured on. We hold real imagery for B-17 only, and no other array may show it.
+[HOW WE ADDRESSED THEM]
+```
+
+```
+The telemetry is simulated, not from a real plant. There is no live site behind the prototype.
+```
+
+```
+Every coefficient is stated and the equations are NREL PVWatts. The browser model is tested against the Python on every build.
+```
+
+```
+A language model can invent a number, or be rate-limited on the day. It is the one outside service we depend on.
+```
+
+```
+It writes words, never numbers. The server recomputes every fact and rejects a reply that disagrees. Without it, the rest still works.
+```
+
+```
+The detector learned from ground-level photographs. And we hold real thermal evidence for one array only.
+```
+
+```
+Reported per class on a held-out split, and scored on the drone’s own frame: 0.89. Only B-17 is called diagnosed.
+```
+
+```
+An assumption can pass for a fact. Hazard strengths, crew hours and the forecast band are ours.
+```
+
+```
+Each is labelled on screen as an assumption. The thermal classifier is not built, so no score is claimed for it.
+```
+
+```
+A weak laptop may not hold the 3D twin. A demo that stutters is worse than none.
+```
+
+```
+A 2D map takes over by itself below 30 frames a second, on the same data. The detector’s AGPL licence is one script away from a permissive one.
 ```
 
 ### Pictures
@@ -491,7 +536,7 @@ None. This slide is native shapes, text, tables and icons only.
 
 ### Speaker notes
 
-Every row of the table is a measurement taken on our own laptop, in Chrome, and each is recorded in the repository. The frame rate and the drop-to-re-plan time come from a script that drives a real pointer in a real Chrome window on the real GPU. The solver times are for the site's own days; two synthetic stress days took 60 to 170 ms, which is why the solve is cut off at 50 ms and then reports "best plan found" with its gap and is never called optimal. The detector figure is per class on the held-out test split of 42 images. Then say what is real and what is not, before a judge has to ask. There is no live plant behind this: telemetry for the 120 arrays is generated from the PV model with stated coefficients, temperature coefficient minus 0.0037 per degree, NOCT 45 degrees, inverter efficiency 0.98. The drone flight is a 3D simulation. Declared assumptions, each labelled on screen: hazard strengths; crew hours per repair, for example 3 hours for a module replacement and 1 hour for a wash; the forecast band; the 25 degree thermal span; the 65 degree threshold and 5-hour budget behind the deadline. Not built: the thermal classifier has no model and no metric, and nothing is connected to a real SCADA system or drone. Viability. Each array is evaluated by the same pure function, so a larger plant is more rows, not a new design; we have tested to 120 arrays and claim no larger figure. One practical point for a product: the detector is trained with Ultralytics YOLOv8, which is AGPL-3.0 and makes this repository AGPL-3.0. A commercial version would retrain on a permissively licensed detector; the README notes that switching to RF-DETR, Apache-2.0, touches one script.
+Feasibility is argued from measurements taken on our own laptop, in Chrome, each recorded in the repository: 457 automated tests on every build; the twin at 60.1 frames a second at both 1366 by 768 and 1920 by 1080; a dropped hazard re-planned on screen in 31 to 40 milliseconds against a budget of 150; the crew plan solved in 10.8 milliseconds on the site's own days and cut off at 50; the detector at AP at 50 of 0.995 for cracked panels on the held-out test split of 42 images, and 0.89 on the drone's own frame. Viability. Each array is evaluated by the same pure function, so a larger plant is more rows, not a new design; we have tested to 120 arrays and claim no larger figure. Then the risks, said before a judge has to ask. There is no live plant behind this: telemetry for the 120 arrays is generated from the PV model with stated coefficients, temperature coefficient minus 0.0037 per degree, NOCT 45 degrees, inverter efficiency 0.98. The drone flight is a 3D simulation. Declared assumptions, each labelled on screen: hazard strengths; crew hours per repair, for example 3 hours for a module replacement and 1 hour for a wash; the forecast band; the 25 degree thermal span; the 65 degree threshold and 5-hour budget behind the deadline. The thermal classifier has no model and no metric, so no score is claimed. The detector is trained with Ultralytics YOLOv8, which is AGPL-3.0 and makes this repository AGPL-3.0. A commercial version would retrain on a permissively licensed detector; the README notes that switching to RF-DETR, Apache-2.0, touches one script.
 
 ---
 
@@ -502,82 +547,78 @@ Every row of the table is a measurement taken on our own laptop, in Chrome, and 
 ### Text on the slide
 
 ```
-[WHAT A FAULT COSTS, AND WHAT WAITING COSTS: every figure with its working]
+[IMPACT]
 ```
 
 ```
-₹2.446/kWh
-(200 MW × ₹2.44 + 300 MW × ₹2.45) ÷ 500 MW. The two SECI Bhadla Phase-III lots, blended by capacity
+(icon: search-navy) Faults found as they develop, not at the next survey
+Aerial surveys are usually yearly, so faults sit for weeks to months. This watches every array all the time.
 ```
 
 ```
-3.07 MWh  =  ₹7,509
-what one cracked array, B-17, loses over the 72 h forecast if nobody acts
+(icon: clock-navy) A deadline in place of an alarm
+B-17 must be acted on before 14:00. After that the damage is projected to stop being recoverable.
 ```
 
 ```
-₹74,114
-the same array left 30 days: 1.01 MWh/day × 30. An illustration that assumes a constant loss, not a measurement
+(icon: rupee-navy) Every loss priced, with its working
+3.07 MWh over 72 h is ₹7,509 at ₹2.446/kWh: the two SECI Bhadla Phase-III lots, blended by capacity.
 ```
 
 ```
-Annual  >  continuous
-aerial surveys are usually yearly, so faults sit for weeks to months. This watches every array all the time
+(icon: chart-navy) One fault, left for a month
+₹74,114: 1.01 MWh/day × 30 days. An illustration that assumes a constant loss, not a measurement.
 ```
 
 ```
-THE COST OF WAITING, ON SCREEN
+[BENEFITS]
 ```
 
 ```
-From the B-17 incident: repair now, in 6 h, tomorrow or in 3 days, in MWh and rupees. As captured; the figures move with site time. A defect report cannot give this.
+(icon: tools-navy) Operational: the crew knows what to do first
+A ranked list with reasons, and a day plan for two crews. No guessing which alarm matters.
 ```
 
 ```
-[WHO GAINS, AND HOW]
+(icon: coins-green) Economic: more energy from capacity already built
+Loss stated in rupees at the plant’s own tariff, and no drone flown where imaging adds nothing.
 ```
 
 ```
-(icon: tools) Operators and O&M crews
-A ranked list with reasons: which array, what repair, by when. No guessing which alarm matters.
+(icon: leaf-teal) Environmental: more clean energy delivered
+A plant that loses less to faults delivers more of what it was built for.
 ```
 
 ```
-(icon: rupee) Asset owners
-Loss in MWh and in rupees at the plant’s own tariff, with the source shown.
+(icon: hat-purple) Social: safer field work
+The planner keeps crews out of the field in the hours above 40 °C.
 ```
 
 ```
-(icon: bolt) The grid and its off-taker
-More of the contracted clean energy actually delivered from capacity already built.
+[THE COST OF WAITING: ARRAY B-17]
 ```
 
 ```
-(icon: hat) Crew safety
-The planner keeps field work out of the hours above 40 °C.
+Native bar chart, "Energy lost if the repair starts then (MWh)": Repair now 0.00 | In 6 hours 0.77 | Tomorrow 1.51 | In 3 days 4.82
 ```
 
 ```
-(icon: plane) Fewer needless flights
-No drone is sent where imaging adds nothing, such as a soiled array.
+Fix it now and nothing more is lost. Wait three days and it is 4.82 MWh, ₹11,795.
+From the B-17 incident screen, as captured on 7 Oct 2026: ₹1,894 at 6 hours, ₹3,704 tomorrow. All three delays run past the 14:00 deadline. The figures move with site time.
+A defect report cannot give this.
 ```
 
 ```
-(icon: industry) Industry 4.0, end to end
-A digital twin, predictive maintenance and automation, with a person in the loop.
-```
-
-```
-No deviation settlement charge is computed or claimed. Rupees are lost energy times the tariff, and nothing else.
+Analytics, in the prototype: expected against actual for the modelled arrays over 72 h, and the shortfall by cause. No deviation settlement charge is computed: rupees are lost energy times the tariff, and nothing else.
 ```
 
 ### Pictures
 
-- `images/07-cost-of-waiting.png`: lower left: the cost-of-waiting table from the B-17 incident screen
+- `images/07-analytics-outlook.png`: right block, under the chart: the Analytics screen, expected against actual over 72 hours and the loss by cause
 
 ### Speaker notes
 
-Impact is argued from arithmetic a judge can check, not from a market statistic we cannot source. The tariff: Bhadla Phase-III was auctioned by SECI in 2017 as two lots, 200 MW to ACME at 2.44 and 300 MW to SBG Cleantech at 2.45 rupees per kWh. Blended by capacity that is 2.446. We never quote 2.44 alone. No deviation settlement charge is computed or claimed: the CERC formula depends on a parameter the regulation does not publish. One cracked array, B-17, loses 3.07 MWh over the 72-hour forecast, 7,509 rupees. The 30-day figure is an illustration and is labelled as one: B-17 loses 1.01 MWh a day, so 30 days is 30.3 MWh, which is 74,114 rupees. It assumes the loss stays constant, which our own prognosis says it would not: the diode is projected to fail and the strings go open. It shows why continuous matters against an annual survey. The picture is the cost-of-waiting table from the B-17 incident: repair now, in 6 hours, tomorrow or in 3 days, each with the energy and the rupees lost. Its figures are as captured and move with site time. This is the thing a detector cannot give you. Wider benefit, stated qualitatively: more of the installed clean capacity is delivered; crews are not planned into the field above 40 degrees; and no drone is flown where imaging would add nothing, for example a soiled array. On the Analytics screen, the modelled arrays are 178 kW short of the model now, 0.6 per cent of their output, and lose 9.66 MWh over 72 hours out of 903 expected.
+Impact is argued from arithmetic a judge can check, not from a market statistic we cannot source. The tariff: Bhadla Phase-III was auctioned by SECI in 2017 as two lots, 200 MW to ACME at 2.44 and 300 MW to SBG Cleantech at 2.45 rupees per kWh. Blended by capacity that is 2.446. We never quote 2.44 alone. No deviation settlement charge is computed or claimed: the CERC formula depends on a parameter the regulation does not publish. One cracked array, B-17, loses 3.07 MWh over the 72-hour forecast, 7,509 rupees. The 30-day figure is an illustration and is labelled as one: B-17 loses 1.01 MWh a day, so 30 days is 30.3 MWh, which is 74,114 rupees. It assumes the loss stays constant, which our own prognosis says it would not: the diode is projected to fail and the strings go open. It shows why continuous matters against an annual survey. The chart is the cost-of-waiting table from the B-17 incident, as captured on 7 October 2026: repair now and nothing more is lost; start in 6 hours and it is 0.77 MWh, 1,894 rupees; tomorrow 1.51 MWh, 3,704 rupees; in 3 days 4.82 MWh, 11,795 rupees. The figures move with site time. All three delays are past the 14:00 deadline. This is the thing a defect report cannot give you. The picture under it is the Analytics screen: expected against actual for the modelled arrays over 72 hours, with the loss by cause. The modelled arrays are 178 kW short of the model now, 0.6 per cent of their output, and lose 9.66 MWh over 72 hours out of 903 expected. Wider benefit, stated qualitatively: more of the installed clean capacity is delivered; crews are not planned into the field above 40 degrees; and no drone is flown where imaging would add nothing.
 
 ---
 
@@ -588,22 +629,19 @@ Impact is argued from arithmetic a judge can check, not from a market statistic 
 ### Text on the slide
 
 ```
-[FUTURE SCOPE: research, patent, startup]
+[FUTURE SCOPE]
 ```
 
 ```
-(icon: flask) Research
-Finish the thermal classifier and report its held-out metric per class. Fit the forecast band to real forecast misses. Radiometric thermal data, and field validation of the deadline model.
+(icon: flask-navy) Research: finish the thermal classifier and report its held-out metric per class. Fit the forecast band to real misses. Radiometric thermal data, and field validation of the deadline model.
 ```
 
 ```
-(icon: file) Patent
-None filed. Candidate for a novelty search: a defect, its mechanism and a forecast turned into a repair deadline and a crew plan that re-derives live.
+(icon: file-purple) Patent: none filed. Candidate for a novelty search: a defect, its mechanism and a forecast turned into a repair deadline and a crew plan that re-derives live.
 ```
 
 ```
-(icon: rocket) Startup
-Software for O&M contractors and owners of utility-scale plants, fed by the plant’s own SCADA. Needs a permissively licensed detector first.
+(icon: rocket-green) Startup: software for O&M contractors and owners of utility-scale plants, fed by the plant’s own SCADA. Needs a permissively licensed detector first.
 ```
 
 ```
@@ -613,14 +651,14 @@ Software for O&M contractors and owners of utility-scale plants, fed by the plan
 ```
 1. Sheppard, Cook, Perullo (Turbine Logic); Fregosi, Bolen (EPRI). Field Experience Detecting PV Underperformance in Real Time Using Existing Instrumentation. osti.gov/servlets/purl/1960134
 2. NREL. PVWatts Version 5 Manual, NREL/TP-6A20-60272. docs.nrel.gov/docs/fy14osti/60272.pdf
-3. SECI auction, Bhadla Phase-III Solar Park, 2017. iea.org/policies/6373-auction-of-solar-corporation-of-india-seci and pv-magazine-india.com/?p=1613
-4. Raptor Maps. InfraredSolarModules dataset. github.com/RaptorMaps/InfraredSolarModules
+3. SECI auction, Bhadla Phase-III Solar Park, 2017. iea.org/policies/6373-auction-of-solar-corporation-of-india-seci; pv-magazine-india.com/?p=1613
+4. Raptor Maps. InfraredSolarModules. github.com/RaptorMaps/InfraredSolarModules
 5. Solar Panel Fault Detection v2, Roboflow Universe. universe.roboflow.com/solarvision-gwljt/solar-panel-fault-detection
-6. CERC Deviation Settlement Mechanism Regulations, 2024: cited as context only. No charge is computed from it.
+6. CERC Deviation Settlement Mechanism Regulations, 2024: context only. No charge is computed from it.
 ```
 
 ```
-[WHAT WE BUILT ON: third-party work, declared]
+[WHAT WE BUILT ON]
 ```
 
 | Kind | What | Licence |
@@ -635,14 +673,11 @@ Software for O&M contractors and owners of utility-scale plants, fed by the plan
 | Typeface | IBM Plex, in the product | OFL |
 
 ```
-Reference we owe: the loop follows the RAISE-winning Robinsun solar agent. We rebuilt it with a trained defect model and a physics-grounded simulation in place of a physical drone.
-Data: no personal or proprietary data is used. Both datasets are public and openly licensed. Telemetry is simulated.
+(icon: shield-teal) Reference we owe: the loop follows the RAISE-winning Robinsun solar agent. We rebuilt it with a trained defect model and a physics-grounded simulation in place of a physical drone. No personal or proprietary data is used; telemetry is simulated.
 ```
 
 ```
-Team SIGMOID
-Rehaan Ahmad Khan, Shantanu Singh, Lakshita Rawat, Krishna Agarwal
-Code: github.com/RAK2315/solar-proj (AGPL-3.0)
+(icon: users-navy) Team SIGMOID: Rehaan Ahmad Khan, Shantanu Singh, Lakshita Rawat, Krishna Agarwal. Code: github.com/RAK2315/solar-proj (AGPL-3.0)
 ```
 
 ### Pictures

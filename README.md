@@ -12,7 +12,7 @@ deadline. A person approves it before anything is scheduled.
 ![Next.js 15](https://img.shields.io/badge/Next.js-15-111827)
 ![React 19](https://img.shields.io/badge/React-19-1565C0)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-1565C0)
-![Tests](https://img.shields.io/badge/tests-453%20passing-00796B)
+![Tests](https://img.shields.io/badge/tests-457%20passing-00796B)
 ![Detector](https://img.shields.io/badge/Cracked%20AP%4050-0.995%20(test%20split)-00796B)
 
 <img src="docs/readme/hero-sandbox.jpg" alt="The Sandbox screen: a dust storm dropped on Zone B of the 3D twin, with the repair queue re-ranked and the cost in rupees" width="100%">
@@ -154,7 +154,7 @@ flowchart TB
         H[Thermal cell grid<br>classical image processing]
     end
     subgraph gate["Build gate: fails the build, not the demo"]
-        V[Zod schemas and 16 invariants] --> L[Literal and wording scan] --> X[453 tests<br>physics golden-tested]
+        V[Zod schemas and 16 invariants] --> L[Literal and wording scan] --> X[457 tests<br>physics golden-tested]
     end
     subgraph browser["In the browser, at run time"]
         K[One clock: site time]
@@ -211,7 +211,7 @@ Taken on a laptop, in Chrome, and recorded with their dates in `CLAUDE.md`.
 
 | What | Result | How it was measured |
 |---|---|---|
-| Automated tests | **453 passing** | Every build, before it compiles |
+| Automated tests | **457 passing** | Every build, before it compiles |
 | 3D twin frame rate | **60.1 fps**, no frame over 20 ms | Chrome at 1366×768 and 1920×1080, idle and mid-drag |
 | Hazard drop to re-planned frame | **31 to 40 ms** | A real pointer in Chrome. The budget was 150 ms |
 | Crew-plan solve, the site's own days | **10.8 ms**; 1.1 ms under a heatwave | HiGHS in WebAssembly, cut off at 50 ms |

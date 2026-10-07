@@ -16,7 +16,7 @@ presenter, so every slide has to make sense on its own.
   sections it covers, every piece of text on the slide in reading order, which
   picture and which icon goes where, and the speaker notes.
 - `images/` holds the pictures, named by slide number. They are screenshots of
-  the working prototype. `images/icons/` holds the icons, one per icon row.
+  the working prototype. `images/icons/` holds the icons, one file per icon and colour.
 - `SOURCES.md` says where every figure comes from. Use it to check yourself. Do
   not put it on a slide.
 
@@ -51,18 +51,20 @@ presenter, so every slide has to make sense on its own.
 
 **Design**
 
-- 16:9, light: white slides. The format is a dense idea-submission sheet, not a
-  talk deck. Every slide has the same frame: a "Sigmoid" mark top left, the
-  slide title centred in bold serif capitals, "JSS AI FORGE 36 / AI for Industry
-  4.0" top right, a thin rule under them, and a blue footer band with the slide
-  number.
-- Inside the frame: blue section bars with white text, blocks in a thin navy
-  outline, pale blue boxes for figures, and rows made of an icon, a bold line
-  and a sentence. Navy and blue carry the structure; orange marks a figure, red
-  marks the critical figure and the operator's approval, teal marks what is
-  real.
-- Body text about 11 pt, never smaller than 10 pt; captions and sources 9 to
-  10 pt. Left-align body text. One plain sans-serif for body text.
+- 16:9, white slides. The format is a dense idea-submission sheet, not a talk
+  deck. Every slide has the same frame: "Sigmoid" in an outlined oval top left,
+  the slide title centred in a bold black serif in capitals, "JSS AI FORGE 36 /
+  AI for Industry 4.0" top right, and a blue footer band reading "@JSS AI FORGE
+  36 Idea Submission" with the slide number.
+- Content sits in blocks with a heavy rounded outline and a bold capital
+  heading inside the top edge: navy by default, red for risks, green for how
+  each risk is answered. Inside a block: rows of a coloured icon, a bold
+  coloured lead and a sentence. Small figures sit in pale blue boxes.
+- A slide may open with one line: a bold capital label, then the claim in
+  plain weight ("PROPOSED SOLUTION: one closed loop...").
+- Montserrat throughout, Times New Roman for the slide title. Body text about
+  10 pt, never smaller than 9 pt; sources 8 to 9 pt. Left-align body text.
+- Slide 7 has one native bar chart; keep it a chart, not a picture.
 - No clip art, no stock photos, no decoration that carries no meaning.
 - Nothing may overflow its box or run off the slide. If text does not fit,
   shorten the sentence; do not shrink it below the sizes above.

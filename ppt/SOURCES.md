@@ -27,7 +27,7 @@ Three kinds of source are used:
 
 ## Figures, by slide
 
-The deck is eight slides: 1 title, 2 problem statement, 3 our solution, 4 tech
+The deck is eight slides, also saved as `SURYA-AGENT-Round1.pdf`: 1 title, 2 problem statement, 3 our solution, 4 tech
 stack and flow, 5 our USP, 6 feasibility and viability, 7 impact and benefits,
 8 research and references. The one-page PDF (`SURYA-AGENT-One-Page.pdf`) uses a
 subset of the same figures and nothing that is not in this table.
@@ -53,7 +53,7 @@ subset of the same figures and nothing that is not in this table.
 | 3, 4, 6 | Solver capped at 50 ms | Repo | `src/lib/highsSolver.ts`; `plan/rework/02-stack.md` DR-9 |
 | 3, 6 | B-17 diagnosed; 119 flagged from modelled signature | Repo | `plan/rework/01-hero.md` vocabulary rule; enforced by `scripts/check_literals.mjs` |
 | 4 | 16 invariants | Repo | `src/lib/types.ts`, I1 to I16 |
-| 4, 6 | 453 tests | Repo and run | `CLAUDE.md` status box, P6; run 7 Oct 2026 by `npm run demo`: 30 files, 453 passed |
+| 4, 6 | 457 tests | Repo and run | `CLAUDE.md` status box, the landing page row; run 7 Oct 2026 by `npm run demo`: 457 passed |
 | 4 | Versions: Next.js 15, React 19 | Repo | `package.json` |
 | 5 | score = loss per day × severity × urgency ÷ access; urgency = 1 + 24 ÷ hours left | Repo | `src/lib/ranking.ts` |
 | 5 | 1.01 MWh × 3.0 × 7.69 ÷ 1.0 = 23.29; A-08 next at 0.81 | Capture | `05-queue-arithmetic.png` |
@@ -62,13 +62,14 @@ subset of the same figures and nothing that is not in this table.
 | 5, 6 | 31 to 40 ms from drop to the re-planned frame; budget 150 ms | Repo | `CLAUDE.md` status box, P5: measured in Chrome with `npm run measure:hero`. Budget: `plan/rework/01-hero.md` R2 |
 | 5, 6 | 60.1 fps, no frame over 20 ms, at both widths | Repo | `CLAUDE.md` status box, P5 |
 | 5 notes | 5.8 % difference at 14:17 site time | Repo | `plan/rework/01-hero.md`; `CLAUDE.md` status box |
-| 6 | Solve 10.8 ms at the rehearsal state, 1.1 ms under a heatwave | Repo | `CLAUDE.md` status box, the owner's rulings of 6 Oct |
-| 6 | Test split of 42 images | Repo | `docs/dataset-provenance.md` |
+| 6 notes | Solve 10.8 ms at the rehearsal state, cut off at 50 ms | Repo | `CLAUDE.md` status box, the owner's rulings of 6 Oct |
+| 6 notes | Test split of 42 images | Repo | `docs/dataset-provenance.md` |
 | 6 | Tested to 120 arrays | Repo | `data/farm.json`: the product has never been run larger |
-| 6 | Forecast band ±5 % widening to ±15 % | Repo | `CLAUDE.md` status box, P5. A declared assumption |
+| 6 | A 2D map takes over below 30 frames a second | Repo | `src/components/twin/Watchdog.tsx` |
+| 6 | A build gate of 16 invariants | Repo | `src/lib/types.ts`, I1 to I16; `scripts/validate_data.ts` |
 | 6 notes | γ −0.0037/°C, NOCT 45 °C, η 0.98; module replacement 3 h, wash 1 h; 65 °C, 5 h | Repo | README physics table; `src/lib/repair.ts`. Declared where the README says so |
 | 7 | ₹74,114 for 30 days | Derived | 1.01 MWh/day (`data/repair_queue.json`, INC-B17) × 30 = 30.3 MWh; × 1000 × ₹2.446 = ₹74,113.8. **An illustration: it assumes the loss stays constant.** Labelled so on the slide |
-| 7 picture | 0.77 MWh / ₹1,894, 1.51 MWh / ₹3,704, 4.82 MWh / ₹11,795 | Capture | `07-cost-of-waiting.png`. Not repeated as slide text because they move with site time |
+| 7 chart and text | Repair now 0.00 MWh; in 6 hours 0.77 MWh, ₹1,894; tomorrow 1.51 MWh, ₹3,704; in 3 days 4.82 MWh, ₹11,795 | Capture | The cost-of-waiting table on the B-17 incident screen, 7 Oct 2026 (`07-cost-of-waiting.png` is that table). Drawn as a native chart and labelled "as captured": they move with site time |
 | 7 | Lots: 200 MW at ₹2.44, 300 MW at ₹2.45 | Cited | SECI auction; held in `src/lib/money.ts` |
 | 7 | Crews kept out above 40 °C | Repo | `CLAUDE.md` status box, P4: "The heat rule is 40 °C" |
 | 7 notes | 178 kW short, 0.6 %; 9.66 of 903 MWh | Capture | the Analytics screen, 7 Oct 2026 |
