@@ -499,34 +499,10 @@
 
 .sy-landscene { position: absolute; inset: 0; z-index: var(--z-twin); }
 .sy-landscene img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.sy-land {
-  position: absolute; z-index: var(--z-panel); left: var(--edge); top: var(--edge); bottom: var(--edge); width: min(500px, calc(100% - 2 * var(--edge)));
-  padding: 30px 32px; border-radius: 18px;
-  display: flex; flex-direction: column; justify-content: center; gap: 22px;
-  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
-}
-.hero { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
-.hero .brand { font-weight: 600; color: var(--ink-2); }
-.hero h1 { font-size: var(--t5); font-weight: 600; line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance; }
-.hero .approve { width: auto; padding: 13px 24px; border-radius: 999px; }
-.sy .hero a.approve { color: var(--on-sev); }
-.loop { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
-.loop li { display: flex; gap: 10px; padding: var(--row) 0; }
 .proof { display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
 .sy a.src { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-hi); }
 .sy a.src:hover { text-decoration-color: var(--ink); }
-.sy .sy-stats {
-  position: absolute; z-index: var(--z-panel); right: var(--edge); bottom: var(--edge); left: calc(min(500px, 100% - 2 * var(--edge)) + 2 * var(--edge));
-  padding: 18px 22px; border-radius: 18px;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 24px;
-}
-.sy-stats dd { font-size: var(--t4); font-weight: 600; line-height: 1.1; }
-.sy-stats dt { margin-top: 4px; color: var(--ink-2); }
-.sy-landtheme { position: absolute; z-index: var(--z-panel); top: var(--edge); right: var(--edge); border-radius: 999px; padding: 6px; }
-.sy-landtheme .tool { padding: 8px; border-radius: 999px; border-color: transparent; background: none; }
-@media (max-width: 900px) {
-  .sy-stats { display: none; }
-}
+/* The page itself is in landing.css. */
 
 /* ── The day plan ────────────────────────────────────────────────────────── */
 
