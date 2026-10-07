@@ -150,6 +150,8 @@ if (want('flight')) {
   await click('Dossier');
   await wait(1500);
   await snap('dossier-top');
+  // What the detector said on this flight, as text, so the figure is read and not eyeballed.
+  console.log('  detector:', JSON.stringify(await page.evaluate(() => document.body.innerText.split('\n').filter((l) => /detection|Run \d|clearest|found cracked|Nothing/i.test(l)))));
   for (const f of [0.2, 0.4, 0.6, 0.8, 1]) { await scrollSheets(f); await snap(`incident-${Math.round(f * 100)}`); }
   await scrollSheets(0);
   await page.keyboard.press('?');

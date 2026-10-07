@@ -667,6 +667,21 @@ export function useLiveQueue(): LiveQueue {
   );
 }
 
+/** The likely cause of an array's shortfall, from the instrument readings in a frame. */
+function causeIn(frame: LiveFrame, panelId: string): Cause {
+  const median = cellTemp(frame.ambientC, frame.irradiance);
+  const r = frame.panels[panelId];
+  return diagnose({
+    panelId,
+    deviationPct: r?.deviationPct ?? 0,
+    stringDeviationPct: r?.stringDeviationPct,
+    cellTempC: r?.cellTempC ?? median,
+    fleetMedianCellTempC: median,
+    hourOffset: forecastOffset(frame.siteSeconds),
+    peakIrradiance: PEAK_IRRADIANCE,
+  });
+}
+
 /**
  * The likely cause of every queued job, from the same instrument readings the
  * incident screen diagnoses from. Keyed by array.
@@ -674,22 +689,10 @@ export function useLiveQueue(): LiveQueue {
 export function useQueueCauses(): ReadonlyMap<string, Cause> {
   const { tasks } = useLiveQueue();
   const frame = useSiteFrame();
-  return useMemo(() => {
-    const median = cellTemp(frame.ambientC, frame.irradiance);
-    const hourOffset = forecastOffset(frame.siteSeconds);
-    return new Map(tasks.map((t) => {
-      const r = frame.panels[t.panelId];
-      return [t.panelId, diagnose({
-        panelId: t.panelId,
-        deviationPct: r?.deviationPct ?? 0,
-        stringDeviationPct: r?.stringDeviationPct,
-        cellTempC: r?.cellTempC ?? median,
-        fleetMedianCellTempC: median,
-        hourOffset,
-        peakIrradiance: PEAK_IRRADIANCE,
-      })] as const;
-    }));
-  }, [tasks, frame]);
+  return useMemo(
+    () => new Map(tasks.map((t) => [t.panelId, causeIn(frame, t.panelId)] as const)),
+    [tasks, frame],
+  );
 }
 
 export const useWorkOrders = () => useSession((s) => s.workOrders);
@@ -725,9 +728,8 @@ let lastPlan: { key: string; plan: Plan } | null = null;
  * The day's crew plan: the exact solve where the solver has loaded, the
  * heuristic where it has not, and the heuristic's score beside it either way.
  *
- * The cause decides the work. A soiled array needs a wash crew for two hours and
- * a cracked one needs a module replaced, which is the scheduling payoff of the
- * triage stage. A PROPOSAL: nothing here creates a work order.
+ * The cause decides the work. A soiled array needs a wash and a cracked one a
+ * module replaced, which is the scheduling payoff of the triage stage. A PROPOSAL: nothing here creates a work order.
  */
 export function useSchedule(): DaySchedule {
   const { tasks } = useLiveQueue();
@@ -739,21 +741,8 @@ export function useSchedule(): DaySchedule {
   const solver = useSolver((s) => s.solver);
 
   return useMemo(() => {
-    const median = cellTemp(frame.ambientC, frame.irradiance);
     const nowOffsetH = forecastOffset(siteSeconds);
-    const repairOf = (panelId: string) => {
-      const r = frame.panels[panelId];
-      const cause = diagnose({
-        panelId,
-        deviationPct: r?.deviationPct ?? 0,
-        stringDeviationPct: r?.stringDeviationPct,
-        cellTempC: r?.cellTempC ?? median,
-        fleetMedianCellTempC: median,
-        hourOffset: nowOffsetH,
-        peakIrradiance: PEAK_IRRADIANCE,
-      }).id;
-      return repairFor(cause, eventFor(panelId, injected));
-    };
+    const repairOf = (panelId: string) => repairFor(causeIn(frame, panelId).id, eventFor(panelId, injected));
 
     const ctx = { tasks, repairFor: repairOf, nowOffsetH, epochHour: scenario.epochHour, hazards };
     const problem = problemFrom(ctx);

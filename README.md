@@ -33,20 +33,32 @@ to fix first — then stops and waits for a person to approve it.
 
 ---
 
-**Status:** deployable. Two modes over one console —
+**Status, 7 Oct 2026:** built, and being prepared for JSS AI FORGE 36 (AI for
+Industry 4.0). The status box at the top of `CLAUDE.md` is the dated record of
+every measurement and decision; this section is the short version.
 
-  **LIVE** (default) — the site runs on the physics model in real time. Click any of
-  the 120 arrays, read its actual telemetry, dispatch a drone to it, watch the mission
-  fly, and raise a work order. Faults develop over site time from a committed
-  scenario, so the session is reproducible without being scripted.
+- `/console` is one view: a 3D twin of the 120 arrays with a rail, two small
+  panels and one sheet of glass over it. Six screens: Site, Incident, Queue,
+  Analytics, Drones, Sandbox. A 2D map is one click away and takes over by
+  itself if the twin cannot hold 30 fps.
+- The site runs on the physics model at any site time. Faults develop from a
+  committed scenario, so a session is reproducible without being scripted.
+  There is no separate demo mode any more: it was retired on 6 Oct 2026.
+- **Sandbox.** Drag a dust storm or a cloud bank onto the field, or switch on a
+  heatwave, and the queue, the deadlines and the crew plan re-derive.
+- **Crew plan.** The day is solved as a mixed-integer program by HiGHS in the
+  browser, cut off at 50 ms, beside a greedy heuristic scored by the same
+  function. A plan is a proposal; only an operator's click creates a work order.
+- **Rupees.** Lost energy at Rs 2.446/kWh, the two SECI Bhadla Phase-III lots
+  blended by capacity, with the arithmetic on the Analytics screen. No deviation
+  settlement charge is computed.
+- **Not built:** the thermal classifier. Its training notebook
+  (`plan/COLAB-THERMAL-NOTEBOOK.md`) and 119 modelled frames exist; there is no
+  trained model and no metric.
 
-  **DEMO** (press `M`) — the 90-second scripted incident, preserved intact: the
-  cinematic, the drone POV, the agent reasoning, the human gate.
-
-The one outstanding item is the Colab training run, which fills in the detector's real
-metrics (see *Data provenance*).
-Build plan: `plan/05-build-plan.md` · Frozen numbers: `docs/contract-freeze.md` ·
-Phase-by-phase record incl. every correction: `report.txt`
+The Round 1 deck and its sources are in [`ppt/`](ppt/).
+Build plan for the rework: `plan/rework/` . Frozen numbers: `docs/contract-freeze.md` .
+Phase-by-phase record: `report.txt`
 
 ---
 
@@ -205,10 +217,11 @@ scripts/          Python + TS. Run once, output committed. Never runtime.
 data/             generated, committed. The contract between pipeline and app.
 models/           trained weights (provenance evidence, never loaded at runtime)
 src/
-  lib/            pure and I/O-free: physics, ranking, formatting, scene spline,
-                  the ironbow ramp, the Zod schemas
-  store/          demoClock.ts (the ONE clock) + selectors.ts (the public API)
-  components/     console/ · cinematic/ · scene/
+  lib/            pure and I/O-free: physics, live site, hazards, queue and
+                  ranking, the scheduler and its LP model, money, the Zod schemas
+  store/          session.ts (site time, the ONE clock) + selectors.ts (the public API)
+  components/     shell/ . overlay/ . twin/ . scene/ . fallback/ . landing/
+ppt/              the Round 1 deck, its pictures, its sources and its build scripts
 plan/             the build pack: features, architecture, ADRs, schemas, risks
 docs/             contract-freeze.md · dataset-provenance.md · media-provenance.md
                   vision-handoff.md · training/
@@ -217,13 +230,14 @@ report.txt        every phase, what it found, and what is still open
 
 ### Architecture in one paragraph
 
-There is **no server**. Python generates every number offline and commits it as JSON;
-the app imports that JSON at build time. One Zustand store holds `t` and `approved` —
-the only mutable state in the application — and one `requestAnimationFrame` loop
-advances `t`. Everything else is a pure function of `t` through `src/store/selectors.ts`,
-which is why seeking backwards works and why the console, the cinematic overlays, the
-3D camera and the picture-in-picture can never disagree about what time it is. ESLint
-fails the build if a second timer appears in `src/components/`.
+Python generates the site, its scenario and the evidence offline and commits them
+as JSON; the app imports that JSON at build time. In the browser, one Zustand store
+holds the site time, `session.siteSeconds`, and one `requestAnimationFrame` loop
+advances it (`src/hooks/useSiteClock.ts`). Everything on screen is a pure function
+of that time and the scenario events through `src/store/selectors.ts`, which is why
+seeking backwards works and a dropped hazard un-happens. The detector (ONNX Runtime
+Web) and the crew-plan solver (HiGHS in WebAssembly) run in the browser. The one
+server route is `/api/triage`.
 
 Regenerate everything — each step reads the one before it:
 
@@ -234,17 +248,20 @@ python scripts/generate_events.py
 npm run validate:data
 ```
 
-Model training and inference run **on Colab only** (`plan/COLAB-NOTEBOOK.md`); artefacts are
-downloaded and committed. Nothing in this repo installs torch locally, and the deployed app
-makes **zero network calls** — telemetry is pre-generated, LLM output is cached.
+Model training runs on Colab (`plan/COLAB-NOTEBOOK.md`); the artefacts are
+downloaded and committed. The detector's inference runs in the browser.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
-npm run build        # gate: sync + validate:data + check:literals + 145 tests
+npm run demo         # clean production build, served on http://localhost:3000
+npm run build        # gate: sync + validate:data + check:literals + tests + compile
 npm run test         # vitest
 npm run lint         # includes the one-clock guardrails
+npm run check:layout # drives Chrome at 1920x1080 and 1366x768; needs the app served
+npm run measure:hero # drop-to-replan time and frame rate, in a real Chrome window
 ```
+
+Use `npm run demo`, not `npm run dev`, for anything shown to someone.
 
 > **If you touch `generate_telemetry.py`, re-run `run_agent.py`.** The cached agent prose
 > quotes numbers from the telemetry, and the cross-check only protects you if it runs.
@@ -261,34 +278,24 @@ Set **one** environment variable in Vercel:
 | `GROQ_API_KEY` | Live-mode triage. **Server-side only** — never `NEXT_PUBLIC_`. |
 | `GROQ_MODEL` | Optional. Defaults to `openai/gpt-oss-120b`. |
 
-Without it the app still works: live triage reports **agent unavailable** with the
-reason, and everything else — telemetry, dispatch, evidence, the demo — is unaffected.
+Without it the app still works: the triage panel reports **agent unavailable**
+with the reason, and everything else is unaffected.
 
-**On network calls.** The demo path makes none: telemetry is pre-generated, agent
-prose is cached, fonts are self-hosted, the detector ran offline. Live mode adds
-exactly one, `POST /api/triage`, and only when an array is selected. That call is
-server-to-server; the browser never sees the key, and the server recomputes the
-telemetry itself rather than trusting anything the client sends.
+**On network calls.** There is exactly one, `POST /api/triage`, made when an
+array with something to judge is selected. It is server-to-server; the browser
+never sees the key, and the server recomputes the telemetry itself and does not
+trust what the client sends. Telemetry, fonts, the detector and the solver are
+all served from the app.
 
-### Rehearsal keys
-
-The demo has no visible transport. It runs on the keyboard (`CLAUDE.md` §6):
+### Keys
 
 | Key | Action |
 |---|---|
-| `Space` | play / pause |
-| `←` `→` | seek ∓5 s |
-| `1` `2` `3` | speed 0.5× / 1× / 2× |
-| `R` | reset |
-| `C` `V` | force console / cinematic — press again to hand the view back to `t` |
-| `D` | show / hide the debug readout |
-| `M` | switch between **live** and **demo** |
-
-In live mode only `Space` (pause site time), `D` and `M` apply — seeking a live site
-would be a lie about what a console can do.
-
-The view is otherwise a pure function of `t`: console on `[0,18) ∪ [74,90]`, cinematic
-on `[18,74)`.
+| `Space` | run or pause site time |
+| `Left` `Right` | seek site time back or forward |
+| `S` | load the committed rehearsal state |
+| `R` | reset the session, from any state including mid-drag |
+| `Esc` | put a held hazard back, then close the dossier, then the array panel |
 
 ## What is not built
 
@@ -302,11 +309,13 @@ missing, why, and what it would take. What is worth knowing up front:
   photography, so the RGB frame is a detector validation image, not site imagery.
 - **Inverter acoustic and flyover clips.** Never captured. The evidence strip renders
   present slots and omits absent ones, so nothing on screen implies otherwise.
-- **Prognosis and recommendation have no live path** — only triage does. For arrays
-  other than B-17 those two sections are absent rather than borrowed.
+- **Prognosis and recommendation have no live path**, only triage does. For arrays
+  other than B-17 those two sections are absent and not borrowed.
+- **The thermal classifier is not built.** No model, no metric.
+- **Nothing is connected to a real plant or a real drone.** Telemetry is simulated
+  on the PV model with stated coefficients, and the flight is a 3D simulation.
 
-Deliberately out of scope: auth and accounts, responsive layout, a second site,
-historical browsing, map zoom.
+Deliberately out of scope: auth and accounts, a second site, historical browsing.
 
 ---
 

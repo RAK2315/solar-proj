@@ -48,6 +48,7 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
         <ol className="q" data-detail={detail}>
           {tasks.map((t, i) => {
             const s = scoreBreakdown(t);
+            const cause = causes.get(t.panelId);
             const sev = t.scheduled ? 'scheduled' : t.severity;
             return (
               <li key={t.id} data-sev={sev}>
@@ -59,9 +60,7 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
                   </span>
                   <span className="score num">{num(s.score, 2)}</span>
                 </button>
-                {detail && causes.get(t.panelId) && (
-                  <span className="work">{causes.get(t.panelId)?.label}. {causes.get(t.panelId)?.action}</span>
-                )}
+                {detail && cause && <span className="work">{cause.label}. {cause.action}</span>}
                 {detail ? (
                   <dl className="sum num">
                     <div><dd>{MWh(s.loss)}</dd><dt>lost a day</dt></div>

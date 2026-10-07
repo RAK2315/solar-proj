@@ -31,10 +31,15 @@ import { ambientAt } from './physics';
 import type { LiveTask } from './queue';
 import { priorityScore } from './ranking';
 import type { Repair } from './repair';
-import { CREW_COUNT, TRAVEL_HOURS_BASE } from './schedule';
 
 export { LATE_FACTOR, onTime } from './lpModel';
 export type { Job, Problem } from './lpModel';
+
+/** Maintenance crews the site runs. A declared figure, like the repair hours. */
+export const CREW_COUNT = 2;
+
+/** Driving time to an array at access cost 1.0, scaled by the array's own cost. Declared. */
+export const TRAVEL_HOURS_BASE = 0.5;
 
 export interface Assignment { jobId: string; crew: number; startSlot: number }
 
@@ -252,7 +257,9 @@ export function solve(
     const best = found && objectiveOf(found, problem) > baseline + SAME_SCORE
       ? found.sort(byCrewThenStart)
       : fallback;
-    if (bound === null) return plan(best, 'heuristic');
+    // With no bound there is no gap to state, and only the heuristic's plan may
+    // carry the heuristic's label.
+    if (bound === null) return heuristicOnly();
     const score = objectiveOf(best, problem);
     return plan(best, 'limit', score > 0 ? Math.max(0, ((bound - score) / score) * 100) : 0);
   } catch {

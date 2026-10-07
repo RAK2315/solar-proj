@@ -3,8 +3,28 @@
 Kept current. If something on this list ships, it comes off the list; if something
 here is wrong, it is a bug in the document.
 
-Last reviewed: **2026-08-18**. §5b and §5c are both clear — the redesign shipped.
-Start at **§4**, the prognosis/recommendation live path, which is now the largest gap.
+Last reviewed: **2026-10-07**, against the status box in `CLAUDE.md`, which is the
+dated record. Sections 1 to 6e below were written against the console that the
+UI rework replaced on 6 Oct 2026; where one names a component under
+`components/console/` or `components/cinematic/`, demo mode, or the Missions,
+Repairs and Scenario screens, that thing no longer exists and the entry is history.
+
+**Open as of 7 Oct 2026, in order:**
+
+1. **Thermal classifier (P3).** The contract, the Colab notebook and the 119
+   modelled frames are done. No model is trained and nothing is integrated.
+   Steps: `plan/rework/handoff/2026-10-06b.md`.
+2. **Panel textures.** Three owner-supplied images are in `assets/textures-src/`
+   and are not wired in. Scored as written textures on 7 Oct 2026:
+   `cracked_v1_middle` returns no box; `cracked_v2_top_left_corner` returns
+   Cracked 0.795, and 0.80 on a real-time flight of B-17 (against 0.90 with the
+   current texture); `not cracked` returns Cracked 0.838, so
+   `make_panel_textures.mts` refuses it as an intact texture. Waiting on the
+   owner's choice and on where the images came from.
+3. **Prognosis and recommendation have no live path** (section 4).
+4. **A repair has no completion step** (section 6f).
+5. **The dust figure in the sandbox is a declared assumption** with no primary
+   source looked for.
 
 ---
 
@@ -241,14 +261,10 @@ It found two things immediately that 345 pure-function tests could not.
 
 ## 6d. Left open after the Phase 23 review
 
-- [ ] **A job with no work to do still consumes a crew.** `schedule.ts`: a
-  `shading` or `none` cause books `REPAIR_HOURS = 0` and `needsInspection =
-  false`, yet still takes `TRAVEL_HOURS_BASE × accessCost` of a crew's day — so a
-  row DayPlan labels "no repair — geometry" can push a real repair past its
-  deadline. That is the one number the component exists to report. Not changed
-  here because it moves a headline figure ("2 of 4 jobs finish late") and the
-  right answer may be to drop such jobs from the plan rather than to zero their
-  travel.
+- [x] **A job with no work to do still consumes a crew.** Closed 6 Oct 2026:
+  `repairFor` in `src/lib/repair.ts` returns no hours for shading or no fault,
+  and `problemFrom` leaves such a job out of the plan. The module this entry
+  named, `schedule.ts`, was deleted on 7 Oct 2026.
 
 - [ ] **A panel texture that 404s fails quietly.** `CrackedPanel` logs the error
   and falls back to the drawn texture, but `SurfaceProvenance` and the incident

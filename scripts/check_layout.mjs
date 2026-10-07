@@ -21,10 +21,10 @@
  *   GLASS     the element that carries a sheet's glass never scrolls, so the
  *             text cannot leave the glass behind
  *   OVERLAP   no block of a sheet runs over the block after it
+ *   CANVAS    the twin's canvas fills the viewport, and the landing page's too
  *
  * Every screen is measured twice: as it opens, and again with each sheet
  * scrolled to its end. A sheet that only breaks once it is scrolled used to pass.
- *   CANVAS    the twin's canvas fills the viewport, and the landing page's too
  *
  * It also proves the console is alive: every step presses a real control, and a
  * control that is not there fails the run instead of being skipped.

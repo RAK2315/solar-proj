@@ -249,6 +249,9 @@
 .sy .basis { color: var(--ink-2); font-weight: 400; }
 .rows dt .basis { display: block; }
 .rows dd { min-width: 0; overflow-wrap: anywhere; }
+/* A figure is never broken across lines: beside a long label the rupee value
+   on the array panel was wrapping after its third digit. The label gives way. */
+.rows dd.num { flex: none; white-space: nowrap; overflow-wrap: normal; }
 .defer .amt { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .defer .rupees { color: var(--ink-2); font-weight: 500; white-space: nowrap; }
 .cost b { font-weight: 600; color: var(--ink); }

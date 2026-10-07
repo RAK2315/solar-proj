@@ -80,6 +80,7 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "plan/schemas.ts",   // historical; src/lib/types.ts is the live schema owner
+      "ppt/**",            // the deck and its build scripts, not part of the product
     ],
   },
 ];

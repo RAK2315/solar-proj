@@ -113,7 +113,7 @@ export function CurvePanel() {
         ))}
       </div>
       <div className="axis num">
-        {ticks.map((t) => <span key={t}>{t === 0 ? clockOf(epochHour) : clockOf(epochHour + t)}</span>)}
+        {ticks.map((t) => <span key={t}>{clockOf(epochHour + t)}</span>)}
       </div>
 
       <table className="tbl">

@@ -15,9 +15,9 @@
 
 import { clockOf, degC, hours, num, pctPlain } from '@/lib/format';
 import { DIODE_SERVICE_FROM_STRINGS, REPAIR_PART_HOURS } from '@/lib/repair';
-import { TRAVEL_HOURS_BASE } from '@/lib/schedule';
 import {
-  HEAT_WORK_LIMIT_C, LATE_FACTOR, SHIFT_CAP_HOURS, SHIFT_END_HOUR, SHIFT_START_HOUR, SOLVE_BUDGET_MS, onTime,
+  HEAT_WORK_LIMIT_C, LATE_FACTOR, SHIFT_CAP_HOURS, SHIFT_END_HOUR, SHIFT_START_HOUR, SOLVE_BUDGET_MS,
+  TRAVEL_HOURS_BASE, onTime,
 } from '@/lib/scheduler';
 import { useSchedule, type DaySchedule } from '@/store/selectors';
 import { useSession } from '@/store/session';

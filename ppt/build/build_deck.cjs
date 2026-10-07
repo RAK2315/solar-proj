@@ -42,7 +42,7 @@ pres.title = 'SURYA AGENT - Round 1';
 pres.author = 'Team SIGMOID';
 pres.company = 'Team SIGMOID';
 const C = pres.SchemeColor;
-const INK = C.text1; const MUTED = C.text2; const PAGE = C.background1; const PANEL = C.background2;
+const INK = C.text1; const MUTED = C.text2; const PANEL = C.background2;
 const ORANGE = C.accent1; const RED = C.accent2; const TEAL = C.accent3; const AMBER = C.accent4;
 
 const W = 13.333; const MX = 0.6; const CW = W - 2 * MX;
@@ -111,8 +111,7 @@ function picture(file, x, y, w, where, maxH) {
   cur.pictures.push({ file, where });
   return { w, h };
 }
-const runs = (...parts) => parts.map(([t, o = {}], i) => ({ text: t, options: { ...o, breakLine: o.breakLine ?? false } }));
-const para = (items, o = {}) => items.map((t, i) => ({ text: t, options: { breakLine: i < items.length - 1, paraSpaceAfter: 6, ...o } }));
+const runs = (...parts) => parts.map(([t, o = {}]) => ({ text: t, options: { ...o, breakLine: o.breakLine ?? false } }));
 const bullets = (items, o = {}) => items.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i < items.length - 1, paraSpaceAfter: 6, ...o } }));
 /** A heading line and a body under it, as runs of one text box. */
 const headed = (head, body, colour = ORANGE) => [
