@@ -18,9 +18,8 @@ import { useRef } from 'react';
 import { Vector3 } from 'three';
 
 import { Drone } from '@/components/scene/Drone';
-import { SceneEnvironment } from '@/components/scene/Environment';
+import { SiteEnvironment } from '@/components/twin/SiteEnvironment';
 import { Field } from '@/components/twin/Field';
-import { DarkEnvironment } from '@/components/twin/Twin';
 import { LANDING_DRONES, STILL_SECONDS, landingCameraAt, landingDroneAt } from '@/lib/landing';
 import { useSession } from '@/store/session';
 
@@ -30,8 +29,18 @@ const seconds = () => {
   return s.siteSeconds / Math.max(1, s.timeScale);
 };
 
-const DAY_FOG: [number, number] = [110, 380];
 const AHEAD_SECONDS = 0.25;
+
+function Aircraft({ still }: { still: boolean }) {
+  const size = useThree((s) => s.size);
+  return <>{Array.from({ length: LANDING_DRONES }, (_, i) => (
+    <Drone key={i} scale={i === 0 ? 4.8 : 2.2} sample={() => {
+      const t = still ? STILL_SECONDS : seconds();
+      const aspect = size.width / size.height;
+      return { p: landingDroneAt(t, i, aspect), ahead: landingDroneAt(t + AHEAD_SECONDS, i, aspect), visible: true };
+    }} />
+  ))}</>;
+}
 
 function Camera({ still }: { still: boolean }) {
   const camera = useThree((s) => s.camera);
@@ -60,18 +69,9 @@ export default function LandingScene({ still }: { still: boolean }) {
       camera={{ fov: 50, near: 0.5, far: 600, position: [0, 30, 112] }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      {theme === 'light' ? <SceneEnvironment fog={DAY_FOG} /> : <DarkEnvironment />}
+      <SiteEnvironment dark={theme !== 'light'} />
       <Field dark={theme !== 'light'} interactive={false} />
-      {Array.from({ length: LANDING_DRONES }, (_, i) => (
-        <Drone
-          key={i}
-          scale={2.2}
-          sample={() => {
-            const t = still ? STILL_SECONDS : seconds();
-            return { p: landingDroneAt(t, i), ahead: landingDroneAt(t + AHEAD_SECONDS, i), visible: true };
-          }}
-        />
-      ))}
+      <Aircraft still={still} />
       <Camera still={still} />
     </Canvas>
   );

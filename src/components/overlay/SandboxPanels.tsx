@@ -26,7 +26,7 @@ export function InjectPanel() {
   const target = nextRehearsalTarget(frame, taken, injected.length + 1);
   return (
     <Blk b="inject" title={<>Rehearsal faults<span className="count num">{injected.length} active</span></>}>
-      <p className="one">Break an array and watch the plan re-derive. Next target <span className="id">{target ?? 'none'}</span>.</p>
+      <p className="one">Test a fault signature on <span className="id">{target ?? 'no available array'}</span>. The selected fault develops on the site clock and joins the same repair queue.</p>
       <div className="inject">
         {(Object.keys(INJECTABLE) as InjectableId[]).map((kind) => (
           <button key={kind} type="button" className="tool" disabled={!target} onClick={() => target && injectFault(target, kind)}>
@@ -45,7 +45,7 @@ export function ScenarioPanel() {
   const events = useScenarioEvents();
   return (
     <Blk b="events" title="Scenario">
-      <p className="one">Committed site history, plus anything raised in rehearsal.</p>
+      <p className="one">Recorded fault mechanisms, plus your rehearsal injections. Weather hazards are explained separately in Scenario effects.</p>
       <ol className="events">
         {events.map((e) => (
           <li key={e.id}>

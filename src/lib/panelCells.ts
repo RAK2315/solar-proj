@@ -2,9 +2,8 @@
  * src/lib/panelCells.ts — the crack, in cell coordinates.
  *
  * PURE. No React, no three. It exists so the crack polyline is written down ONCE
- * and two things read it: the stroke drawn into the panel's albedo texture, and
- * the set of cells that fracture runs through. Those had drifted apart the moment
- * they were two lists.
+ * and the affected cells drive both the glass fracture geometry and the thermal
+ * footprint. Separate lists would let the heat drift away from the damage.
  *
  * `hotCells` lives here rather than inside CrackedPanel for one reason: choosing
  * between a measurement and an illustration is the decision this project gets
@@ -21,8 +20,7 @@
  * substring is physics that holds for any cracked module, but they are never a
  * measurement and must never be presented as one. The one MEASURED cell set in
  * this project is B-17's, in data/evidence/b17_cellgrid.json, and it is gated on
- * `hasCapturedEvidence`. See CrackedPanel.tsx's docstring for the full three-way
- * split.
+ * `hasCapturedEvidence`. `hotCells` keeps the two sources separate.
  */
 
 import { cellGrid } from './data';

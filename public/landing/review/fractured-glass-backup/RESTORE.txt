@@ -1,0 +1,10 @@
+Saved before the localized crack revision. No Git commit is needed to restore it.
+
+From the repository root in PowerShell:
+
+Copy-Item -LiteralPath 'public/landing/review/fractured-glass-backup/panelSurface.ts.bak' -Destination 'src/lib/panelSurface.ts'
+Copy-Item -LiteralPath 'public/landing/review/fractured-glass-backup/panelSurface.test.ts.bak' -Destination 'src/lib/panelSurface.test.ts'
+Copy-Item -LiteralPath 'public/landing/review/fractured-glass-backup/CrackedPanel.tsx.bak' -Destination 'src/components/scene/CrackedPanel.tsx'
+npm run demo
+
+preview.png is the rendered flight capture from that version.

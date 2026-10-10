@@ -41,7 +41,22 @@ const LOOPS = [
 
 export const LANDING_DRONES = LOOPS.length;
 
-export function landingDroneAt(seconds: number, index: number): Vec3 {
+export function landingDroneAt(seconds: number, index: number, aspect = 16 / 9): Vec3 {
+  // A camera escort keeps the airframe legible beside the hero while the second
+  // aircraft gives the field scale. Both remain samples of the site's clock.
+  if (index === 0) {
+    const camera = landingCameraAt(seconds, aspect);
+    const dx = camera.look.x - camera.pos.x;
+    const dz = camera.look.z - camera.pos.z;
+    const length = Math.hypot(dx, dz);
+    const forward = 35;
+    const right = Math.min(aspect, 2) * 9;
+    return {
+      x: camera.pos.x + dx / length * forward - dz / length * right,
+      y: camera.pos.y - 4 + Math.sin(seconds / 4) * 0.6,
+      z: camera.pos.z + dz / length * forward + dx / length * right,
+    };
+  }
   const loop = LOOPS[index % LOOPS.length];
   const a = (seconds / loop.lap + loop.phase) * Math.PI * 2;
   return {

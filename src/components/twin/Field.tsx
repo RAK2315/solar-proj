@@ -20,6 +20,8 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Color, Object3D, type InstancedMesh } from 'three';
 
+import { panelMaterial } from '@/components/scene/panelMaterial';
+
 import {
   PANEL_H, PANEL_TILT, PANEL_W, POST_HEIGHT, panelInstances,
 } from '@/lib/scene';
@@ -50,10 +52,11 @@ const PLATE_LIFT = 0.07;
 const LIFT_Y = Math.cos(PANEL_TILT) * PLATE_LIFT;
 const LIFT_Z = Math.sin(PANEL_TILT) * PLATE_LIFT;
 
-export function Field({ dark, interactive = true }: {
+export function Field({ dark, interactive = true, onHover }: {
   dark: boolean;
   /** False on the landing page: every array drawn here, and nothing to click. */
   interactive?: boolean;
+  onHover?: (id: string | null) => void;
 }) {
   // CrackedPanel draws this array even at rest, so it is excluded even at rest.
   const drawnApart = useSession(
@@ -71,7 +74,10 @@ export function Field({ dark, interactive = true }: {
   const posts = useRef<InstancedMesh>(null);
   const rails = useRef<InstancedMesh>(null);
   const feet = useRef<InstancedMesh>(null);
+  const shades = useRef<InstancedMesh>(null);
   const plates = useRef<InstancedMesh>(null);
+  const material = useMemo(() => panelMaterial(dark), [dark]);
+  useLayoutEffect(() => () => material.dispose(), [material]);
 
   useLayoutEffect(() => {
     const o = new Object3D();
@@ -93,8 +99,12 @@ export function Field({ dark, interactive = true }: {
       o.position.set(p.pos.x, FOOT_HEIGHT / 2, p.pos.z);
       o.updateMatrix();
       feet.current?.setMatrixAt(i, o.matrix);
+      o.position.set(p.pos.x, 0.02, p.pos.z);
+      o.rotation.set(-Math.PI / 2, 0, 0);
+      o.updateMatrix();
+      shades.current?.setMatrixAt(i, o.matrix);
     });
-    for (const mesh of [glass.current, posts.current, rails.current, feet.current]) {
+    for (const mesh of [glass.current, posts.current, rails.current, feet.current, shades.current]) {
       if (!mesh) continue;
       mesh.count = modules.length;
       mesh.instanceMatrix.needsUpdate = true;
@@ -136,21 +146,27 @@ export function Field({ dark, interactive = true }: {
 
   return (
     <>
+      {/* Contact tint grounds the stands without a shadow pass. */}
+      <instancedMesh ref={shades} args={[undefined, undefined, CAPACITY]} frustumCulled={false} raycast={() => null}>
+        <planeGeometry args={[PANEL_W, PANEL_H * 1.5]} />
+        <meshBasicMaterial color={TWIN.void} transparent opacity={0.12} depthWrite={false} />
+      </instancedMesh>
       <instancedMesh
         ref={glass}
+        material={material}
         args={[undefined, undefined, CAPACITY]}
         frustumCulled={false}
         onClick={interactive ? select : undefined}
-        onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer'; } : undefined}
-        onPointerOut={interactive ? () => { document.body.style.cursor = ''; } : undefined}
+        onPointerMove={interactive ? (e) => {
+          if (e.instanceId === undefined || useSession.getState().armedHazard) return;
+          e.stopPropagation();
+          document.body.style.cursor = 'pointer';
+          onHover?.(arrayOf(modules[e.instanceId].id));
+        } : undefined}
+        onPointerOut={interactive ? () => { document.body.style.cursor = ''; onHover?.(null); } : undefined}
         raycast={interactive ? undefined : () => null}
       >
         <boxGeometry args={[PANEL_W, MODULE_THICKNESS, PANEL_H]} />
-        <meshStandardMaterial
-          color={dark ? TWIN.panel : SCENE.panel}
-          metalness={dark ? TWIN.panelMetalness : SCENE_MATERIAL.panelMetalness}
-          roughness={SCENE_MATERIAL.panelRoughness}
-        />
       </instancedMesh>
 
       <instancedMesh ref={posts} args={[undefined, undefined, CAPACITY]} frustumCulled={false} raycast={() => null}>

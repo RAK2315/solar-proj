@@ -17,9 +17,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Plane, Raycaster, Vector2, Vector3 } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { POST_HEIGHT, arrayCentre, cameraAt, type Vec3 } from '@/lib/scene';
-import { fieldCameraAt } from '@/lib/twinCamera';
+import { M, POST_HEIGHT, arrayCentre, cameraAt, type Vec3 } from '@/lib/scene';
+import { operatorCameraAt, operatorViewport, type CameraRequest } from '@/lib/twinCamera';
 import { flightCueNow } from '@/store/flightCue';
 import { useSession } from '@/store/session';
 import { twinProbe } from './probe';
@@ -34,10 +35,23 @@ const HANDOVER_DONE = 2.5;
 /** Within a flight, a target this far away moved because someone seeked. */
 const SNAP_DISTANCE = 12;
 
-export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | null> }) {
+export function TwinCamera({ overlay, request }: { overlay: RefObject<HTMLDivElement | null>; request: CameraRequest }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const canvas = useThree((s) => s.gl.domElement);
+  const controls = useRef<OrbitControls | null>(null);
+  const manual = useRef(false);
+  const previous = useRef('');
+
+  useEffect(() => {
+    const orbit = new OrbitControls(camera, canvas);
+    orbit.minDistance = 12;
+    orbit.maxDistance = 360;
+    orbit.maxPolarAngle = Math.PI / 2 - 0.08;
+    orbit.addEventListener('start', () => { manual.current = true; });
+    controls.current = orbit;
+    return () => { orbit.dispose(); controls.current = null; };
+  }, [camera, canvas]);
 
   useEffect(() => {
     const ray = new Raycaster();
@@ -64,14 +78,29 @@ export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | nu
     const s = useSession.getState();
     const cue = flightCueNow();
     const follow = s.followFlight && cue.active;
+    const viewport = operatorViewport(size.width, size.height);
+    const key = `${request.view}/${request.revision}/${request.view === 'selected' ? s.selectedPanelId : ''}/${follow}`;
+    if (key !== previous.current) { manual.current = false; previous.current = key; }
+    const orbit = controls.current;
+    if (orbit) orbit.enabled = !follow && !s.armedHazard;
     const sample = follow
       ? cameraAt(cue.t, cue.target)
-      : fieldCameraAt(s.siteSeconds, s.timeScale, size.width / size.height);
+      : operatorCameraAt(request.view, s.selectedPanelId, viewport.aspect);
+    const calibrated = follow && cue.t >= M.lock && cue.t < M.thermalDone;
 
     want.set(sample.pos.x, sample.pos.y, sample.pos.z);
     wantLook.set(sample.look.x, sample.look.y, sample.look.z);
 
-    if (!look.current) {
+    // Detector crops are computed from cameraAt. Interpolating after a paused
+    // seek would capture pixels from a camera the crop was never calibrated for.
+    if (calibrated) {
+      camera.position.copy(want);
+      look.current = wantLook.clone();
+      handingOver.current = false;
+    } else if (manual.current && orbit && !follow) {
+      orbit.update();
+      look.current = orbit.target.clone();
+    } else if (!look.current) {
       camera.position.copy(want);
       look.current = wantLook.clone();
     } else {
@@ -91,16 +120,27 @@ export function TwinCamera({ overlay }: { overlay: RefObject<HTMLDivElement | nu
       }
     }
     following.current = follow;
-    camera.lookAt(look.current);
+    if (!manual.current || follow) {
+      camera.lookAt(look.current);
+      orbit?.target.copy(look.current);
+    }
+
+    // The mission ROI is calibrated on the full canvas. Only the operator view
+    // is reframed around the panels; a followed flight clears that offset.
+    if ('setViewOffset' in camera) {
+      if (follow) camera.clearViewOffset();
+      else camera.setViewOffset(size.width, size.height, viewport.offsetX, 0, size.width, size.height);
+    }
 
     if ('fov' in camera && Math.abs(camera.fov - sample.fov) > 0.01) {
-      camera.fov += (sample.fov - camera.fov) * FLIGHT_SMOOTHING;
+      camera.fov = calibrated ? sample.fov : camera.fov + (sample.fov - camera.fov) * FLIGHT_SMOOTHING;
       camera.updateProjectionMatrix();
     }
     camera.updateMatrixWorld();
 
     const root = overlay.current;
     if (!root) return;
+    root.closest<HTMLElement>('.sy')?.style.setProperty('--bearing', `${Math.atan2(camera.position.x - look.current.x, camera.position.z - look.current.z) * 180 / Math.PI}deg`);
     // Screen-fixed markers are sized for the field view. A few metres above one
     // array they would be the wrong scale entirely, so they stand down.
     root.dataset.follow = follow ? 'true' : 'false';

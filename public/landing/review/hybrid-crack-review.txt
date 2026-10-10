@@ -1,0 +1,31 @@
+Hybrid crack experiment, 10 October 2026
+
+The selected surface combines separated cover-glass fragments with a wider
+recessed primary crack. The primary crack still follows the electrically
+affected cells. Cover-glass branches do not create additional hot cells.
+
+The model, class list, confidence filter and inference store were not changed.
+All detections came from the real browser ONNX pipeline on the scene's RGB crop.
+
+Observed during development:
+- First hybrid layout: Cracked 0.69 on a paused view, 0.32 and 0.37 at other
+  angles, but no positive results on one continuous pass. Rejected as too weak.
+- Earlier fragment layout plus the primary groove: Cracked 0.41 during a
+  continuous pass. Other sampled frames returned no crack detection.
+- Selected version, with the wider primary groove: Cracked 0.40. Subsequent
+  camera poses still sometimes returned no crack detection.
+- Healthy A-01: no crack detection on three angles.
+- Healthy A-02: no crack detection on the final version's sampled view.
+- Thermal band remained on the primary fracture and disappeared on rewind.
+
+These are scene experiments, not accuracy metrics. This does not establish
+reliable detection at every camera angle or on real drone imagery.
+
+Undo:
+- localized-crack-backup/RESTORE.txt restores the single large crack.
+- fractured-glass-backup/RESTORE.txt restores the earlier fractured-glass version.
+
+Production verification:
+- Selected hybrid returned Cracked 0.29 on the live RGB frame, repeated after reload.
+- Live confidence label is now centred over the box and readable past the events panel.
+- Both console themes visually checked. No confidence threshold or weights changed.

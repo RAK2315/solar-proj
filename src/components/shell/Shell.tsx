@@ -9,6 +9,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import { Activity, ClipboardList, FlaskConical, Navigation, ScanSearch } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { FieldMap } from '@/components/fallback/FieldMap';
@@ -24,14 +25,17 @@ import {
 } from '@/components/overlay/DronePanels';
 import { FeedPanel } from '@/components/overlay/FeedPanel';
 import { HazardPalette, HazardsPanel } from '@/components/overlay/HazardPalette';
-import { ChainPanel, DeferPanel } from '@/components/overlay/IncidentPanels';
+import { ChainPanel, DeferPanel, IncidentOverview } from '@/components/overlay/IncidentPanels';
 import { PlanPanel } from '@/components/overlay/PlanPanel';
 import { TariffPanel } from '@/components/overlay/Tariff';
-import { OrdersPanel, QueuePanel } from '@/components/overlay/QueuePanel';
+import { OrdersPanel, QueueOverview, QueuePanel } from '@/components/overlay/QueuePanel';
+import { WorkspaceHeader } from '@/components/overlay/WorkspaceHeader';
 import { FlightOverlay } from '@/components/twin/FlightOverlay';
 import { hasCapturedEvidence } from '@/lib/data';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
 import { HAZARD_SPEC } from '@/lib/hazard';
+import { SITE_ZONES } from '@/lib/siteLayout';
+import type { CameraRequest, FieldView } from '@/lib/twinCamera';
 import { useFlatField, useFollowingFlight, useFootprints, useSelectedPanelId } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { useSolver } from '@/store/solver';
@@ -47,13 +51,12 @@ function IncidentBar({ dossier }: { dossier: boolean }) {
   const panelId = useSelectedPanelId();
   const setDossier = useSession((s) => s.setDossier);
   return (
-    <header className="screenbar">
-      <h1><span className="id">{panelId}</span> incident</h1>
+    <WorkspaceHeader Icon={ScanSearch} title={<><span className="id">{panelId}</span> incident</>} description={dossier ? 'Inspect the captured frames, detector output and thermal evidence for this array.' : 'Understand the signal, review the evidence and choose the next action.'}>
       <div className="seg" role="group" aria-label="Incident view">
         <button type="button" className="tool quiet" aria-pressed={!dossier} onClick={() => setDossier(false)}>Summary</button>
         <button type="button" className="tool quiet" aria-pressed={dossier} onClick={() => setDossier(true)}>Dossier</button>
       </div>
-    </header>
+    </WorkspaceHeader>
   );
 }
 
@@ -73,7 +76,8 @@ function Incident() {
   ) : (
     <>
       <IncidentBar dossier={false} />
-      <div className="col"><ArrayPanel linkToIncident={false} /><InverterPanel /></div>
+      <IncidentOverview />
+      <div className="col"><ArrayPanel panelId={panelId} linkToIncident={false} /><InverterPanel /></div>
       <ChainPanel />
       <div className="col"><DeferPanel /><ReasoningPanel /><CommittedRunPanel /></div>
     </>
@@ -84,10 +88,10 @@ function Panels({ screen }: { screen: ScreenId }) {
   switch (screen) {
     case 'site': return <><ArrayPanel /><QueuePanel footer /></>;
     case 'incident': return <Incident />;
-    case 'queue': return <><QueuePanel detail /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
-    case 'analytics': return <><CurvePanel /><TariffPanel /><WeatherPanel /><LossPanel /><ZonesPanel /><ModelPanel /></>;
-    case 'drones': return <><div className="col"><FleetPanel /><CommsPanel /></div><div className="col"><MissionsPanel /><MissionProfilePanel /></div></>;
-    case 'sandbox': return <><QueuePanel scores /><HazardsPanel /><InjectPanel /><ScenarioPanel /></>;
+    case 'queue': return <><WorkspaceHeader Icon={ClipboardList} title="Plan the next repair" description="Priority decides what matters. Crew capacity decides what fits. Your approval commits the work." /><QueueOverview /><QueuePanel detail /><div className="col"><PlanPanel /><OrdersPanel /></div></>;
+    case 'analytics': return <><WorkspaceHeader Icon={Activity} title="Understand the energy gap" description="Compare production with the model, trace the shortfall to its causes and explore the forecast." /><CurvePanel /><LossPanel /><ZonesPanel /><WeatherPanel /><details className="reference-panel"><summary>Tariff, sources and calculation basis</summary><TariffPanel /></details><details className="reference-panel"><summary>PV model and coefficients</summary><ModelPanel /></details></>;
+    case 'drones': return <><WorkspaceHeader Icon={Navigation} title="Inspection fleet" description="Follow simulated missions, review captured evidence and check aircraft availability." /><div className="col"><FleetPanel /><CommsPanel /></div><div className="col"><MissionsPanel /><MissionProfilePanel /></div></>;
+    case 'sandbox': return <><WorkspaceHeader Icon={FlaskConical} title="Explore a scenario" description="Change the conditions. See the effect. Review the response." /><HazardsPanel /><QueuePanel scores /><InjectPanel /><ScenarioPanel /></>;
   }
 }
 
@@ -114,6 +118,12 @@ export function Shell() {
   const dossier = useSession((s) => s.dossierOpen);
   const following = useFollowingFlight();
   const overlay = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [cameraRequest, setCameraRequest] = useState<CameraRequest>({ view: 'overview', revision: 0 });
+  const moveCamera = (view: FieldView) => {
+    useSession.getState().setFollowFlight(false);
+    setCameraRequest((previous) => ({ view, revision: previous.revision + 1 }));
+  };
   const [probe, setProbe] = useState<{ ready: boolean; forced: Forced }>({ ready: false, forced: null });
 
   useEffect(() => {
@@ -138,11 +148,13 @@ export function Shell() {
       <div className="sy-twin">
         {probe.ready && (fallback
           ? <FieldMap />
-          : <Twin overlay={overlay} watchdog={probe.forced !== '3d'} />)}
+          : <Twin overlay={overlay} watchdog={probe.forced !== '3d'} cameraRequest={cameraRequest} hovered={hovered} onHover={setHovered} />)}
         <div ref={overlay} className="sy-anchors" aria-hidden>
           {selected && !fallback && (
-            <div className="sy-anchor" data-anchor={selected}><i /><span className="id">{selected}</span></div>
+            <div className="sy-anchor selection" data-anchor={selected}><span className="id">{selected}</span></div>
           )}
+          {!fallback && hovered && hovered !== selected && <div className="sy-anchor hover" data-anchor={hovered}><span className="id">{hovered}</span></div>}
+          {!fallback && SITE_ZONES.map((zone) => <div key={zone.id} className="sy-zone-label" data-at={`${zone.x},${zone.minZ - 3}`}>Zone {zone.id}</div>)}
           {!fallback && footprints.map((f) => (
             <div key={f.id} className="sy-anchor tag" data-at={`${f.x},${f.z}`} data-sev={f.kind === 'dust' ? 'warning' : undefined}>
               <span className="chip">{HAZARD_SPEC[f.kind].label}</span>
@@ -153,6 +165,20 @@ export function Shell() {
       </div>
 
       <Rail screen={screen} />
+
+      {side && !fallback && !following && <div className="sy-view-tools" aria-label="Field navigation">
+        <span className="sy-north" title="Site north"><i aria-hidden>↑</i>N</span>
+        <div className="sy-view-heading"><strong>Solar field</strong><span>Schematic digital twin</span></div>
+        <div className="sy-camera-tools" role="group" aria-label="Camera views">
+          <button type="button" className="tool quiet" aria-pressed={cameraRequest.view === 'overview'} onClick={() => moveCamera('overview')}>Overview</button>
+          <button type="button" className="tool quiet" disabled={!selected} aria-pressed={cameraRequest.view === 'selected'} onClick={() => moveCamera('selected')}>Focus array</button>
+          <button type="button" className="tool quiet" onClick={() => moveCamera(cameraRequest.view)}>Reset view</button>
+        </div>
+        <p>Drag to orbit · Scroll to zoom · Right-drag to pan</p>
+      </div>}
+      {side && !fallback && !following && <ul className="sy-field-legend" aria-label="Field status legend">
+        <li><i className="healthy" />Nominal</li><li><i data-sev="warning" />Warning</li><li><i data-sev="critical" />Critical</li><li><i data-sev="scheduled" />Scheduled</li><li><i className="selected" />Selected</li>
+      </ul>}
 
       {/* Site is for operating and Sandbox is for what-if, so the hazard tools
           appear only on the screen that is about them. */}

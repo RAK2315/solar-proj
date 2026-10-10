@@ -13,7 +13,7 @@
 import { BadgeCheck, RotateCw, ScanSearch } from 'lucide-react';
 import { useEffect } from 'react';
 
-import { hasCapturedEvidence, panelTexture } from '@/lib/data';
+import { hasCapturedEvidence } from '@/lib/data';
 import { confidence, deltaT, degC, hours, kW, pct, typographic } from '@/lib/format';
 import { ironbowForDeltaT, normaliseDeltaT } from '@/lib/ironbow';
 import { moduleRoi } from '@/lib/roi';
@@ -22,7 +22,7 @@ import { useDetector, type DetectorResult } from '@/store/detector';
 import { useFlightCue } from '@/store/flightCue';
 import {
   BEAT, siteClockAt, useAgentCache, useCellGrid, useDetection, useEvidence, useFollowingFlight,
-  useHasCrackMechanism, useHazards, useInjected, useInspected, useInspectionClock, useInverterReadings,
+  useHazards, useInjected, useInspected, useInspectionClock, useInverterReadings,
   useIsDark, useMatrixFillCount, useSelectedPanelId, useSiteSeconds, useTriageCondition,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
@@ -67,8 +67,8 @@ export function CapturesPanel() {
             <figure>
               <DetectionBoxes result={flown} />
               <figcaption>
-                Visible, the frame the drone&apos;s camera returned over <span className="id">{panelId}</span> on this
-                flight, with the box the detector drew on it in this browser.
+                Visible RGB from the simulated drone camera over <span className="id">{panelId}</span> on this
+                flight. Any boxes shown are the detector&apos;s output on these pixels.
               </figcaption>
             </figure>
           ) : visibleDue && (
@@ -150,15 +150,14 @@ export function DetectorPanel() {
   const frames = useDetector((s) => s.framesInPass[panelId] ?? 0);
   const committed = useDetection();
   const evidence = useEvidence();
-  const cracked = useHasCrackMechanism(panelId);
-  const surface = panelTexture(cracked ? 'cracked' : 'intact');
   const following = useFollowingFlight();
   const cue = useFlightCue();
 
   // Something the operator ran by hand outranks the pass's own capture on
   // screen, but never replaces it on file.
   const mine = last && last.panelId === panelId ? last : undefined;
-  const byHand = mine && !mine.source.startsWith("the drone's camera") ? mine : undefined;
+  const byHand = mine && (!mine.source.startsWith("the drone's camera") || mine.source.endsWith(', live'))
+    ? mine : undefined;
   const result = byHand ?? fromFlight ?? mine;
 
   // The visible-light half of the pass, and only while the twin's camera is
@@ -257,11 +256,11 @@ export function DetectorPanel() {
       <div className="work workings">
         <p>The exported network on the WebAssembly runtime: the same weights as the committed run, a different runtime.</p>
         <p>The box covers the whole module because every training example labels the panel, not the fracture. Where on the module is the thermal grid&apos;s job.</p>
-        {surface && result && fromFlight && (
+        {result && fromFlight && (
           <p>
-            {cracked ? 'Two modules of this array are textured with photographs of real panels, one cracked and one intact'
-              : 'One module of this array is textured with a photograph of a real intact panel'}
-            , because the detector returns nothing on a flat-shaded render. That is surface material, not a camera frame. {surface.provenance}.
+            The drone view captures the simulated site: panel cells and fractured glass are rendered in 3D.
+            The detector evaluates those RGB pixels independently. The thermal view illustrates affected cells;
+            the recorded thermal frame and its measurements are shown separately.
           </p>
         )}
       </div>
@@ -292,7 +291,7 @@ export function MatrixPanel() {
       aside={<Why />}
     >
       {!scanning ? (
-        <p className="empty well">The matrix fills cell by cell as the drone&apos;s thermal pass reads the module.</p>
+        <p className="empty well">The reference grid appears during the simulated thermal pass. Its measurements come from the recorded UAV frame.</p>
       ) : (
         <>
           <p className="one">
@@ -332,7 +331,7 @@ export function MatrixPanel() {
               </li>
             ))}
           </ol>
-          <p className="one">Each figure is how much hotter that cell runs than the rest of the panel.</p>
+          <p className="one">Each figure is the cell-mean temperature difference extracted from the recorded frame. The 3D heat overlay illustrates this band.</p>
           <p className="work workings">
             ΔT is a cell mean under a declared {grid.thermalSpanC} °C span, baseline {degC(grid.baselineTempC)};
             the source is normalised 8-bit, not radiometric.
@@ -417,7 +416,7 @@ export function ReasoningPanel() {
       )}
       {entry?.status === 'ready' && t && (
         <>
-          <p>{typographic(t.reasoning)}</p>
+          <details className="agent-detail"><summary>Read agent reasoning</summary><p>{typographic(t.reasoning)}</p></details>
           <p className="one">{typographic(t.verificationRationale)}</p>
           {elapsedH >= STALE_AFTER_SITE_HOURS && askedAt !== undefined && (
             <p className="one">Written at {siteClockAt(askedAt)}, {hours(elapsedH)} of site time ago. The readings beside it are current.</p>
@@ -441,7 +440,7 @@ export function InverterPanel() {
   const index = panelId.split('-')[1];
   return (
     <Blk b="inverters" title="Same string, three inverters">
-      <p className="one">The string at this position on each inverter. Only one of them is short.</p>
+      <p className="one">Compare the matching string position on each inverter. Each row shows actual output against its own modelled expectation.</p>
       <table className="tbl">
         <thead><tr><th>Inverter</th><th>String</th><th>Actual</th><th>Expected</th><th>Deviation</th></tr></thead>
         <tbody>

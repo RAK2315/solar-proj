@@ -31,7 +31,7 @@ function Footprint({ mark }: { mark: FootprintMark }) {
 
   return (
     <group position={[mark.x, HEIGHT, mark.z]}>
-      <Line points={ring} color={colour} lineWidth={1.6} dashed dashSize={3.2} gapSize={2.2} toneMapped={false} />
+      <Line points={ring} color={colour} lineWidth={mark.kind === 'dust' ? 1.6 : 2.2} dashed dashSize={mark.kind === 'dust' ? 3.2 : 6} gapSize={2.2} toneMapped={false} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
         <circleGeometry args={[mark.radius, 48]} />
         <meshBasicMaterial
@@ -39,6 +39,12 @@ function Footprint({ mark }: { mark: FootprintMark }) {
           depthWrite={false} toneMapped={false}
         />
       </mesh>
+      {/* Elevated, soft layers distinguish a dust plume from the cloud's flat
+          irradiance footprint. They change no affected-array calculations. */}
+      {mark.kind === 'dust' && [2, 4].map((rise) => <mesh key={rise} rotation={[-Math.PI / 2, 0, 0]} position={[0, rise, 0]} raycast={() => null}>
+        <circleGeometry args={[mark.radius * (1 - rise / 20), 40]} />
+        <meshBasicMaterial color={colour} transparent opacity={0.045} depthWrite={false} toneMapped={false} />
+      </mesh>)}
       {/* The core, where the hazard is at full strength. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} raycast={() => null}>
         <circleGeometry args={[mark.radius / 2, 40]} />

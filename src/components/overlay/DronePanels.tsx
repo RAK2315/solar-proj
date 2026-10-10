@@ -11,7 +11,7 @@ export function FleetPanel() {
   const fleet = useFleet();
   return (
     <Blk b="fleet" title={<>Drones<span className="count num">{fleet.length} on site</span></>}>
-      <p className="one">Battery is derived from mission time and recharges on the pad.</p>
+      <p className="one">Simulated battery, derived from mission time and pad recharge.</p>
       <table className="tbl">
         <thead><tr><th>Drone</th><th>Status</th><th>Target</th><th>Sorties</th><th>Battery</th></tr></thead>
         <tbody>
@@ -37,7 +37,7 @@ export function CommsPanel() {
   const fleet = useFleet();
   return (
     <Blk b="comms" title="Drone status and comms">
-      <p className="one">Each aircraft&apos;s link to the pad, from where the flight model puts it.</p>
+      <p className="one">Simulated links, range and altitude from the flight model.</p>
       <table className="tbl">
         <thead><tr><th>Drone</th><th>Link</th><th>Range</th><th>Altitude</th></tr></thead>
         <tbody>
@@ -77,6 +77,7 @@ export function MissionProfilePanel() {
           </li>
         ))}
       </ol>
+      <p className="one">The acoustic stage is simulated; a new sortie does not record physical inverter audio.</p>
       <ul className="work workings rules">
         <li>Two aircraft on site. A third dispatch is refused, not queued.</li>
         <li>One mission per array at a time.</li>

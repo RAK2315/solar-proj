@@ -32,4 +32,20 @@ describe('the landing page\u2019s paths', () => {
   it('steps back for a narrow window, so the field still reads as a field', () => {
     expect(landingCameraAt(0, 0.6).pos.z).toBeGreaterThan(landingCameraAt(0, 16 / 9).pos.z);
   });
+
+  it('keeps the escort on the right of the camera across viewport shapes', () => {
+    for (const aspect of [0.6, 1366 / 768, 1920 / 1080]) {
+      for (let t = 0; t < CAMERA_LAP_SECONDS; t += 7) {
+        const camera = landingCameraAt(t, aspect);
+        const drone = landingDroneAt(t, 0, aspect);
+        const dx = camera.look.x - camera.pos.x;
+        const dz = camera.look.z - camera.pos.z;
+        const offsetX = drone.x - camera.pos.x;
+        const offsetZ = drone.z - camera.pos.z;
+        expect(offsetX * -dz + offsetZ * dx).toBeGreaterThan(0);
+        expect(offsetX * dx + offsetZ * dz).toBeGreaterThan(0);
+        expect(drone.y).toBeGreaterThan(5);
+      }
+    }
+  });
 });

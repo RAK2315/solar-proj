@@ -17,17 +17,19 @@ import type { ReactNode, RefObject } from 'react';
 
 import { CrackedPanel } from '@/components/scene/CrackedPanel';
 import { Drone } from '@/components/scene/Drone';
-import { SceneEnvironment } from '@/components/scene/Environment';
 import { ThermalPass } from '@/components/scene/ThermalPass';
 import { TWIN, TWIN_LIGHT } from '@/lib/scenePalette';
-import { TWIN_FOV } from '@/lib/twinCamera';
+import { TWIN_FOV, type CameraRequest } from '@/lib/twinCamera';
 import { flightCueNow } from '@/store/flightCue';
 import { useFollowingFlight } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Field } from './Field';
+import { DetectorCapture } from './DetectorCapture';
 import { HazardLayer } from './HazardLayer';
 import { TwinCamera } from './TwinCamera';
 import { Watchdog } from './Watchdog';
+import { SiteContext } from './SiteContext';
+import { SiteEnvironment } from './SiteEnvironment';
 
 /* The ground plan/rework/06-design-system.md §7 describes. The daylit desert is
    kept for the light theme, where a near-black field would fight the panels. */
@@ -46,17 +48,18 @@ export function DarkEnvironment() {
   );
 }
 
-/** The daylit scene's own fog is tuned for a camera a few metres up. */
-const DAY_FOG: [number, number] = [150, 430];
-
-export default function Twin({ overlay, watchdog, children }: {
+export default function Twin({ overlay, watchdog, children, cameraRequest, hovered, onHover }: {
   overlay: RefObject<HTMLDivElement | null>;
   /** Off only when a harness needs the 3D view on a software renderer. */
   watchdog: boolean;
   children?: ReactNode;
+  cameraRequest: CameraRequest;
+  hovered: string | null;
+  onHover: (id: string | null) => void;
 }) {
   const theme = useSession((s) => s.theme);
   const following = useFollowingFlight();
+  const selected = useSession((s) => s.selectedPanelId);
   // THE DRONE'S CAMERA SEES DAYLIGHT, whatever theme the console is in. The dark
   // ground is a way of drawing the field for an operator; it is not what the
   // site looks like, and the detector was trained on photographs taken in the
@@ -74,19 +77,21 @@ export default function Twin({ overlay, watchdog, children }: {
       camera={{ fov: TWIN_FOV, near: 0.5, far: 600, position: [0, 74, 164] }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      {day ? <SceneEnvironment fog={following ? undefined : DAY_FOG} /> : <DarkEnvironment />}
-      <Field dark={!day} />
+      <SiteEnvironment dark={!day} inspection={following} />
+      <Field dark={!day} onHover={onHover} />
+      <SiteContext dark={!day} selected={selected} hovered={hovered} flight={following} />
       <group onClick={(e) => {
         e.stopPropagation();
         useSession.getState().selectPanel(flightCueNow().targetId);
       }}
       >
-        <CrackedPanel />
+        <CrackedPanel dark={!day} />
       </group>
       <Drone />
       <HazardLayer />
       {children}
-      <TwinCamera overlay={overlay} />
+      <TwinCamera overlay={overlay} request={cameraRequest} />
+      <DetectorCapture />
       {following && <ThermalPass />}
       {watchdog && <Watchdog />}
     </Canvas>

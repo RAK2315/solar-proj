@@ -121,7 +121,8 @@ export function PlanPanel() {
         </p>
       )}
       {left.length > 0 && (
-        <p className="one">
+        <p className="one" data-sev="warning" role="status">
+          <strong className="sev-ink">Unplaced work: {left.length} {left.length === 1 ? 'job' : 'jobs'}.</strong>{' '}
           Not placed in this horizon: <span className="id">{left.map((j) => j.panelId).join(' ')}</span>.
           There is no open crew time left for them today.
         </p>

@@ -60,6 +60,11 @@ export const SCENE_MATERIAL = {
   hemisphereIntensity: 0.45,
 } as const;
 
+/** Surface optics are illustrative; these colours carry no temperature values. */
+export const SURFACE = {
+  glass: '#bfd0df', fracture: '#c8d1d5', heat: '#fff3d6',
+} as const;
+
 /**
  * The twin's own colours. three.js cannot read CSS custom properties, so the
  * settled tokens from plan/rework/06-design-system.md §3 are repeated here by name.
@@ -95,4 +100,11 @@ export const TWIN_LIGHT = {
   hemisphere: 1.7,
   fogNear: 120,
   fogFar: 330,
+} as const;
+
+/** Operator view materials stay separate from the detector's validated daylight. */
+export const SITE = {
+  sand: '#d0c6b1', nightGround: '#18212d', sky: '#dce5ec', nightSky: '#111923',
+  lane: '#b3b0a5', nightLane: '#293544', boundary: '#8d948d', nightBoundary: '#637589',
+  steel: '#9ba8b5', selection: '#3fd4b8', hover: '#e6ebf4', pad: '#77818a',
 } as const;

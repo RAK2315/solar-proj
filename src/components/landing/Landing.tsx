@@ -16,15 +16,13 @@
  * the progress bar and the pointer spotlight write a custom property straight
  * to the element. The one clock still drives the scene and nothing else.
  *
- * WHAT IS BEHIND THE PAGE, in order of preference:
- *   the live scene        WebGL, and the visitor has not asked for less motion
- *   one frame of it       WebGL, reduced motion: the same scene, rendered once
- *   a photograph of it    no WebGL: a still captured from this scene
+ * Pausing uses a demand-rendered frame so the calm view does not keep spending
+ * GPU time. Without WebGL, the captured still keeps the field visible.
  */
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, Moon, Sun } from 'lucide-react';
+import { ArrowDown, ArrowRight, MapPin, Moon, Pause, Sparkles, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import * as N from '@/app/numbers';
@@ -32,24 +30,24 @@ import { panels } from '@/lib/data';
 import { MW, MWh, degC, num, pct } from '@/lib/format';
 import { useSession } from '@/store/session';
 import {
-  Closing, Difference, Honest, LoopSection, Problem, Stack, Tour, Window,
+  Capabilities, Closing, Difference, LoopSection, MissionPreview, Problem, Questions, ReferenceCase, Stack, Tour, Window,
 } from './Sections';
 
 const LandingScene = dynamic(() => import('./LandingScene'), { ssr: false, loading: () => null });
 
 const ARRAY_ID = 'B-17';
 const STILL_SRC = '/landing/still.jpg';
-const HEADLINE = ['The', 'plan,', 'not', 'the', 'picture.'];
+const HEADLINE = ['See', 'the', 'fault.', 'Own', 'the', 'next', 'move.'];
 
 const NAV = [
   ['#problem', 'Problem'],
   ['#loop', 'The loop'],
   ['#difference', 'Difference'],
   ['#product', 'Product'],
-  ['#honest', 'What is real'],
+  ['#capabilities', 'Capabilities'],
 ] as const;
 
-type Backdrop = 'pending' | 'live' | 'frame' | 'photo';
+type Backdrop = 'pending' | 'live' | 'photo';
 
 function canDrawWebGL(): boolean {
   try {
@@ -61,7 +59,7 @@ function canDrawWebGL(): boolean {
 }
 
 /**
- * Marks each `[data-reveal]` block as seen the first time it enters the view.
+ * Replays a reveal when a visitor returns to a section, without a second clock.
  * Written to the element, not to React state: forty blocks arriving must not be
  * forty renders. Without an observer, everything is simply shown.
  */
@@ -74,11 +72,9 @@ function useReveal(root: React.RefObject<HTMLElement | null>) {
     }
     const seen = new IntersectionObserver((entries) => {
       for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        (e.target as HTMLElement).dataset.in = 'true';
-        seen.unobserve(e.target);
+        (e.target as HTMLElement).dataset.in = String(e.isIntersecting);
       }
-    }, { threshold: 0.12 });
+    }, { root: root.current, threshold: 0.12 });
     for (const b of blocks) seen.observe(b);
     return () => seen.disconnect();
   }, [root]);
@@ -88,13 +84,22 @@ export function Landing() {
   const theme = useSession((s) => s.theme);
   const toggleTheme = useSession((s) => s.toggleTheme);
   const [backdrop, setBackdrop] = useState<Backdrop>('pending');
+  const [motion, setMotion] = useState<'full' | 'calm'>('full');
+  const [reduced, setReduced] = useState(false);
+  const moving = motion === 'full';
   const page = useRef<HTMLElement>(null);
   const frame = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!canDrawWebGL()) { setBackdrop('photo'); return; }
-    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    setBackdrop(calm ? 'frame' : 'live');
+    const webgl = canDrawWebGL();
+    const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      setReduced(Boolean(preference?.matches));
+      setBackdrop(webgl ? 'live' : 'photo');
+    };
+    update();
+    preference?.addEventListener('change', update);
+    return () => preference?.removeEventListener('change', update);
   }, []);
 
   useReveal(page);
@@ -109,9 +114,9 @@ export function Landing() {
   };
 
   return (
-    <div className="sy" data-screen="landing" ref={frame}>
+    <div className="sy" data-screen="landing" data-motion={motion} ref={frame}>
       <div className="sy-landscene" aria-hidden>
-        {(backdrop === 'live' || backdrop === 'frame') && <LandingScene still={backdrop === 'frame'} />}
+        {backdrop === 'live' && <LandingScene still={!moving} />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {backdrop === 'photo' && <img src={STILL_SRC} alt="" />}
       </div>
@@ -124,6 +129,9 @@ export function Landing() {
           {NAV.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
         </nav>
         <div className="lp-nav-end">
+          <button type="button" className="lp-motion" aria-label={moving ? 'Pause page animations' : 'Enable page animations'} title={reduced && moving ? 'Pause animations for a reduced-motion view' : moving ? 'Pause page animations' : 'Enable page animations'} aria-pressed={moving} onClick={() => setMotion(moving ? 'calm' : 'full')}>
+            {moving ? <Pause size={16} aria-hidden /> : <Sparkles size={16} aria-hidden />}<span>{moving ? 'Motion on' : 'Motion off'}</span>
+          </button>
           <button type="button" className="tool" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={toggleTheme}>
             {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
           </button>
@@ -132,8 +140,9 @@ export function Landing() {
       </header>
 
       <main className="sy-land" ref={page} onScroll={onScroll}>
-        <section className="lp-hero" id="top">
-          <p className="lp-eyebrow"><i aria-hidden />A live model of {panels.length} arrays in a {MW(N.NAMEPLATE_MW)} block of Bhadla Solar Park</p>
+        <section className="lp-hero" id="top" data-reveal>
+          <div className="lp-hero-copy">
+          <p className="lp-eyebrow">Solar inspection &amp; operations</p>
           <h1 aria-label={HEADLINE.join(' ')}>
             {HEADLINE.map((word, i) => (
               // The space sits outside the word: inside an inline block it would collapse.
@@ -141,39 +150,50 @@ export function Landing() {
             ))}
           </h1>
           <p className="lp-lede">
-            Surya watches the block, sends a drone to verify what telemetry cannot, and hands the operator a
-            ranked, deadlined repair plan to approve.
+            From an unexplained power drop to an evidence-backed repair plan.
+            Inspect the field, understand the urgency, and decide what happens next.
           </p>
           <div className="lp-actions">
             <Link className="lp-cta" href="/console">Open the console</Link>
             <a className="lp-ghost" href="#loop">See how it works<ArrowDown size={16} aria-hidden /></a>
           </div>
+          <p className="lp-disclosure">Interactive prototype · Simulated telemetry and drone flights</p>
+          </div>
 
-          <dl className="lp-stats glass">
+          <MissionPreview />
+
+          <div className="lp-site-line">
+            <div className="lp-site-name"><MapPin size={20} aria-hidden /><div><strong>Bhadla Solar Park</strong><span>Rajasthan, India · Reference site</span></div></div>
+            <dl><div><dt>Digital twin</dt><dd>{panels.length} modelled arrays</dd></div><div><dt>Block capacity</dt><dd className="num">{MW(N.NAMEPLATE_MW)}</dd></div></dl>
+          </div>
+
+          <dl className="lp-stats">
             <div style={{ '--i': 0 } as React.CSSProperties}>
               <dd className="num">{MW(N.OUTPUT_MW)}</dd>
-              <dt>delivered from {MW(N.NAMEPLATE_MW)} nameplate at {degC(N.CELL_TEMP_C)} cell temperature</dt>
+              <dt>Modelled block output<span>From {MW(N.NAMEPLATE_MW)} nameplate at {degC(N.CELL_TEMP_C)} cell temperature</span></dt>
             </div>
             <div style={{ '--i': 1 } as React.CSSProperties} data-sev="critical">
               <dd className="num">{pct(N.ARRAY_DEVIATION_PCT)}</dd>
-              <dt>on array <span className="id">{ARRAY_ID}</span>, {N.FAULTED_STRING_COUNT} of {N.STRINGS} strings bypassed</dt>
+              <dt>Array shortfall<span>On <span className="id">{ARRAY_ID}</span> · {N.FAULTED_STRING_COUNT} of {N.STRINGS} strings bypassed</span></dt>
             </div>
             <div style={{ '--i': 2 } as React.CSSProperties} data-sev="warning">
               <dd className="num">{MWh(N.LOSS_72H_MWH)}</dd>
-              <dt>lost over 72 h if nobody acts before {N.ACT_BEFORE}</dt>
+              <dt>Projected energy loss<span>Reference forecast · act before {N.ACT_BEFORE}</span></dt>
             </div>
             {N.CRACKED_AP50 !== null && (
               <div style={{ '--i': 3 } as React.CSSProperties} data-sev="active">
                 <dd className="num">{num(N.CRACKED_AP50, 3)}</dd>
-                <dt>AP@50 for cracked cells, {N.DETECTOR_SPLIT} split</dt>
+                <dt>Cracked-cell AP@50<span>Detector performance · {N.DETECTOR_SPLIT} split</span></dt>
               </div>
             )}
           </dl>
+          <a className="lp-scroll-cue" href="#problem">Follow the evidence<ArrowDown size={16} aria-hidden /></a>
         </section>
 
         <div className="lp-sheet">
           <Problem />
           <LoopSection />
+          <ReferenceCase />
           <Difference />
         </div>
 
@@ -181,7 +201,8 @@ export function Landing() {
 
         <div className="lp-sheet">
           <Tour />
-          <Honest />
+          <Capabilities />
+          <Questions />
           <Stack />
           <Closing />
         </div>

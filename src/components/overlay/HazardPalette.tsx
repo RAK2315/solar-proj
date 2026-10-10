@@ -18,7 +18,8 @@ import { useEffect, useRef } from 'react';
 import { twinProbe } from '@/components/twin/probe';
 import { MWh, clockOf, degC, hours, num, pctPlain } from '@/lib/format';
 import { lostRevenue } from '@/lib/money';
-import { DUST_WASH_WINDOW_H, HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
+import { DUST_WASH_WINDOW_H, HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
+import { describeHazard, HAZARD_GUIDE } from '@/lib/sandboxGuide';
 import {
   OUTLOOK_HOURS, useFlatField, useHazardCostMWh, useHazardImpact, useHazards, useHeatwaveC,
   useScenarioEpochHour, useSiteFrame,
@@ -92,6 +93,7 @@ export function HazardPalette() {
 
   return (
     <section className="blk glass sy-palette" data-b="tools" aria-label="Hazards">
+      <h2 className="palette-title">Scenario tools</h2>
       <p className="one">
         {armed
           ? flat ? 'Now pick an array on the map.' : 'Now drop it on the field. Esc puts it back.'
@@ -117,7 +119,7 @@ export function HazardPalette() {
               else if (heldBefore.current) arm(null);
             }}
           >
-            <Icon size={18} strokeWidth={1.75} aria-hidden />{HAZARD_SPEC[id].label}
+            <Icon size={18} strokeWidth={1.75} aria-hidden /><span>{HAZARD_SPEC[id].label}<small>{id === 'heatwave' ? 'Applies across the site' : id === 'cloud' ? 'Temporary weather footprint' : 'Leaves dust until removed'}</small></span>
           </button>
         ))}
         <span className="sep" aria-hidden />
@@ -165,16 +167,35 @@ export function ImpactLine() {
   );
 }
 
-const WHAT: Record<HazardKind, string> = {
-  dust: 'soiling until washed',
-  cloud: 'shading, then it passes',
-  heatwave: 'site-wide ambient',
-};
+function HazardExplanation({ hazard }: { hazard: HazardEvent }) {
+  const frame = useSiteFrame();
+  const epoch = useScenarioEpochHour();
+  const select = useSession((s) => s.selectPanel);
+  const setModule = useSession((s) => s.setModule);
+  const remove = useSession((s) => s.removeHazard);
+  const explained = describeHazard(hazard, epoch + frame.siteSeconds / 3600, Object.keys(frame.panels));
+  const guide = HAZARD_GUIDE[hazard.kind];
+  const next = explained.state === 'Passed' ? 'The cloud has cleared. Compare output with expected again. Open any remaining shortfall as an incident and review its evidence.' : explained.state === 'Waiting' ? 'The site clock is before this drop. Advance to its start time to see the scenario develop.' : guide.next;
+  const Icon = TOOLS.find((t) => t.id === hazard.kind)!.Icon;
+  const zones = [...new Set(explained.affected.map((id) => id.split('-')[0]))];
+  return <article className="hazard-explanation" data-kind={hazard.kind}>
+    <header><span className="hazard-icon"><Icon size={20} aria-hidden /></span><div><h3>{HAZARD_SPEC[hazard.kind].label}</h3><p>{guide.effect} · <span className="num">{clockOf(hazard.startHour)}</span></p></div><button type="button" className="why" aria-label={`Remove the ${HAZARD_SPEC[hazard.kind].label.toLowerCase()} dropped at ${clockOf(hazard.startHour)}`} onClick={() => remove(hazard.id)}><X size={14} aria-hidden /></button></header>
+    <div className="hazard-live"><span className="chip" data-sev={explained.state === 'Passed' || explained.state === 'Waiting' ? 'info' : 'active'}>{explained.state}</span><strong className="num">{explained.affected.length} {explained.affected.length === 1 ? 'array' : 'arrays'} affected now</strong></div>
+    <dl className="hazard-reading">
+      <div><dt>{hazard.kind === 'heatwave' ? 'Ambient rise now' : 'Peak irradiance reduction now'}</dt><dd className="num">{hazard.kind === 'heatwave' ? degC(hazard.intensity * explained.strength) : pctPlain(hazard.intensity * explained.strength * 100)}</dd></div>
+      <div><dt>Extent</dt><dd>{hazard.kind === 'heatwave' ? 'Whole site' : zones.length ? `Zones ${zones.join(', ')}` : `${explained.inside.length} arrays in footprint`}</dd></div>
+      <div><dt>{hazard.kind === 'cloud' ? 'Passes at, site time' : 'Persists'}</dt><dd>{explained.endsAt === null ? 'Until removed from scenario' : clockOf(explained.endsAt)}</dd></div>
+    </dl>
+    <details open><summary>Why the readings changed</summary><p>{guide.why}</p><p>Declared scenario input. Effects develop over <span className="num">{hazard.rampMinutes} min</span> of site time.</p></details>
+    <div className="hazard-response"><strong>Recommended response</strong><p>{guide.action}</p></div>
+    <details><summary>What to check next</summary><p>{next}</p></details>
+    {explained.affected.length > 0 && <details><summary>Inspect affected arrays <span className="num">({explained.affected.length})</span></summary><div className="affected-arrays">{explained.affected.map((id) => <button key={id} type="button" className="tool quiet id" onClick={() => { select(id); setModule('incident'); }}>{id}</button>)}</div></details>}
+  </article>;
+}
 
 /** The hazards in force, each removable, with what each one is declared to do. */
 export function HazardsPanel() {
   const hazards = useHazards();
-  const remove = useSession((s) => s.removeHazard);
   const clear = useSession((s) => s.clearHazards);
   const epoch = useScenarioEpochHour();
   const cost = useHazardCostMWh();
@@ -182,28 +203,18 @@ export function HazardsPanel() {
   return (
     <Blk
       b="hazards"
-      title={<>Hazards<span className="count num">{hazards.length} dropped</span></>}
+      title={<>Scenario effects<span className="count num">{hazards.length} dropped</span></>}
       aside={<Why />}
     >
       {hazards.length === 0 ? (
-        <p className="empty well">None yet. Pick one from the palette and drop it on the field to see the plan re-derive.</p>
+        <div className="scenario-intro"><p>Choose a hazard from the tools, then place its footprint on the field. Heatwave applies site-wide.</p><p>Advance the site clock to see it develop. Output, array status and the plan are recalculated from the same model.</p><div className="scenario-guides">{TOOLS.map(({ id, Icon }) => <details key={id}><summary><Icon size={18} aria-hidden /><span>{HAZARD_SPEC[id].label}<small>{HAZARD_GUIDE[id].effect}</small></span></summary><p>{HAZARD_GUIDE[id].why}</p><p><strong>Response: </strong>{HAZARD_GUIDE[id].action}</p></details>)}</div></div>
       ) : (
-        <ol className="events hazards">
-          {hazards.map((h) => (
-            <li key={h.id} data-sev={h.kind === 'cloud' ? undefined : 'warning'}>
-              <span className="num">{clockOf(h.startHour)}</span>
-              <span className="says"><b>{HAZARD_SPEC[h.kind].label}</b>, {WHAT[h.kind]}</span>
-              <button type="button" className="why" aria-label={`Remove the ${HAZARD_SPEC[h.kind].label.toLowerCase()} dropped at ${clockOf(h.startHour)}`} onClick={() => remove(h.id)}>
-                <X size={14} aria-hidden />
-              </button>
-            </li>
-          ))}
-        </ol>
+        <div className="hazard-cards">{hazards.slice().reverse().map((h) => <HazardExplanation key={h.id} hazard={h} />)}</div>
       )}
       {/* What makes the sandbox a decision tool: the same what-if, in rupees. */}
       {cost && (
         <p className="well cost" role="status">
-          Over the next {OUTLOOK_HOURS} h these cost the modelled arrays <b className="num">{MWh(cost.mwh)}</b>,
+          Across the {OUTLOOK_HOURS} h scenario forecast these cost the modelled arrays <b className="num">{MWh(cost.mwh)}</b>,
           {' '}<b className="num">{lostRevenue(cost.mwh)}</b> of revenue, <TariffBasis />.
           Forecast band <span className="num">{lostRevenue(cost.low)} to {lostRevenue(cost.high)}</span>.
         </p>

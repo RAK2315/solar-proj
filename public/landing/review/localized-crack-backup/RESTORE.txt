@@ -1,0 +1,8 @@
+Saved before the hybrid glass experiment. The fractured-glass-backup folder
+separately preserves the earlier full-surface version.
+
+From the repository root, in PowerShell:
+Copy-Item -LiteralPath public/landing/review/localized-crack-backup/panelSurface.ts.bak -Destination src/lib/panelSurface.ts
+Copy-Item -LiteralPath public/landing/review/localized-crack-backup/panelSurface.test.ts.bak -Destination src/lib/panelSurface.test.ts
+Copy-Item -LiteralPath public/landing/review/localized-crack-backup/CrackedPanel.tsx.bak -Destination src/components/scene/CrackedPanel.tsx
+npm run demo

@@ -16,62 +16,46 @@
  * a false-colour frame is not an image it has ever seen.
  */
 
-import { useEffect, useRef } from 'react';
-
 import { DetectionBoxes } from '@/components/overlay/DossierPanels';
 import { eventCase } from '@/lib/format';
-import { moduleRoi } from '@/lib/roi';
 import { M } from '@/lib/scene';
 import { useDetector } from '@/store/detector';
 import { useFlightCue } from '@/store/flightCue';
 import { useFollowingFlight, useMissionLogLine, useStatusPill } from '@/store/selectors';
 import { useSession } from '@/store/session';
 
-/** How far apart two live passes may be, in scene seconds. One network run costs
-    tens of milliseconds on a single thread, beside a scene holding 60 fps. */
-const SAMPLE_EVERY_SCENE_SECONDS = 2.5;
 /** The camera eases onto the module after the lock. Sampling before it settles
     would crop a region the module is not in yet. */
 const SETTLE_SCENE_SECONDS = 1;
 
-function LiveBoxes() {
+function useLiveDetection() {
   const cue = useFlightCue();
-  const detect = useDetector((s) => s.detect);
-  const beginPass = useDetector((s) => s.beginPass);
-  const busy = useDetector((s) => s.busy);
   const status = useDetector((s) => s.status);
   const last = useDetector((s) => s.last);
-  const lastSample = useRef(-Infinity);
+  const filed = useDetector((s) => s.byPanel[cue.targetId]);
+  const busy = useDetector((s) => s.busy);
+  const run = useDetector((s) => s.run);
+  const reason = useDetector((s) => s.reason);
 
   const onStation = cue.active && cue.t >= M.lock + SETTLE_SCENE_SECONDS && cue.t < M.thermal;
 
-  useEffect(() => {
-    if (!onStation || busy) return;
-    // Never once the model has reported itself absent, or this retries a 404
-    // every two and a half seconds for the length of every inspection.
-    if (status === 'missing' || status === 'failed') return;
-    if (cue.t - lastSample.current < SAMPLE_EVERY_SCENE_SECONDS) return;
-    const canvas = document.querySelector('canvas');
-    if (!canvas) return;
-    lastSample.current = cue.t;
-    void detect(canvas, {
-      panelId: cue.targetId,
-      roi: moduleRoi(cue.t, cue.target, canvas.width / canvas.height),
-      source: `the drone's camera over ${cue.targetId}`,
-      // Filed against the array, so the dossier still has what the drone saw
-      // long after it has landed.
-      file: true,
-    });
-  }, [onStation, busy, status, cue.t, cue.targetId, cue.target, detect]);
-
-  // Scrubbing backwards must let it sample again, not sit on a stale mark.
-  useEffect(() => { if (!onStation) lastSample.current = -Infinity; }, [onStation]);
-  useEffect(() => { if (onStation) beginPass(cue.targetId); }, [onStation, cue.targetId, beginPass]);
-
   // Only a run this flight made on these pixels. Anything else on screen would
   // be a box the model did not produce from this frame.
-  const mine = last && last.panelId === cue.targetId && last.roi
+  const mine = last && filed && last.run >= filed.run && last.panelId === cue.targetId && last.roi
     && last.source.startsWith("the drone's camera") ? last : undefined;
+  const unavailable = status === 'missing' || status === 'failed' || run === 'failed';
+  const text = unavailable ? 'RGB · Detector unavailable'
+    : busy ? 'RGB · Analysing camera frame'
+      : mine && status === 'ready' ? (mine.detections.length ? 'RGB · Crack detected' : 'RGB · No crack detected')
+        : 'RGB · Waiting for camera frame';
+  const detail = unavailable ? reason : mine && !mine.detections.length
+    ? 'The photo-trained model returned no crack box on this rendered frame. Review the camera capture in Incident.'
+    : 'Live model inference on the simulated drone camera. Open Incident to review the captured frame.';
+  return { onStation, status, mine, text, detail };
+}
+
+function LiveBoxes() {
+  const { onStation, status, mine } = useLiveDetection();
   if (!onStation || status !== 'ready' || !mine?.detections.length || !mine.roi) return null;
 
   const r = mine.roi;
@@ -89,6 +73,7 @@ export function FlightOverlay() {
   const following = useFollowingFlight();
   const pill = useStatusPill();
   const line = useMissionLogLine();
+  const detection = useLiveDetection();
   const setFollow = useSession((s) => s.setFollowFlight);
   if (!following) return null;
 
@@ -97,7 +82,9 @@ export function FlightOverlay() {
       <LiveBoxes />
       <div className="sy-flightbar glass" role="status">
         <span className="chip" data-sev="active"><i className="dot" />{eventCase(pill)}</span>
-        {line && <span className="says" data-sev={line.severity}>{line.text}</span>}
+        {detection.onStation
+          ? <span className="says" title={detection.detail}>{detection.text}</span>
+          : line && <span className="says" data-sev={line.severity}>{line.text}</span>}
         <button type="button" className="tool" onClick={() => setFollow(false)}>Back to the field</button>
       </div>
     </div>

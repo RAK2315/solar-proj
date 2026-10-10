@@ -11,6 +11,10 @@ import {
   useScenarioEpochHour, useSiteFrame, useZoneBreakdown,
 } from '@/store/selectors';
 import { Blk, Why } from './Block';
+import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useSession } from '@/store/session';
+import { useLiveQueue } from '@/store/selectors';
 import { TariffBasis } from './Tariff';
 
 const W = 480;
@@ -51,9 +55,11 @@ export function CurvePanel() {
   const { points, markers, lostMWh, lostMWhLow, lostMWhHigh, expectedMWh, hours } = useOutlook(OUTLOOK_HOURS);
   const frame = useSiteFrame();
   const epochHour = useScenarioEpochHour();
+  const [inspectedIndex, setInspectedIndex] = useState<number | null>(null);
 
   const nowH = Math.min(hours, frame.siteSeconds / 3600);
   const now = points.reduce((best, p) => (Math.abs(p.hourOffset - nowH) < Math.abs(best.hourOffset - nowH) ? p : best), points[0]);
+  const inspected = points[Math.min(inspectedIndex ?? points.indexOf(now), points.length - 1)];
   const shortNow = now.expectedKW - now.actualKW;
   const peakOut = Math.max(...points.map((p) => p.expectedKW * p.high), 1);
   const peakLoss = Math.max(...points.map((p) => p.expectedKW - p.actualKW), 1);
@@ -69,6 +75,7 @@ export function CurvePanel() {
 
   return (
     <Blk b="curve" title={<>Expected against actual, next {hours} h<span className="count">modelled arrays, a prediction</span></>} aside={<Why />}>
+      <p className="context-note"><strong>Read production and shortfall separately.</strong> The first chart shows the full output. The second magnifies the gap so smaller, actionable losses are visible. The site output figure covers the modelled block; these curves cover its modelled arrays.</p>
       <div className="chart-hd">
         <div><div className="big num">{MW(frame.farmOutputMW)}</div><p className="one">site output now</p></div>
         <div><div className="fig num">{kW(shortNow, 0)}</div><p className="one">short of the model now, {pctPlain(now.expectedKW > 0 ? (shortNow / now.expectedKW) * 100 : 0, 1)} of the arrays&apos; output</p></div>
@@ -81,7 +88,10 @@ export function CurvePanel() {
         </div>
       </div>
 
+      <div className="chart-scale"><span>Array output · kW</span><span className="num">Scale: {kW(0, 0)} to {kW(peakOut, 0)}</span></div>
+
       <svg className="chart" viewBox={`0 0 ${CHART_W} ${OUTPUT_H}`} preserveAspectRatio="none" role="img" aria-label={`Expected and actual output of the modelled arrays over ${hours} hours`}>
+        {[0.25, 0.5, 0.75].map((fraction) => <line key={fraction} className="chart-grid" x1={0} x2={CHART_W} y1={OUTPUT_H * fraction} y2={OUTPUT_H * fraction} />)}
         <polygon className="band" points={path([...bandHigh, ...bandLow.slice().reverse()])} />
         <polygon className="gap" points={path([...expected, ...actual.slice().reverse()])} />
         <polyline className="expected" points={path(expected)} />
@@ -96,6 +106,7 @@ export function CurvePanel() {
         </li>
       </ul>
 
+      <div className="chart-scale"><span>Array shortfall · kW</span><span className="num">Scale: {kW(0, 0)} to {kW(peakLoss, 0)}</span></div>
       <p className="one">The gap between those two lines, at its own scale and split by cause.</p>
       <div className="chart-wrap">
         <svg className="chart" viewBox={`0 0 ${CHART_W} ${LOSS_H}`} preserveAspectRatio="none" role="img" aria-label="Shortfall against the model by cause">
@@ -113,7 +124,12 @@ export function CurvePanel() {
         ))}
       </div>
       <div className="axis num">
-        {ticks.map((t) => <span key={t}>{clockOf(epochHour + t)}</span>)}
+        {ticks.map((t) => <span key={t}>Day {Math.floor((epochHour + t) / 24) + 1}<br />{clockOf(epochHour + t)}</span>)}
+      </div>
+      <div className="chart-inspect well">
+        <label htmlFor="forecast-inspect">Inspect forecast time <span className="num">Day {Math.floor((epochHour + inspected.hourOffset) / 24) + 1}, {clockOf(epochHour + inspected.hourOffset)}</span></label>
+        <input id="forecast-inspect" type="range" min={0} max={points.length - 1} value={inspectedIndex ?? points.indexOf(now)} onChange={(e) => setInspectedIndex(Number(e.target.value))} />
+        <dl><div><dt>Expected array output</dt><dd className="num">{kW(inspected.expectedKW, 1)}</dd></div><div><dt>Actual array output</dt><dd className="num">{kW(inspected.actualKW, 1)}</dd></div><div><dt>Shortfall</dt><dd className="num">{kW(inspected.expectedKW - inspected.actualKW, 1)}</dd></div></dl>
       </div>
 
       <table className="tbl">
@@ -200,37 +216,29 @@ export function ModelPanel() {
 
 export function LossPanel() {
   const loss = useLossAttribution();
+  const total = loss.reduce((sum, l) => sum + l.kW, 0);
+  const select = useSession((s) => s.selectPanel);
+  const setModule = useSession((s) => s.setModule);
   return (
     <Blk b="loss" title="Where the loss is going">
       <p className="one">Shortfall against the model right now, by mechanism.</p>
-      <table className="tbl">
-        <thead><tr><th>Cause</th><th>Arrays</th><th>Shortfall</th></tr></thead>
-        <tbody>
-          {loss.map((l) => (
-            <tr key={l.cause}><td>{sentence(l.cause)}</td><td className="id">{l.arrays.slice(0, 3).join(' ')}</td><td className="num">{kW(l.kW, 1)}</td></tr>
-          ))}
-        </tbody>
-      </table>
+      {loss.length === 0 ? <p className="empty well">No production gap at this site time. At night there is no irradiance to expose the shortfall; open faults still need attention.</p> : <ol className="loss-breakdown">{loss.map((l) => <li key={l.cause}><div><strong>{sentence(l.cause)}</strong><span className="num">{kW(l.kW, 1)}</span></div><div className="loss-meter" aria-hidden><i style={{ width: `${total > 0 ? l.kW / total * 100 : 0}%` }} /></div><p>{l.cause.includes('hazard') ? 'Review the scenario footprint and whether it passes or needs a wash.' : l.cause.includes('mismatch') ? 'Review the array evidence and fault deadline before planning repair.' : l.cause.includes('above nominal') ? 'Compare wash work with other jobs in the repair queue.' : 'Baseline derate already accounted for by the model.'}</p>{l.arrays.length > 0 && <div className="loss-arrays">{l.arrays.slice(0, 3).map((id) => <button key={id} type="button" className="link id" onClick={() => { select(id); setModule('incident'); }}>{id}<ArrowRight size={14} aria-hidden /></button>)}<span>{l.arrays.length} {l.arrays.length === 1 ? 'array' : 'arrays'}</span></div>}</li>)}</ol>}
     </Blk>
   );
 }
 
 export function ZonesPanel() {
   const zones = useZoneBreakdown();
+  const { tasks } = useLiveQueue();
+  const select = useSession((s) => s.selectPanel);
+  const setModule = useSession((s) => s.setModule);
   return (
     <Blk b="zones" title="Zones">
-      <p className="one">Arrays off nominal in each zone, of {zones[0]?.total}.</p>
-      <table className="tbl">
-        <thead><tr><th>Zone</th><th>Warning</th><th>Critical</th><th>Scheduled</th><th>Shortfall</th></tr></thead>
-        <tbody>
-          {zones.map((z) => (
-            <tr key={z.id}>
-              <td className="id">{z.id}</td><td className="num">{z.warning}</td><td className="num">{z.critical}</td>
-              <td className="num">{z.scheduled}</td><td className="num">{kW(z.shortfallKW, 1)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="one">Find where attention is needed, then open the highest-ranked job in that zone.</p>
+      <div className="zone-summary">{zones.map((z) => {
+        const first = tasks.find((t) => t.panelId.startsWith(`${z.id}-`) && !t.scheduled);
+        return <article key={z.id} data-sev={z.critical ? 'critical' : z.warning ? 'warning' : 'info'}><header><strong>Zone {z.id}</strong><span className="num">{kW(z.shortfallKW, 1)}</span></header><div className="zone-status-bar" aria-hidden>{(['critical', 'warning', 'scheduled'] as const).map((kind) => <i key={kind} data-sev={kind} style={{ width: `${z[kind] / z.total * 100}%` }} />)}</div><p>{z.critical} critical · {z.warning} warning · {z.scheduled} scheduled<br />{z.total} arrays in this zone</p>{first && <button type="button" className="tool quiet" onClick={() => { select(first.panelId); setModule('incident'); }}>Review <span className="id">{first.panelId}</span><ArrowRight size={16} aria-hidden /></button>}</article>;
+      })}</div>
     </Blk>
   );
 }

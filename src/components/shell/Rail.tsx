@@ -56,7 +56,7 @@ function Kpis() {
     <dl className="kpis">
       <div><dd className="num">{f.clock}</dd><dt>site time</dt></div>
       <div><dd className="num">{MW(f.farmOutputMW)}</dd><dt>output</dt></div>
-      <div><dd className="num">{num(f.farmHealth, 0)}</dd><dt>health</dt></div>
+      <div title="Modelled health score, reduced by fault severity and development. This is not a measured plant efficiency."><dd className="num">{num(f.farmHealth, 0)}</dd><dt>health score</dt></div>
       <div><dd className="num">{f.anomalies}</dd><dt>anomalies</dt></div>
     </dl>
   );

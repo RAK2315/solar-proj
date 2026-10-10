@@ -7,15 +7,38 @@
  * is one click away on every row: loss x severity x urgency / access.
  */
 
+import { ArrowRight, CalendarClock, CircleAlert, ClipboardList, Zap } from 'lucide-react';
 import { MWh, hours, num, sentence } from '@/lib/format';
 import { scoreBreakdown } from '@/lib/ranking';
+import type { Cause } from '@/lib/causes';
 import {
-  siteClockAt, useLiveQueue, useOverrideList, useQueueCauses, useWorkOrders,
+  siteClockAt, useInspected, useLiveQueue, useOverrideList, useQueueCauses, useWorkOrders,
 } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { ImpactLine } from './HazardPalette';
 import { PlanScores } from './PlanPanel';
+
+export function QueueOverview() {
+  const { tasks } = useLiveQueue();
+  const open = tasks.filter((t) => !t.scheduled);
+  const critical = open.filter((t) => t.severity === 'critical');
+  const nearest = open.length ? Math.min(...open.map((t) => t.hoursUntilDeadline)) : null;
+  const items = [
+    { label: 'Awaiting a decision', value: `${open.length} ${open.length === 1 ? 'job' : 'jobs'}`, Icon: ClipboardList, hint: 'Ranked work still needs operator review.' },
+    { label: 'Critical work', value: `${critical.length} ${critical.length === 1 ? 'job' : 'jobs'}`, Icon: CircleAlert, hint: 'Review evidence and available crew time.' },
+    { label: 'Open energy exposure', value: MWh(open.reduce((sum, t) => sum + t.lossMWhPerDay, 0)), Icon: Zap, hint: 'Projected loss per day across open jobs.' },
+    { label: 'Nearest deadline', value: nearest === null ? 'No open work' : hours(nearest), Icon: CalendarClock, hint: 'Time remaining on the site clock.' },
+  ];
+  return <dl className="workspace-metrics">{items.map(({ label, value, Icon, hint }) => <div key={label}><dt><Icon size={18} aria-hidden />{label}</dt><dd className="num">{value}</dd><p>{hint}</p></div>)}</dl>;
+}
+
+function QueueAction({ panelId, cause }: { panelId: string; cause: Cause }) {
+  const inspected = useInspected(panelId);
+  const select = useSession((s) => s.selectPanel);
+  const setModule = useSession((s) => s.setModule);
+  return <div className="queue-action"><strong>{cause.label}</strong><p>{inspected && cause.needsDrone ? 'Inspection completed. Review returned evidence and the proposed repair before approval.' : cause.action}</p><button type="button" className="tool quiet" onClick={() => { select(panelId); setModule('incident'); }}>Review incident <ArrowRight size={16} aria-hidden /></button></div>;
+}
 
 export function QueuePanel({ footer = false, scores = false, detail = false }: {
   /** The site screen's footer: the plan's score, the order count, a way in. */
@@ -31,6 +54,7 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
   const select = useSession((s) => s.selectPanel);
   const setModule = useSession((s) => s.setModule);
   const next = tasks.find((t) => !t.scheduled);
+  const topScore = Math.max(...tasks.map((t) => scoreBreakdown(t).score), 1e-6);
 
   return (
     <Blk
@@ -39,7 +63,7 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
       aside={<Why />}
     >
       <p className="one">
-        Ranked by loss × severity × urgency ÷ access{detail ? ', arithmetic never a model\u2019s opinion. Each job shows its own.' : '.'}
+        Ranked by loss × severity × urgency ÷ access{detail ? '. Review the highest-value work, check its evidence, then approve from the incident.' : '.'}
       </p>
       <ImpactLine />
       {tasks.length === 0 ? (
@@ -58,9 +82,10 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
                     <span className="id">{t.panelId}</span>
                     <span className="meta"><i className="dot" />{sentence(sev)}, {hours(t.hoursUntilDeadline)} left{t.injected ? ', rehearsal' : ''}{t.hazard ? ', dust' : ''}</span>
                   </span>
-                  <span className="score num">{num(s.score, 2)}</span>
+                  <span className="score num">{detail && <small>Priority score</small>}{num(s.score, 2)}</span>
                 </button>
-                {detail && cause && <span className="work">{cause.label}. {cause.action}</span>}
+                {detail && <div className="queue-strength" aria-hidden><i style={{ width: `${s.score / topScore * 100}%` }} /></div>}
+                {detail && cause && <QueueAction panelId={t.panelId} cause={cause} />}
                 {detail ? (
                   <dl className="sum num">
                     <div><dd>{MWh(s.loss)}</dd><dt>lost a day</dt></div>

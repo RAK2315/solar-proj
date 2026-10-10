@@ -12,7 +12,8 @@ import { X } from 'lucide-react';
 
 import { BASIS_PHRASE, basisFor } from '@/lib/basis';
 import { getPanel } from '@/lib/data';
-import { MWh, degC, hours, kW, pct, pctPlain, sentence, wm2 } from '@/lib/format';
+import { MWh, clockOf, degC, hours, kW, pct, pctPlain, sentence, wm2 } from '@/lib/format';
+import { siteHour } from '@/lib/live';
 import {
   useActiveMissions, useHazardsOver, useIncident, useInspected, useIsDark, useLiveQueue, useOverride,
   usePanels, useProjectedLossMWh, useSiteFrame,
@@ -144,6 +145,10 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
           ? 'After sunset there is nothing to measure. The fault and its deadline stand.'
           : healthy ? `${BASIS_PHRASE[basis]}.` : `${BASIS_PHRASE[basis]}: ${cause.label.toLowerCase()}.`}
       </p>
+      <p className="evidence-status">
+        <span className="chip">{basis === 'captured' ? 'Committed thermal reference' : healthy ? 'Modelled baseline' : 'Telemetry indication'}</span>
+        {cause.needsDrone && !healthy && <span className="chip" data-sev={inspected ? 'active' : 'warning'}>{inspected ? 'Simulated inspection completed' : 'Inspection pending'}</span>}
+      </p>
       {over.length > 0 && !dark && (
         <p className="one">
           Under the {HAZARD_SPEC[over[0].kind].label.toLowerCase()} footprint, which keeps {pctPlain(over[0].kept * 100)} of
@@ -156,7 +161,8 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
         <div><dt>Cell temperature</dt><dd className="num">{degC(reading.cellTempC)}</dd></div>
         {task && <div><dt>Lost over 72 h</dt><dd className="num">{MWh(loss72)}</dd></div>}
         {task && <div><dt>Lost revenue, 72 h, <TariffBasis /></dt><dd className="num">{lostRevenue(loss72)}</dd></div>}
-        {task && <div><dt>Act within</dt><dd className="num">{hours(task.hoursUntilDeadline)}</dd></div>}
+        {task && <div><dt>Act by, site time</dt><dd className="num">{clockOf(siteHour(frame.siteSeconds) + task.hoursUntilDeadline)}</dd></div>}
+        {task && <div><dt>Time remaining</dt><dd className="num">{hours(task.hoursUntilDeadline)}</dd></div>}
       </dl>
       <p className="work workings">
         Expected is the PV model at {wm2(frame.irradiance)} and {degC(frame.ambientC)} ambient,
@@ -197,12 +203,12 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
             ) : (
               <select
                 className="tool"
-                aria-label="Override: decline with a reason"
+                aria-label="Decline recommendation with a reason"
                 value=""
                 disabled={!task}
                 onChange={(e) => e.target.value && overrideRecommendation(panelId, e.target.value)}
               >
-                <option value="">Override</option>
+                <option value="">Decline recommendation</option>
                 {OVERRIDE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             )}
@@ -212,7 +218,8 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
   );
 }
 
-export function ArrayPanel({ linkToIncident = true }: { linkToIncident?: boolean }) {
+export function ArrayPanel({ linkToIncident = true, panelId }: { linkToIncident?: boolean; panelId?: string }) {
   const selected = useSession((s) => s.selectedPanelId);
-  return selected ? <ArrayFacts panelId={selected} linkToIncident={linkToIncident} /> : <NoSelection />;
+  const described = panelId ?? selected;
+  return described ? <ArrayFacts panelId={described} linkToIncident={linkToIncident} /> : <NoSelection />;
 }

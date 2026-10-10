@@ -218,6 +218,35 @@ describe('the site runs on physics', () => {
 });
 
 describe('the operator can look at any array', () => {
+  it('uses the incident array consistently when no field selection is held', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'incident', selectedPanelId: null });
+    const facts = text(container.querySelector('[data-b="facts"]') as Element);
+    expect(facts).toContain('B-17');
+    expect(facts).not.toContain('No array selected');
+  });
+
+  it('keeps the current hypothesis separate from the recorded fault mechanism under a cloud', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'incident', selectedPanelId: 'B-17' });
+    const at = arrayCentre('B-17');
+    act(() => useSession.getState().dropHazard('cloud', { x: at.x, z: at.z }));
+    set({ siteSeconds: DEVELOPED + 600 });
+    const chain = container.querySelector('[data-b="chain"]') as Element;
+    expect(text(chain)).not.toContain('Cracked cell driving its bypass diode');
+    expect(text(chain)).toContain('Cloud bank');
+  });
+
+  it('recommends monitoring a cloud-only shortfall without creating repair work', () => {
+    const { container } = open({ siteSeconds: DEVELOPED, module: 'incident', selectedPanelId: 'C-20' });
+    const at = arrayCentre('C-20');
+    act(() => useSession.getState().dropHazard('cloud', { x: at.x, z: at.z }));
+    set({ siteSeconds: DEVELOPED + 600 });
+    const overview = text(container.querySelector('.incident-overview') as Element);
+    expect(overview).toContain('Temporary shading');
+    expect(overview).toContain('Monitor the shaded arrays');
+    expect(overview).not.toContain('Book the wash crew');
+    expect(maybeButton(container, 'Approve work order')).toBeNull();
+  });
+
   it('says nothing is selected until something is', () => {
     const { text: now, container } = open({ siteSeconds: DEVELOPED });
     expect(now()).toContain('No array selected');
@@ -298,7 +327,7 @@ describe('the human gate', () => {
     const { container, text: now } = open({
       siteSeconds: DEVELOPED + INSPECTED_AFTER, selectedPanelId: 'B-17', missions: [mission('B-17')],
     });
-    const override = container.querySelector('select[aria-label^="Override"]') as HTMLSelectElement;
+    const override = container.querySelector('select[aria-label="Decline recommendation with a reason"]') as HTMLSelectElement;
     fireEvent.change(override, { target: { value: 'False positive, array inspected manually' } });
     expect(useSession.getState().overrides).toHaveLength(1);
     expect(now()).toContain('Declined by operator');
@@ -397,6 +426,21 @@ describe('evidence belongs to the array it was captured from', () => {
     const proof = container.querySelector('[data-b="detector"] .proof') as Element;
     expect(text(proof)).toContain('not a drone frame');
     expect(text(proof)).toContain('held-out test split');
+  });
+
+  it('shows a manual live result while retaining the flight capture separately', () => {
+    const { container } = dossier({
+      siteSeconds: DEVELOPED + sceneT(M.rgb + 1), selectedPanelId: 'B-17',
+      missions: [mission('B-17')], followFlight: true,
+    });
+    const flight = {
+      detections: [], elapsedMs: 1, frame: 'data:image/png;base64,AAAA', frameSize: [4, 4] as [number, number],
+      run: 1, at: 0, source: "the drone's camera over B-17", panelId: 'B-17',
+    };
+    const manual = { ...flight, run: 2, frame: 'data:image/png;base64,BBBB', source: `${flight.source}, live` };
+    act(() => useDetector.setState({ byPanel: { 'B-17': flight }, last: manual, run: 'done' }));
+    expect(container.querySelector('[data-b="detector"] .detframe img')?.getAttribute('src')).toBe(manual.frame);
+    expect(container.querySelector('[data-b="captures"] .detframe img')?.getAttribute('src')).toBe(flight.frame);
   });
 
   it('holds the whole measured band after the drone has flown home', () => {
