@@ -1,4 +1,5 @@
 'use client';
+import { useSiteFrame } from '@/hooks/useOperationalSelectors';
 
 /**
  * FieldMap: the 120 arrays in two dimensions.
@@ -14,7 +15,7 @@
  */
 
 import { arrayCentre } from '@/lib/scene';
-import { useFarm, useSiteFrame, useZoneBreakdown } from '@/store/selectors';
+import { useFarm, useZoneBreakdown } from '@/store/selectors';
 import { useSession } from '@/store/session';
 
 const LEGEND: Array<{ sev: string; label: string; affected?: boolean }> = [

@@ -1,4 +1,6 @@
 'use client';
+import { useIncident, useProjectedLossMWh } from '@/hooks/useOperationalSelectors';
+import { useLiveQueue, useSiteFrame } from '@/hooks/useOperationalSelectors';
 
 /**
  * ArrayPanel: the selected array, and the three things an operator can do to it.
@@ -14,15 +16,15 @@ import { BASIS_PHRASE, basisFor } from '@/lib/basis';
 import { getPanel } from '@/lib/data';
 import { MWh, clockOf, degC, hours, kW, pct, pctPlain, sentence, wm2 } from '@/lib/format';
 import { siteHour } from '@/lib/live';
-import {
-  useActiveMissions, useHazardsOver, useIncident, useInspected, useIsDark, useLiveQueue, useOverride,
-  usePanels, useProjectedLossMWh, useSiteFrame,
-} from '@/store/selectors';
+import { useActiveMissions, useHazardsOver, useInspected, useIsDark, useOverride, usePanels } from '@/store/selectors';
 import { HAZARD_SPEC } from '@/lib/hazard';
 import { lostRevenue } from '@/lib/money';
 import { MISSION, MISSION_TOTAL, useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { TariffBasis } from './Tariff';
+import { useWorkflow } from '@/hooks/useWorkflow';
+import { useRepairRuns } from '@/hooks/useOperationalSelectors';
+import { repairPhase } from '@/lib/maintenance';
 
 /** Why an operator declines. Fixed reasons, so the record can be queried later. */
 const OVERRIDE_REASONS = [
@@ -112,6 +114,7 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
   const setModule = useSession((s) => s.setModule);
   const overrideRecommendation = useSession((s) => s.overrideRecommendation);
   const clearOverride = useSession((s) => s.clearOverride);
+  const repairRun = useRepairRuns().find((r) => r.panelId === panelId);
 
   const reading = frame.panels[panelId];
   if (!reading) return <NoSelection />;
@@ -174,7 +177,7 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
 
       <div className="actions">
         {order ? (
-          <p className="done">Work order <span className="id">{order.id}</span> created. A person authorised it.</p>
+          <><p className="done">Work order <span className="id">{order.id}</span> created · {repairRun ? sentence(repairPhase(repairRun, frame.siteSeconds)) : 'Approved · crew awaiting dispatch'}.</p><button type="button" className="tool" onClick={() => { useWorkflow.getState().setTab('repair'); setModule('incident'); }}>Continue repair & verification</button></>
         ) : (
           <>
             {armed && !override && (
@@ -213,6 +216,7 @@ function ArrayFacts({ panelId, linkToIncident }: { panelId: string; linkToIncide
               </select>
             )}
         </div>
+        {inspected && <button type="button" className="tool" onClick={() => { useWorkflow.getState().setTab('evidence'); setModule('incident'); }}>Inspect linked evidence & request another angle</button>}
       </div>
     </Blk>
   );

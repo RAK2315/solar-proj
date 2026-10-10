@@ -1,4 +1,6 @@
 'use client';
+import { useLossAttribution, useOutlook, useZoneBreakdown } from '@/hooks/useOperationalSelectors';
+import { useSiteFrame, useLiveQueue } from '@/hooks/useOperationalSelectors';
 
 /** The analytics screen: the day's output from the model, and where the loss goes. */
 
@@ -6,15 +8,12 @@ import { HAZARD_SPEC, type HazardKind } from '@/lib/hazard';
 import { MW, MWh, clockOf, degC, kW, ms, num, pctPlain, sentence, wm2 } from '@/lib/format';
 import { lostRevenue } from '@/lib/money';
 import { FORECAST_BAND, LOSS_CAUSES, LOSS_LABEL, type LossCause, type OutlookPoint } from '@/lib/outlook';
-import {
-  OUTLOOK_HOURS, useForecast, useHeatwaveC, useLossAttribution, useModelConstants, useOutlook,
-  useScenarioEpochHour, useSiteFrame, useZoneBreakdown,
-} from '@/store/selectors';
+import { OUTLOOK_HOURS, useForecast, useHeatwaveC, useModelConstants, useScenarioEpochHour } from '@/store/selectors';
 import { Blk, Why } from './Block';
 import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useSession } from '@/store/session';
-import { useLiveQueue } from '@/store/selectors';
+
 import { TariffBasis } from './Tariff';
 
 const W = 480;

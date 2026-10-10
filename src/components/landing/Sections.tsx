@@ -12,7 +12,7 @@
 import Link from 'next/link';
 import {
   Activity, ArrowRight, Bot, Camera, ClipboardList, Droplets, Eye, Gauge, HelpCircle,
-  Hourglass, MapPin, Navigation, Radar, ScanSearch, UserCheck,
+  Hourglass, MapPin, Navigation, Radar, ScanSearch, UserCheck, CheckCheck, CircuitBoard, GitBranch, Truck, Wrench,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,6 +23,7 @@ import { ironbowForDeltaT } from '@/lib/ironbow';
 import { TARIFF_ARITHMETIC, TARIFF_BASIS, lostRevenue } from '@/lib/money';
 import { DOSE_BUDGET_H, T_PROP_C } from '@/lib/physics';
 import { rankQueue, scoreBreakdown } from '@/lib/ranking';
+import { CREW_COUNT, HEAT_WORK_LIMIT_C, SHIFT_CAP_HOURS } from '@/lib/scheduler';
 import { useSession } from '@/store/session';
 
 /** The cadence claim's source: read in full on 4 Oct 2026. Not an NREL paper. */
@@ -132,6 +133,8 @@ const LOOP = [
   { Icon: Hourglass, step: 'Prognosis and deadline', says: 'The defect and the 72 h forecast become an hour to act by.' },
   { Icon: ClipboardList, step: 'Ranked recommendation', says: 'One fixed formula orders the work. Its arithmetic is on screen.' },
   { Icon: UserCheck, step: 'Human approval', says: 'Nothing becomes a work order until a person says so.' },
+  { Icon: Truck, step: 'Crew and repair', says: 'The approved crew leaves the maintenance bay, completes the job and returns to base.' },
+  { Icon: CheckCheck, step: 'Verification and closure', says: 'Fresh evidence and improved model output support a separate operator sign-off.' },
 ];
 
 const HANDOFFS = [
@@ -143,6 +146,8 @@ const HANDOFFS = [
   { phase: 'Estimate the urgency', input: 'Fault mechanism and forecast', output: 'An action deadline with stated assumptions', detail: 'The prognosis counts time above a thermal threshold against a declared dose budget. This is an engineering model, with its assumptions exposed, rather than a guarantee of the moment a module will fail.' },
   { phase: 'Make the tradeoff visible', input: 'Energy loss, severity, urgency and access', output: 'A ranked queue and a proposed crew day', detail: 'A fixed formula ranks the jobs. The scheduler compares a heuristic with a mixed-integer plan, while the console explains losses, deadlines and jobs that cannot fit into the available shift.' },
   { phase: 'Keep the operator in control', input: 'Evidence and a proposed repair', output: 'An approved work order or recorded refusal', detail: 'The operator reviews the recommendation and approves or declines it. Agent advice, queue ranking and a proposed schedule do not create a work order by themselves.' },
+  { phase: 'Put the plan into motion', input: 'An approved job and crew availability', output: 'A simulated repair and return to base', detail: 'The earliest available crew departs the maintenance bay and follows the access lanes. Travel uses the declared access model. Field work pauses for heat and shift limits; the crew remains reserved until it returns.' },
+  { phase: 'Check before closing', input: 'A completed repair and a fresh capture', output: 'Operator-accepted verification and closure', detail: 'Compare the repaired array with its untreated model at identical weather, then capture a new RGB frame. A successful inference and improved daylight output support verification. The operator accepts the result and closes the incident separately.' },
 ];
 
 export function LoopSection() {
@@ -154,20 +159,20 @@ export function LoopSection() {
     <section className="lp-section" id="loop" aria-labelledby="loop-h">
       <header className="lp-head" data-reveal>
         <p className="lp-kicker">The loop</p>
-        <h2 id="loop-h">From the first signal to the right action.</h2>
-        <p className="lp-sub">Explore the workflow from detection to approval. Each step connects the field signal to a decision the operator can review.</p>
+        <h2 id="loop-h">From the first signal to a verified repair.</h2>
+        <p className="lp-sub">Explore the workflow from detection to operator closure. Each step connects the field signal to a decision the operator can review.</p>
       </header>
       <div className="lp-workflow" data-reveal>
         <ol className="loop lp-loop">
           {LOOP.map(({ Icon: StepIcon, step }, i) => (
-            <li key={step} data-gate={i === LOOP.length - 1}>
+            <li key={step} data-gate={LOOP[i].step === 'Human approval'}>
               <button type="button" aria-pressed={selected === i} aria-controls="loop-detail" onClick={() => setSelected(i)}>
                 <span className="rank num">{i + 1}</span><StepIcon size={20} aria-hidden /><strong>{step}</strong><ArrowRight size={16} aria-hidden />
               </button>
             </li>
           ))}
         </ol>
-        <div className="lp-loop-detail" id="loop-detail" aria-live="polite" data-gate={selected === LOOP.length - 1}>
+        <div className="lp-loop-detail" id="loop-detail" aria-live="polite" data-gate={current.step === 'Human approval'}>
           <div className="lp-loop-visual" aria-hidden><div className="lp-signal-rings"><i /><i /><i /></div><Icon size={64} strokeWidth={1.2} /><span>{handoff.phase}</span></div>
           <div key={current.step} className="lp-loop-copy">
             <p className="lp-tag">Step {selected + 1} / {LOOP.length}</p>
@@ -347,6 +352,37 @@ export function Window() {
 
 /* ── The product ─────────────────────────────────────────────────────────── */
 
+const OPERATIONS = [
+  { key: 'repair', Icon: Truck, label: 'Repair & verification', title: 'The plan has a destination. And an ending.', detail: 'Approve the work, reserve a crew and follow its vehicle from the maintenance bay to the array. Watch the simulated replacement, compare output at the same weather, then accept fresh evidence and close the incident.', outcome: 'A repair record with an operator-approved finish', steps: ['Human approval', 'Crew & vehicle', 'Module replacement', 'Verify & close'] },
+  { key: 'cutaway', Icon: CircuitBoard, label: 'Electrical cutaway', title: 'See where the power goes.', detail: 'Open the module into layers and trace the bypass path around the affected cells. Connect the illustrated mechanism to the string reading and its inverter peers, so the loss has a visible explanation.', outcome: 'An understandable mechanism behind the shortfall', steps: ['Affected cells', 'Bypass path', 'Reduced output', 'Peer comparison'] },
+  { key: 'futures', Icon: GitBranch, label: 'Two possible futures', title: 'Make the cost of waiting visible.', detail: 'Compare repair sooner with a delay under the same forecast. Parallel timelines show projected energy loss, revenue exposure and deadline crossings. Crew availability and safe working windows affect both options.', outcome: 'A timing decision supported by the same model', steps: ['Same weather', 'Different timing', 'Energy & revenue', 'Deadline check'] },
+  { key: 'linked', Icon: ScanSearch, label: 'Linked evidence', title: 'One cell. A connected evidence trail.', detail: 'Hold the camera and switch between simulated RGB and thermal views. Select an illustrated heat cell to highlight its corresponding measured matrix reading. Recorded evidence keeps its own label and original viewpoint.', outcome: 'A traceable link between the scene and the reference matrix', steps: ['Hold the camera', 'RGB or thermal', 'Select a cell', 'Review its reading'] },
+  { key: 'angles', Icon: Camera, label: 'Better inspection coverage', title: 'An empty result becomes a useful next step.', detail: 'Request another camera angle when the first capture gives weak evidence. Each viewpoint keeps its actual detector result in the evidence strip, including empty results and inference failures. More coverage supports review without promising a detection.', outcome: 'More viewpoints, with the evidence preserved', steps: ['First capture', 'Review result', 'Another angle', 'Evidence strip'] },
+] as const;
+
+export function CompletionFlow() {
+  const [selected, setSelected] = useState(0);
+  const [cell, setCell] = useState<{ row: number; col: number }>(cellGrid.defects[0]);
+  const current = OPERATIONS[selected];
+  return <section className="lp-section" id="operations" aria-labelledby="operations-h">
+    <header className="lp-head" data-reveal><p className="lp-kicker">Beyond the alert</p><h2 id="operations-h">Understand it. Act on it.<br />Verify the result.</h2><p className="lp-sub">A connected operating flow for inspection, repair decisions and follow-through. Explore the tools that turn an anomaly into an operator-accepted outcome.</p></header>
+    <div className="lp-operations" data-reveal>
+      <div className="lp-operation-menu" role="group" aria-label="Explore the operating features">{OPERATIONS.map(({ key, label, Icon }, i) => <button type="button" key={key} aria-pressed={i === selected} aria-controls="operation-detail" onClick={() => setSelected(i)}><Icon size={22} aria-hidden /><span>{label}</span><ArrowRight size={18} aria-hidden /></button>)}<p>{CREW_COUNT} modelled crews · {hours(SHIFT_CAP_HOURS)} daily capacity per crew · heat hold at {degC(HEAT_WORK_LIMIT_C)}</p></div>
+      <article className="lp-operation-detail" id="operation-detail" aria-live="polite" data-feature={current.key}>
+        <div className="lp-operation-art" aria-label={`${current.label} workflow illustration`}>
+          <span className="lp-art-label">Workflow illustration</span>
+          {current.key === 'repair' ? <div className="lp-service-route" aria-hidden><div className="lp-bay"><Wrench size={28} /><span>Maintenance bay</span></div><div className="lp-road"><i /><Truck className="lp-van" size={42} /></div><div className="lp-repair-array"><CircuitBoard size={64} /><UserCheck size={24} /><span>Approved array</span></div></div>
+            : current.key === 'cutaway' ? <div className="lp-module-layers" aria-hidden><div><span>Glass</span><ScanSearch size={64} /></div><div><span>Cell layer</span><CircuitBoard size={64} /></div><div><span>Bypass path</span><GitBranch size={64} /></div></div>
+            : current.key === 'futures' ? <div className="lp-future-pair"><div><GitBranch size={26} /><strong>Repair sooner</strong><i /><span>Earlier intervention</span></div><div><Hourglass size={26} /><strong>Delay</strong><i /><span>Longer loss exposure</span></div><p>Projected outcomes use the same weather. Either option can cross a deadline.</p></div>
+            : current.key === 'linked' ? <div className="lp-linked-preview"><div className="lp-linked-grid" style={{ gridTemplateColumns: `repeat(${cellGrid.cols}, 1fr)` }}>{cellGrid.matrix.flatMap((row, r) => row.map((dt, c) => <button type="button" key={`${r}:${c}`} style={{ background: ironbowForDeltaT(dt) }} aria-label={`Preview measured cell R${r + 1} C${c + 1}`} aria-pressed={cell?.row === r + 1 && cell?.col === c + 1} onClick={() => setCell({ row: r + 1, col: c + 1 })} />))}</div><div><span className="id">{ARRAY_ID}</span><strong>R{cell?.row} C{cell?.col}</strong><span>Measured ΔT {degC(cellGrid.matrix[(cell?.row ?? 1) - 1][(cell?.col ?? 1) - 1])}</span><p>Recorded reference matrix</p></div></div>
+            : <div className="lp-angle-strip" aria-hidden>{['First angle', 'Oblique angle', 'Opposite angle'].map((angle) => <div key={angle}><Camera size={38} /><span>{angle}</span><i /></div>)}<p>Each capture retains its own actual result</p></div>}
+        </div>
+        <div key={current.key} className="lp-operation-copy"><h3>{current.title}</h3><p>{current.detail}</p><ol>{current.steps.map((step) => <li key={step}>{step}</li>)}</ol><div className="lp-operation-outcome"><CheckCheck size={20} aria-hidden /><span>{current.outcome}</span></div><Link className="lp-ghost" href="/console">Explore the incident workflow<ArrowRight size={17} aria-hidden /></Link></div>
+      </article>
+    </div>
+  </section>;
+}
+
 const TOUR = [
   { id: 'site', label: 'Site', says: 'The twin of the block, with the live repair queue. A 2D map is one click away.' },
   { id: 'sandbox', label: 'Sandbox', says: 'A cloud bank placed over the field: affected arrays, the output change, why it happened and the recommended response.' },
@@ -402,8 +438,8 @@ export function Tour() {
 }
 
 const QUESTIONS_ABOUT_PRODUCT = [
-  { question: 'What can I actually try in the prototype?', answer: 'Open the console, load the rehearsal, select an array, inspect its dossier and dispatch a simulated flight when imaging is useful. In Sandbox, drop dust or cloud onto the twin, or apply a heatwave, then watch the model, queue and crew plan respond.' },
-  { question: 'Does the agent decide what gets repaired?', answer: 'It proposes a cause and recommendation. A fixed formula determines queue order, and the scheduler proposes a crew day. The operator is the approval gate: only their action creates a work order, and a refusal can carry a recorded reason.' },
+  { question: 'What can I actually try in the prototype?', answer: 'Open the console, load the rehearsal, select an array, inspect its dossier and dispatch a simulated flight when imaging is useful. In Sandbox, drop dust or cloud onto the twin, or apply a heatwave, then watch the model, queue and crew plan respond. In the incident workflow, link heat cells to evidence, explore the electrical cutaway, compare two repair futures and complete an approved repair with verification.' },
+  { question: 'Does the agent decide what gets repaired?', answer: 'It proposes a cause and recommendation. A fixed formula determines queue order, and the scheduler proposes a crew day. The operator approves every work order. A simulated crew then completes the repair; accepting verification and closing the incident are separate operator decisions.' },
   { question: 'Where do the rupee figures come from?', answer: 'Projected lost energy is valued using the capacity-weighted tariff of the SECI Bhadla Phase-III auction lots. Analytics shows the tariff arithmetic and sources. The figure is the value of lost generation, not a settlement charge or a guaranteed saving.' },
   { question: 'What happens when evidence or a solver is unavailable?', answer: 'A detector that finds nothing returns no box. The console distinguishes captured evidence from committed reference evidence. If the optimization solver is unavailable, the heuristic plan is labelled as such; a time-limited solution is not presented as a proven optimum.' },
   { question: 'Is this connected to a solar plant or a real drone?', answer: 'No. Telemetry, weather and drone flight are simulated. The working prototype brings the model, trained visible-image detector, evidence dossier, queue and approval flow together. Plant telemetry ingestion and physical drone integration remain future work.' },
@@ -423,7 +459,7 @@ export function Questions() {
 
 const LEDGER = [
   { head: 'Evidence-backed foundations', sev: 'active', items: ['Our trained visible-image detector, measured on a held-out split', 'A thermal band measured from a real UAV frame', 'Auction-awarded tariffs with linked sources', 'Published PV equations'] },
-  { head: 'An interactive operating model', sev: 'info', items: ['Simulated array telemetry from the PV model', 'Simulated drone inspection in the digital twin', 'A simulated weather forecast for planning'] },
+  { head: 'An interactive operating model', sev: 'info', items: ['Simulated array telemetry from the PV model', 'Simulated drone inspection in the digital twin', 'Animated crew dispatch, replacement and return', 'Repair verification and operator closure'] },
   { head: 'Transparent planning inputs', sev: 'info', items: ['Declared sandbox hazard strengths', 'Declared repair durations and crew availability', 'A stated forecast band', 'Declared thermal threshold and dose budget'] },
   { head: 'Next integrations', sev: 'info', items: ['Plant telemetry ingestion: future integration', 'Physical drone links: future integration', 'Thermal classification: the classifier is not built'] },
 ];
@@ -434,7 +470,7 @@ export function Capabilities() {
       <header className="lp-head" data-reveal>
         <p className="lp-kicker">Built today. Room to grow.</p>
         <h2 id="capabilities-h">A working foundation for smarter solar operations.</h2>
-        <p className="lp-sub">Explore a complete inspection and triage workflow, grounded in published models, trained vision and traceable calculations.</p>
+        <p className="lp-sub">Explore inspection, decision-making, simulated repair and verification, grounded in published models, trained vision and traceable calculations.</p>
       </header>
 
       <div className="lp-ledger">
@@ -498,12 +534,13 @@ export function Closing() {
   return (
     <>
       <section className="lp-closing" aria-labelledby="closing-h" data-reveal>
-        <div className="lp-closing-copy"><p className="lp-kicker">Take the operator’s seat</p><h2 id="closing-h">See the evidence.<br />Make the call.</h2><p>A working console to explore the path from a power anomaly to a proposed repair. Start with the reference case, then change the conditions yourself.</p><Link className="lp-cta" href="/console">Open the console<ArrowRight size={18} aria-hidden /></Link><span className="lp-disclosure">Hackathon prototype · No plant connection required</span></div>
+        <div className="lp-closing-copy"><p className="lp-kicker">Take the operator’s seat</p><h2 id="closing-h">See the evidence.<br />Make the call.</h2><p>A working console to explore the path from a power anomaly to a verified simulated repair. Start with the reference case, then change the conditions yourself.</p><Link className="lp-cta" href="/console">Open the console<ArrowRight size={18} aria-hidden /></Link><span className="lp-disclosure">Hackathon prototype · No plant connection required</span></div>
         <div className="lp-first-session"><p className="lp-tag"><Navigation size={20} aria-hidden />Your first session</p><ol>{[
           ['Load the rehearsal', 'Begin with the seeded site state and its committed evidence.'],
           [`Inspect ${ARRAY_ID}`, 'Review the shortfall, captured frames and proposed action.'],
           ['Change the conditions', 'Drop a dust storm in Sandbox and compare the new queue.'],
-          ['Review the plan', 'Check the arithmetic and crew day before approving work.'],
+          ['Compare and approve', 'Compare repair timing, check the crew plan and approve the work.'],
+          ['Verify the repair', 'Watch the crew, capture fresh evidence and accept the result before closing.'],
         ].map(([title, description], i) => <li key={title}><span className="num">{i + 1}</span><div><strong>{title}</strong><p>{description}</p></div></li>)}</ol></div>
       </section>
       <footer className="lp-foot">

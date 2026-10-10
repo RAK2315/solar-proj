@@ -1,4 +1,5 @@
 'use client';
+import { useSiteFrame } from '@/hooks/useOperationalSelectors';
 
 /**
  * The sandbox screen's rehearsal faults: break an array and watch the plan
@@ -13,7 +14,7 @@ import { RotateCcw } from 'lucide-react';
 
 import { clockOf } from '@/lib/format';
 import { nextRehearsalTarget } from '@/lib/rehearsal';
-import { useInjected, useScenarioEvents, useSiteFrame } from '@/store/selectors';
+import { useInjected, useScenarioEvents } from '@/store/selectors';
 import { INJECTABLE, useSession, type InjectableId } from '@/store/session';
 import { Blk } from './Block';
 

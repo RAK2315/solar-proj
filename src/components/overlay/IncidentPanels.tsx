@@ -1,4 +1,6 @@
 'use client';
+import { useIncident } from '@/hooks/useOperationalSelectors';
+import { useLiveQueue, usePanelReading } from '@/hooks/useOperationalSelectors';
 
 /**
  * The incident screen: one array's problem as a chain of evidence, and what it
@@ -11,10 +13,12 @@ import { BASIS_LABEL, type StepKey } from '@/lib/incident';
 import { HAZARD_SPEC } from '@/lib/hazard';
 import { lostRevenue } from '@/lib/money';
 import { HAZARD_GUIDE } from '@/lib/sandboxGuide';
-import { useDeferOutcomes, useHazardsOver, useIncident, useInspected, useLiveQueue, usePanelReading, useSelectedPanelId } from '@/store/selectors';
+import { useDeferOutcomes, useHazardsOver, useInspected, useSelectedPanelId } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { TariffBasis } from './Tariff';
+import { useRepairRuns } from '@/hooks/useOperationalSelectors';
+import { useWorkflow } from '@/hooks/useWorkflow';
 
 const STEP_ICONS = { observation: Activity, evidence: ScanSearch, hypothesis: Search, forecast: TrendingDown, recommendation: ClipboardCheck, decision: UserCheck } satisfies Record<StepKey, typeof Activity>;
 
@@ -83,7 +87,10 @@ export function ChainPanel() {
 export function DeferPanel() {
   const panelId = useSelectedPanelId();
   const outcomes = useDeferOutcomes(panelId);
+  const at = useSession((s) => s.siteSeconds);
+  const repaired = useRepairRuns().find((r) => r.panelId === panelId && at >= r.completedAt);
   const peak = Math.max(...outcomes.map((o) => o.lostMWh), 1e-6);
+  if (repaired) return <Blk b="defer" title="Repair outcome"><p className="one">{repaired.closedAt !== undefined && at >= repaired.closedAt ? 'The operator accepted verification and closed the simulated repair. Review the retained outcome and current output.' : 'The simulated intervention has completed. Review its output and fresh evidence before accepting verification.'}</p><button type="button" className="tool" onClick={() => useWorkflow.getState().setTab('repair')}>Review verification</button></Blk>;
   return (
     <Blk b="defer" title="Cost of waiting">
       <p className="one">Energy lost if the repair starts at each point, and the revenue that is, <TariffBasis />.</p>

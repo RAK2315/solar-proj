@@ -31,6 +31,11 @@ import { TariffPanel } from '@/components/overlay/Tariff';
 import { OrdersPanel, QueueOverview, QueuePanel } from '@/components/overlay/QueuePanel';
 import { WorkspaceHeader } from '@/components/overlay/WorkspaceHeader';
 import { FlightOverlay } from '@/components/twin/FlightOverlay';
+import { InspectionControls } from '@/components/twin/InspectionControls';
+import { RepairControls } from '@/components/twin/RepairControls';
+import { WorkflowPanel } from '@/components/overlay/WorkflowPanel';
+import { useWorkflow } from '@/hooks/useWorkflow';
+import { useRepairRuns } from '@/hooks/useOperationalSelectors';
 import { hasCapturedEvidence } from '@/lib/data';
 import { InjectPanel, ScenarioPanel } from '@/components/overlay/SandboxPanels';
 import { HAZARD_SPEC } from '@/lib/hazard';
@@ -50,11 +55,13 @@ const SIDE: ReadonlySet<ScreenId> = new Set(['site', 'sandbox']);
 function IncidentBar({ dossier }: { dossier: boolean }) {
   const panelId = useSelectedPanelId();
   const setDossier = useSession((s) => s.setDossier);
+  const workflow = useWorkflow((s) => s.open);
   return (
     <WorkspaceHeader Icon={ScanSearch} title={<><span className="id">{panelId}</span> incident</>} description={dossier ? 'Inspect the captured frames, detector output and thermal evidence for this array.' : 'Understand the signal, review the evidence and choose the next action.'}>
       <div className="seg" role="group" aria-label="Incident view">
-        <button type="button" className="tool quiet" aria-pressed={!dossier} onClick={() => setDossier(false)}>Summary</button>
-        <button type="button" className="tool quiet" aria-pressed={dossier} onClick={() => setDossier(true)}>Dossier</button>
+        <button type="button" className="tool quiet" aria-pressed={!dossier && !workflow} onClick={() => { useWorkflow.setState({ open: false }); setDossier(false); }}>Summary</button>
+        <button type="button" className="tool quiet" aria-pressed={dossier && !workflow} onClick={() => { useWorkflow.setState({ open: false }); setDossier(true); }}>Dossier</button>
+        <button type="button" className="tool quiet" aria-pressed={workflow} onClick={() => useWorkflow.setState({ open: true })}>Workflow</button>
       </div>
     </WorkspaceHeader>
   );
@@ -63,6 +70,10 @@ function IncidentBar({ dossier }: { dossier: boolean }) {
 function Incident() {
   const dossier = useSession((s) => s.dossierOpen);
   const panelId = useSelectedPanelId();
+  const workflow = useWorkflow((s) => s.open);
+  const at = useSession((s) => s.siteSeconds);
+  const completed = useRepairRuns().some((r) => r.panelId === panelId && at >= r.completedAt);
+  if (workflow) return <><IncidentBar dossier={dossier} /><WorkflowPanel /></>;
   return dossier ? (
     <>
       <IncidentBar dossier />
@@ -79,7 +90,7 @@ function Incident() {
       <IncidentOverview />
       <div className="col"><ArrayPanel panelId={panelId} linkToIncident={false} /><InverterPanel /></div>
       <ChainPanel />
-      <div className="col"><DeferPanel /><ReasoningPanel /><CommittedRunPanel /></div>
+      <div className="col"><DeferPanel />{completed ? <details className="reference-panel"><summary>Pre-repair triage and recommendation</summary><p className="one">This is the original reasoning record. Current output and verification appear in the repair workflow.</p><ReasoningPanel /><CommittedRunPanel /></details> : <><ReasoningPanel /><CommittedRunPanel /></>}</div>
     </>
   );
 }
@@ -117,6 +128,8 @@ export function Shell() {
   const footprints = useFootprints();
   const dossier = useSession((s) => s.dossierOpen);
   const following = useFollowingFlight();
+  const inspection = useWorkflow((s) => s.inspection);
+  const watchingRepair = useWorkflow((s) => s.watchingRepair);
   const overlay = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [cameraRequest, setCameraRequest] = useState<CameraRequest>({ view: 'overview', revision: 0 });
@@ -143,7 +156,9 @@ export function Shell() {
       data-screen={screen}
       data-fallback={fallback ? 'true' : 'false'}
       data-dragging={holding ? 'true' : 'false'}
-      data-follow={following ? 'true' : 'false'}
+      data-follow={following || inspection ? 'true' : 'false'}
+      data-inspection={inspection ? 'true' : 'false'}
+      data-maintenance={watchingRepair ? 'true' : 'false'}
     >
       <div className="sy-twin">
         {probe.ready && (fallback
@@ -162,6 +177,8 @@ export function Shell() {
           ))}
         </div>
         {!fallback && <FlightOverlay />}
+        {!fallback && <InspectionControls />}
+        {!fallback && <RepairControls />}
       </div>
 
       <Rail screen={screen} />

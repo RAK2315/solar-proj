@@ -5,6 +5,7 @@ import { useDetector, type DetectorResult } from '@/store/detector';
 import { useSession } from '@/store/session';
 import { DetectorCapture } from './DetectorCapture';
 import { FlightOverlay } from './FlightOverlay';
+import { useWorkflow } from '@/hooks/useWorkflow';
 
 const driver = vi.hoisted(() => ({ after: null as (() => void) | null, canvas: null as HTMLCanvasElement | null }));
 vi.mock('@react-three/fiber', () => ({
@@ -35,6 +36,7 @@ function inspection() {
   driver.canvas = document.createElement('canvas');
   driver.canvas.width = 1366;
   driver.canvas.height = 768;
+  vi.spyOn(driver.canvas, 'toDataURL').mockReturnValue('data:image/png;base64,retained');
   document.body.append(driver.canvas);
   render(<><FlightOverlay /><DetectorCapture /></>);
   return detect;
@@ -106,4 +108,37 @@ it('shows actual detections only during the RGB pass and reports unavailable inf
   expect(document.querySelector('.sy-reticle')).toBeNull();
   act(() => useSession.setState({ siteSeconds: 1800 }));
   expect(screen.queryByText('RGB · Detector unavailable')).toBeNull();
+});
+
+it('settles a held angle after render, captures once per request and never infers on thermal colours', () => {
+  const detect = inspection();
+  act(() => useWorkflow.getState().inspect('B-17'));
+  act(() => useWorkflow.getState().requestCapture());
+  act(() => driver.after?.());
+  expect(detect).not.toHaveBeenCalled();
+  act(() => driver.after?.());
+  expect(detect).toHaveBeenCalledTimes(1);
+  act(() => driver.after?.());
+  expect(detect).toHaveBeenCalledTimes(1);
+  act(() => useWorkflow.getState().setMode('thermal'));
+  act(() => driver.after?.());
+  act(() => driver.after?.());
+  expect(detect).toHaveBeenCalledTimes(1);
+  act(() => useWorkflow.getState().anotherAngle());
+  act(() => driver.after?.());
+  act(() => driver.after?.());
+  expect(detect).toHaveBeenCalledTimes(2);
+  expect(detect).toHaveBeenLastCalledWith(driver.canvas, expect.objectContaining({ panelId: 'B-17', file: true, source: expect.stringContaining('Oblique angle') }));
+});
+
+it('retains a requested camera view when inference fails without calling it an empty result', async () => {
+  inspection();
+  useDetector.setState({ detect: vi.fn(async () => { useDetector.setState({ run: 'failed', busy: false, last: undefined }); }) });
+  act(() => { useWorkflow.getState().inspect('B-17'); useWorkflow.getState().requestCapture(); });
+  await act(async () => { driver.after?.(); driver.after?.(); });
+  const capture = useWorkflow.getState().captures.at(-1)!;
+  expect(capture.outcome).toBe('failed');
+  expect(capture.result.frame).toBe('data:image/png;base64,retained');
+  expect(capture.panelId).toBe('B-17');
+  expect(capture.result.roi).toBeUndefined();
 });

@@ -23,6 +23,7 @@ import { useDetector } from '@/store/detector';
 import { useFlightCue } from '@/store/flightCue';
 import { useFollowingFlight, useMissionLogLine, useStatusPill } from '@/store/selectors';
 import { useSession } from '@/store/session';
+import { useWorkflow } from '@/hooks/useWorkflow';
 
 /** The camera eases onto the module after the lock. Sampling before it settles
     would crop a region the module is not in yet. */
@@ -75,7 +76,9 @@ export function FlightOverlay() {
   const line = useMissionLogLine();
   const detection = useLiveDetection();
   const setFollow = useSession((s) => s.setFollowFlight);
-  if (!following) return null;
+  const held = useWorkflow((s) => s.inspection);
+  const cue = useFlightCue();
+  if (!following || held) return null;
 
   return (
     <div className="sy-flight">
@@ -85,6 +88,7 @@ export function FlightOverlay() {
         {detection.onStation
           ? <span className="says" title={detection.detail}>{detection.text}</span>
           : line && <span className="says" data-sev={line.severity}>{line.text}</span>}
+        {detection.onStation && <button type="button" className="tool" onClick={() => { useWorkflow.getState().inspect(cue.targetId); setFollow(false); }}>Freeze & inspect</button>}
         <button type="button" className="tool" onClick={() => setFollow(false)}>Back to the field</button>
       </div>
     </div>

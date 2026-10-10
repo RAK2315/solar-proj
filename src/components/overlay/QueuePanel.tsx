@@ -1,4 +1,5 @@
 'use client';
+import { useLiveQueue } from '@/hooks/useOperationalSelectors';
 
 /**
  * The repair queue, and what a person decided about it.
@@ -11,10 +12,11 @@ import { ArrowRight, CalendarClock, CircleAlert, ClipboardList, Zap } from 'luci
 import { MWh, hours, num, sentence } from '@/lib/format';
 import { scoreBreakdown } from '@/lib/ranking';
 import type { Cause } from '@/lib/causes';
-import {
-  siteClockAt, useInspected, useLiveQueue, useOverrideList, useQueueCauses, useWorkOrders,
-} from '@/store/selectors';
+import { siteClockAt, useInspected, useOverrideList, useQueueCauses, useWorkOrders,  } from '@/store/selectors';
 import { useSession } from '@/store/session';
+import { useWorkflow } from '@/hooks/useWorkflow';
+import { useRepairRuns } from '@/hooks/useOperationalSelectors';
+import { repairPhase } from '@/lib/maintenance';
 import { Blk, Why } from './Block';
 import { ImpactLine } from './HazardPalette';
 import { PlanScores } from './PlanPanel';
@@ -123,6 +125,8 @@ export function QueuePanel({ footer = false, scores = false, detail = false }: {
 
 /** What a person decided: every approval and every refusal, with when and why. */
 export function OrdersPanel() {
+  const runs = useRepairRuns();
+  const at = useSession((s) => s.siteSeconds);
   const orders = useWorkOrders();
   const overrides = useOverrideList();
   const select = useSession((s) => s.selectPanel);
@@ -137,8 +141,8 @@ export function OrdersPanel() {
           {orders.map((w) => (
             <li key={w.id} data-sev="scheduled">
               <span className="num">{siteClockAt(w.createdAt)}</span>
-              <button type="button" className="id link" onClick={() => select(w.panelId)}>{w.id}</button>
-              <span className="says">Approved. {w.note}</span>
+              <button type="button" className="id link" onClick={() => { select(w.panelId); useWorkflow.getState().setTab('repair'); useSession.getState().setModule('incident'); }}>{w.id}</button>
+              <span className="says">{runs.find((r) => r.panelId === w.panelId) ? sentence(repairPhase(runs.find((r) => r.panelId === w.panelId)!, at)) : 'Approved · crew awaiting dispatch'}. {w.note}</span>
             </li>
           ))}
           {overrides.map((o) => (

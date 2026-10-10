@@ -1,11 +1,14 @@
 'use client';
 
 import { Line } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import { useLayoutEffect, useRef } from 'react';
-import { Object3D, type InstancedMesh } from 'three';
-import { ARRAY_WIDTH, SITE_ZONES } from '@/lib/siteLayout';
-import { M, PAD, PANEL_H, arrayCentre, droneAt } from '@/lib/scene';
-import { SITE } from '@/lib/scenePalette';
+import { Object3D, type InstancedMesh, type Mesh } from 'three';
+import { ARRAY_WIDTH, SERVICE_HUB, SITE_AISLES, SITE_ZONES } from '@/lib/siteLayout';
+import { M, PAD, PANEL_H, arrayCentre, clamp01, droneAt, smooth } from '@/lib/scene';
+import { SCENE, SITE } from '@/lib/scenePalette';
+import { currentRepairs, useWorkflow } from '@/hooks/useWorkflow';
+import { useSession } from '@/store/session';
 import { useFlightCue } from '@/store/flightCue';
 
 const WEST = SITE_ZONES[0].minX - 15;
@@ -45,6 +48,32 @@ function Footprint({ id, hover = false }: { id: string; hover?: boolean }) {
   return <Line points={[[p.x - w, 0.2, p.z - h], [p.x + w, 0.2, p.z - h], [p.x + w, 0.2, p.z + h], [p.x - w, 0.2, p.z + h], [p.x - w, 0.2, p.z - h]]} color={hover ? SITE.hover : SITE.selection} lineWidth={hover ? 1.5 : 2.5} />;
 }
 
+function ServiceBay() {
+  const shutter = useRef<Mesh>(null);
+  useFrame(() => {
+    const at = useSession.getState().siteSeconds;
+    const open = Math.max(0, ...currentRepairs(useWorkflow.getState().repairs).map((r) => {
+      const clear = (r.arrivedAt - r.departedAt) * 0.08;
+      const outbound = Math.min(clamp01((at - r.departedAt + 120) / 120), clamp01((r.departedAt + clear + 120 - at) / 120));
+      const inbound = r.returnedAt === undefined ? 0 : Math.min(clamp01((at - r.returnedAt + clear) / 120), clamp01((r.returnedAt + 120 - at) / 120));
+      return smooth(Math.max(outbound, inbound));
+    }));
+    if (shutter.current) {
+      shutter.current.position.y = 1.35 + open * 1.22;
+      shutter.current.scale.y = 1 - open * 0.9;
+    }
+  });
+  return <group position={[SERVICE_HUB.x, 0, SERVICE_HUB.z]}>
+    {[-2.85, 2.85].map((x) => <mesh key={x} position={[x, 1.8, 0]}><boxGeometry args={[0.3, 3.6, 5.6]} /><meshStandardMaterial color={SITE.steel} roughness={0.75} /></mesh>)}
+    <mesh position={[0, 1.8, -2.8]}><boxGeometry args={[6, 3.6, 0.3]} /><meshStandardMaterial color={SITE.steel} /></mesh>
+    <mesh position={[0, 3.7, 0]}><boxGeometry args={[6.4, 0.3, 6.2]} /><meshStandardMaterial color={SCENE.droneHub} roughness={0.8} /></mesh>
+    <mesh position={[0, 0.04, 1.1]}><boxGeometry args={[6, 0.08, 7.8]} /><meshStandardMaterial color={SITE.pad} /></mesh>
+    <mesh ref={shutter} position={[0, 1.35, 2.85]}><boxGeometry args={[5.4, 2.7, 0.1]} /><meshStandardMaterial color={SITE.steel} metalness={0.25} /></mesh>
+    <mesh position={[0, 3.3, 2.9]}><boxGeometry args={[5.4, 0.24, 0.12]} /><meshStandardMaterial color={SCENE.dronePayload} /></mesh>
+    {[-2.1, 2.1].map((x) => <mesh key={x} position={[x, 3.05, 3]}><boxGeometry args={[0.55, 0.12, 0.06]} /><meshStandardMaterial color={SITE.hover} emissive={SITE.hover} emissiveIntensity={0.5} /></mesh>)}
+  </group>;
+}
+
 export function SiteContext({ dark, selected, hovered, flight = false }: { dark: boolean; selected: string | null; hovered: string | null; flight?: boolean }) {
   const cue = useFlightCue();
   const boundary = dark ? SITE.nightBoundary : SITE.boundary;
@@ -52,15 +81,15 @@ export function SiteContext({ dark, selected, hovered, flight = false }: { dark:
     <Fence dark={dark} />
     {SITE_ZONES.map((zone) => <group key={zone.id}>
       <Line points={[[zone.minX, 0.08, zone.minZ], [zone.maxX, 0.08, zone.minZ], [zone.maxX, 0.08, zone.maxZ], [zone.minX, 0.08, zone.maxZ], [zone.minX, 0.08, zone.minZ]]} color={boundary} lineWidth={1} dashed dashSize={1.5} gapSize={1} />
-      <mesh position={[zone.x, 0.025, zone.maxZ + 5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[zone.maxX - zone.minX + 18, 4]} />
-        <meshStandardMaterial color={dark ? SITE.nightLane : SITE.lane} roughness={1} />
-      </mesh>
-      <mesh position={[zone.minX - 5, 0.8, zone.z]}>
+      {zone.id !== SITE_ZONES[1].id && <mesh position={[zone.minX - 5, 0.8, zone.z]}>
         <boxGeometry args={[2.4, 1.6, 2]} />
         <meshStandardMaterial color={SITE.steel} metalness={0.3} roughness={0.8} />
-      </mesh>
+      </mesh>}
     </group>)}
+    {SITE_AISLES.map((lane) => <mesh key={lane.id} position={[lane.x, 0.025, lane.z]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[lane.width, 2.4]} /><meshStandardMaterial color={dark ? SITE.nightLane : SITE.lane} roughness={1} />
+    </mesh>)}
+    <ServiceBay />
     <mesh position={[SITE_ZONES[0].minX - 10, 0.03, SITE_ZONES[1].z]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[4, SITE_ZONES.at(-1)!.maxZ - SITE_ZONES[0].minZ + 24]} />
       <meshStandardMaterial color={dark ? SITE.nightLane : SITE.lane} roughness={1} />

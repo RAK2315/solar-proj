@@ -19,8 +19,10 @@ import {
   HEAT_WORK_LIMIT_C, LATE_FACTOR, SHIFT_CAP_HOURS, SHIFT_END_HOUR, SHIFT_START_HOUR, SOLVE_BUDGET_MS,
   TRAVEL_HOURS_BASE, onTime,
 } from '@/lib/scheduler';
-import { useSchedule, type DaySchedule } from '@/store/selectors';
+import { type DaySchedule } from '@/store/selectors';
+import { useRepairRuns, useSchedule } from '@/hooks/useOperationalSelectors';
 import { useSession } from '@/store/session';
+import { crewAvailability } from '@/lib/maintenance';
 import { Blk, Why } from './Block';
 
 /** Below this the two plans are the same plan and the difference is rounding. */
@@ -52,12 +54,21 @@ export function scoreLine({ plan, solver }: DaySchedule): string {
 /** One line for the site screen, where the hero happens. */
 export function PlanScores() {
   const schedule = useSchedule();
+  const at = useSession((s) => s.siteSeconds);
+  const runs = useRepairRuns();
+  const active = runs.some((r) => at < (r.returnedAt ?? r.completedAt));
+  const capacity = crewAvailability(runs, at);
+  if (active) return <p className="one">{capacity.available} of {capacity.total} crews available. Approved jobs reserve crews until they return to the maintenance bay. Open a work order to follow its progress.</p>;
   if (schedule.problem.jobs.length === 0) return null;
   return <p className="one" role="status">{scoreLine(schedule)}</p>;
 }
 
 export function PlanPanel() {
   const schedule = useSchedule();
+  const at = useSession((s) => s.siteSeconds);
+  const runs = useRepairRuns();
+  const active = runs.some((r) => at < (r.returnedAt ?? r.completedAt));
+  const capacity = crewAvailability(runs, at);
   const select = useSession((s) => s.selectPanel);
   const { problem, plan, heat, firstSlotHour } = schedule;
 
@@ -68,6 +79,7 @@ export function PlanPanel() {
     .filter((a) => { const j = byId.get(a.jobId); return j ? !onTime(j, a.startSlot) : false; })
     .map((a) => byId.get(a.jobId)?.panelId ?? a.jobId);
   const slots = Array.from({ length: problem.slots }, (_, k) => k);
+  if (active) return <Blk b="plan" title="Approved crew work"><p className="one">{capacity.available} of {capacity.total} crews available. Dispatch another approved job from its incident; it waits when every crew is reserved. Travel, field work and the return journey share the same crew reservation. The open-work proposal returns when these crews reach base.</p></Blk>;
 
   return (
     <Blk
@@ -76,6 +88,7 @@ export function PlanPanel() {
       aside={<Why />}
     >
       <p className="one" role="status">{scoreLine(schedule)}</p>
+      {runs.length > 0 && <p className="one">Today’s travel and completed field work are deducted from remaining capacity. This proposal gives every crew the most-used crew’s remaining budget; dispatch checks each crew’s own schedule.</p>}
       {problem.jobs.length === 0 ? (
         <p className="empty well">No crew work to plan. A job appears here when the queue holds something a crew can fix.</p>
       ) : (

@@ -13,6 +13,7 @@
 
 import type { HazardEvent } from './hazard';
 import { evaluateArray } from './physics';
+import type { Service } from './maintenance';
 import {
   allEvents, eventFor, faultProgressAt, liveFrameAt, scenario, type ScenarioEvent,
 } from './live';
@@ -113,6 +114,7 @@ export function outlook(
   hazards: readonly HazardEvent[],
   hours = 24,
   samplesPerHour = 4,
+  services: readonly Service[] = [],
 ): Outlook {
   const n = hours * samplesPerHour;
   const dtH = 1 / samplesPerHour;
@@ -124,7 +126,7 @@ export function outlook(
   const points = Array.from({ length: n + 1 }, (_, i): OutlookPoint => {
     const hourOffset = i * dtH;
     const siteSeconds = hourOffset * 3600;
-    const frame = liveFrameAt(siteSeconds, scheduled, injected, hazards);
+    const frame = liveFrameAt(siteSeconds, scheduled, injected, hazards, services);
     const loss: Record<LossCause, number> = { fault: 0, soiling: 0, hazard: 0 };
     let expectedKW = 0;
     let actualKW = 0;
@@ -135,7 +137,8 @@ export function outlook(
       const short = r.expectedKW - r.actualKW;
       if (short <= AT_MODEL_KW) continue;
       const event = eventFor(id, injected);
-      const cause: LossCause = event && faultProgressAt(event, siteSeconds) > 0 ? 'fault'
+      const serviced = services.some((s) => s.panelId === id && s.kind !== 'cleaning' && siteSeconds >= s.at);
+      const cause: LossCause = event && !serviced && faultProgressAt(event, siteSeconds) > 0 ? 'fault'
         : frame.affected[id] !== undefined ? 'hazard' : 'soiling';
       loss[cause] += short;
     }

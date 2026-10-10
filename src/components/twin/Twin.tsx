@@ -30,6 +30,8 @@ import { TwinCamera } from './TwinCamera';
 import { Watchdog } from './Watchdog';
 import { SiteContext } from './SiteContext';
 import { SiteEnvironment } from './SiteEnvironment';
+import { useWorkflow } from '@/hooks/useWorkflow';
+import { RepairCrew } from './RepairCrew';
 
 /* The ground plan/rework/06-design-system.md §7 describes. The daylit desert is
    kept for the light theme, where a near-black field would fight the panels. */
@@ -59,13 +61,15 @@ export default function Twin({ overlay, watchdog, children, cameraRequest, hover
 }) {
   const theme = useSession((s) => s.theme);
   const following = useFollowingFlight();
+  const inspection = useWorkflow((s) => s.inspection);
+  const watchingRepair = useWorkflow((s) => s.watchingRepair);
   const selected = useSession((s) => s.selectedPanelId);
   // THE DRONE'S CAMERA SEES DAYLIGHT, whatever theme the console is in. The dark
   // ground is a way of drawing the field for an operator; it is not what the
   // site looks like, and the detector was trained on photographs taken in the
   // sun. Under the cool night-styled key light it found nothing on the same
   // module it scores as cracked in daylight.
-  const day = theme === 'light' || following;
+  const day = theme === 'light' || following || Boolean(inspection || watchingRepair);
 
   return (
     <Canvas
@@ -77,22 +81,23 @@ export default function Twin({ overlay, watchdog, children, cameraRequest, hover
       camera={{ fov: TWIN_FOV, near: 0.5, far: 600, position: [0, 74, 164] }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <SiteEnvironment dark={!day} inspection={following} />
+      <SiteEnvironment dark={!day} inspection={following || Boolean(inspection)} />
       <Field dark={!day} onHover={onHover} />
       <SiteContext dark={!day} selected={selected} hovered={hovered} flight={following} />
       <group onClick={(e) => {
         e.stopPropagation();
-        useSession.getState().selectPanel(flightCueNow().targetId);
+        useSession.getState().selectPanel(inspection?.panelId ?? flightCueNow().targetId);
       }}
       >
         <CrackedPanel dark={!day} />
       </group>
       <Drone />
+      <RepairCrew />
       <HazardLayer />
       {children}
       <TwinCamera overlay={overlay} request={cameraRequest} />
       <DetectorCapture />
-      {following && <ThermalPass />}
+      {(following || inspection) && <ThermalPass />}
       {watchdog && <Watchdog />}
     </Canvas>
   );

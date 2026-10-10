@@ -1,4 +1,5 @@
 'use client';
+import { useSiteFrame } from '@/hooks/useOperationalSelectors';
 
 /**
  * HazardPalette: the hero's tools. Pick a hazard, drag it onto the field, drop.
@@ -20,10 +21,7 @@ import { MWh, clockOf, degC, hours, num, pctPlain } from '@/lib/format';
 import { lostRevenue } from '@/lib/money';
 import { DUST_WASH_WINDOW_H, HAZARD_SPEC, type HazardEvent, type HazardKind } from '@/lib/hazard';
 import { describeHazard, HAZARD_GUIDE } from '@/lib/sandboxGuide';
-import {
-  OUTLOOK_HOURS, useFlatField, useHazardCostMWh, useHazardImpact, useHazards, useHeatwaveC,
-  useScenarioEpochHour, useSiteFrame,
-} from '@/store/selectors';
+import { OUTLOOK_HOURS, useFlatField, useHazardCostMWh, useHazardImpact, useHazards, useHeatwaveC, useScenarioEpochHour,  } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { Blk, Why } from './Block';
 import { TariffBasis } from './Tariff';

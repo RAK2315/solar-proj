@@ -19,6 +19,7 @@ import {
   type Hazard, type HazardEvent,
 } from './hazard';
 import { arrayCentre } from './scene';
+import type { Service } from './maintenance';
 import {
   type ArrayReading, type PanelStatusValue, evaluateArray, fleetHealth,
   ambientAt, clockAt, irradianceAt, parkOutputMW, statusFor, G_REF, T_AMB_REF,
@@ -184,6 +185,7 @@ export function liveFrameAt(
   scheduledIds: ReadonlySet<string> = new Set(),
   injected: readonly ScenarioEvent[] = [],
   hazardEvents: readonly HazardEvent[] = [],
+  services: readonly Service[] = [],
 ): LiveFrame {
   const offset = forecastOffset(siteSeconds);
   const hazards = hazardsAt(hazardEvents, siteHour(siteSeconds));
@@ -200,20 +202,26 @@ export function liveFrameAt(
 
   for (const p of allPanels) {
     const event = eventFor(p.id, injected);
-    const progress = event ? faultProgressAt(event, siteSeconds) : 0;
-    const fSoil = SOIL.get(p.id);
+    const service = services.find((s) => s.panelId === p.id && siteSeconds >= s.at);
+    const progress = event && (!service || service.kind === 'cleaning') ? faultProgressAt(event, siteSeconds) : 0;
+    const fSoil = service?.kind === 'cleaning' ? undefined : SOIL.get(p.id);
+    const scheduled = scheduledIds.has(p.id) && !service;
+    // A wash removes existing dust on this array; later storms and nearby arrays stay affected.
+    const localHazards = service?.kind === 'cleaning'
+      ? hazardsAt(hazardEvents.filter((h) => h.kind !== 'dust' || h.startHour > siteHour(service.at)), siteHour(siteSeconds))
+      : hazards;
 
-    const reading = evaluateUnder(p.id, { g, tAmb }, hazards, {
+    const reading = evaluateUnder(p.id, { g, tAmb }, localHazards, {
       faultProgress: progress,
       faultedStrings: event?.faultedStrings,
       terminalMismatch: event?.terminalMismatch,
       fSoil,
-      scheduled: scheduledIds.has(p.id),
+      scheduled,
     });
 
     if (hazards.length > 0) {
       const c = arrayCentre(p.id);
-      const kept = attenuationAt(c.x, c.z, hazards);
+      const kept = attenuationAt(c.x, c.z, localHazards);
       if (kept >= AFFECTED_THRESHOLD) affected[p.id] = kept;
     }
 
@@ -240,10 +248,10 @@ export function liveFrameAt(
     // sunset every array divides 0 by 0, reads 0.0 %, and the fleet index climbs
     // back to 100 with three cracked arrays on it. A fault is a property of the
     // array, not of the time of day.
-    const terminal: PanelStatusValue = scheduledIds.has(p.id)
+    const terminal: PanelStatusValue = scheduled
       ? 'scheduled'
       : statusFor(evaluateArray(G_REF, T_AMB_REF, {
-        faultProgress: event ? 1 : 0,
+        faultProgress: event && (!service || service.kind === 'cleaning') ? 1 : 0,
         faultedStrings: event?.faultedStrings,
         terminalMismatch: event?.terminalMismatch,
         fSoil,
@@ -285,18 +293,20 @@ export function referenceReadingAt(
   siteSeconds: number,
   injected: readonly ScenarioEvent[] = [],
   hazardEvents: readonly HazardEvent[] = [],
+  services: readonly Service[] = [],
 ): ArrayReading {
   const event = eventFor(panelId, injected);
-  const progress = event ? faultProgressAt(event, siteSeconds) : 0;
+  const service = services.find((s) => s.panelId === panelId && siteSeconds >= s.at);
+  const progress = event && (!service || service.kind === 'cleaning') ? faultProgressAt(event, siteSeconds) : 0;
   // Only what stays on the array counts against it here. A cloud is weather and
   // passes; dust is on the glass until someone washes it, so it is the one
   // hazard that makes work.
-  const settled = hazardsAt(hazardEvents, siteHour(siteSeconds)).filter((h) => h.kind === 'dust');
+  const settled = hazardsAt(hazardEvents.filter((h) => service?.kind !== 'cleaning' || h.kind !== 'dust' || h.startHour > siteHour(service.at)), siteHour(siteSeconds)).filter((h) => h.kind === 'dust');
   return evaluateUnder(panelId, { g: G_REF, tAmb: T_AMB_REF }, settled, {
     faultProgress: progress,
     faultedStrings: event?.faultedStrings,
     terminalMismatch: event?.terminalMismatch,
-    fSoil: SOIL.get(panelId),
+    fSoil: service?.kind === 'cleaning' ? undefined : SOIL.get(panelId),
   });
 }
 

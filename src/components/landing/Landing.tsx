@@ -30,7 +30,7 @@ import { panels } from '@/lib/data';
 import { MW, MWh, degC, num, pct } from '@/lib/format';
 import { useSession } from '@/store/session';
 import {
-  Capabilities, Closing, Difference, LoopSection, MissionPreview, Problem, Questions, ReferenceCase, Stack, Tour, Window,
+  Capabilities, Closing, CompletionFlow, Difference, LoopSection, MissionPreview, Problem, Questions, ReferenceCase, Stack, Tour, Window,
 } from './Sections';
 
 const LandingScene = dynamic(() => import('./LandingScene'), { ssr: false, loading: () => null });
@@ -42,7 +42,7 @@ const HEADLINE = ['See', 'the', 'fault.', 'Own', 'the', 'next', 'move.'];
 const NAV = [
   ['#problem', 'Problem'],
   ['#loop', 'The loop'],
-  ['#difference', 'Difference'],
+  ['#operations', 'Repair & verify'],
   ['#product', 'Product'],
   ['#capabilities', 'Capabilities'],
 ] as const;
@@ -150,8 +150,8 @@ export function Landing() {
             ))}
           </h1>
           <p className="lp-lede">
-            From an unexplained power drop to an evidence-backed repair plan.
-            Inspect the field, understand the urgency, and decide what happens next.
+            From a power anomaly to a verified repair.
+            Inspect the evidence, compare your options, and guide the crew through to closure.
           </p>
           <div className="lp-actions">
             <Link className="lp-cta" href="/console">Open the console</Link>
@@ -200,6 +200,7 @@ export function Landing() {
         <Window />
 
         <div className="lp-sheet">
+          <CompletionFlow />
           <Tour />
           <Capabilities />
           <Questions />

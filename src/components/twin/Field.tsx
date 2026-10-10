@@ -27,7 +27,9 @@ import {
 } from '@/lib/scene';
 import { SCENE, SCENE_MATERIAL, TWIN } from '@/lib/scenePalette';
 import { flightCueAt } from '@/store/flightCue';
-import { useArrayTints, useFlightTargetId } from '@/store/selectors';
+import { useFlightTargetId } from '@/store/selectors';
+import { useArrayTints } from '@/hooks/useOperationalSelectors';
+import { useWorkflow } from '@/hooks/useWorkflow';
 import { useSession } from '@/store/session';
 
 const ALL = panelInstances();
@@ -59,10 +61,14 @@ export function Field({ dark, interactive = true, onHover }: {
   onHover?: (id: string | null) => void;
 }) {
   // CrackedPanel draws this array even at rest, so it is excluded even at rest.
-  const drawnApart = useSession(
+  const flightArray = useSession(
     (s) => flightCueAt(s.siteSeconds, s.missions).targetId,
   );
-  const inspecting = useFlightTargetId();
+  const held = useWorkflow((s) => s.inspection);
+  const watching = useWorkflow((s) => s.watchingRepair);
+  const drawnApart = held?.panelId ?? watching ?? flightArray;
+  const flightTarget = useFlightTargetId();
+  const inspecting = held?.panelId ?? watching ?? flightTarget;
   const tints = useArrayTints();
 
   const modules = useMemo(

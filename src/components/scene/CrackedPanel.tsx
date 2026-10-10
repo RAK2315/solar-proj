@@ -2,7 +2,7 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Object3D, type InstancedMesh, type MeshBasicMaterial } from 'three';
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Object3D, type Group, type InstancedMesh, type MeshBasicMaterial } from 'three';
 
 import { cellGrid, hasCapturedEvidence } from '@/lib/data';
 import { hotCells } from '@/lib/panelCells';
@@ -15,6 +15,11 @@ import { SCENE, SCENE_MATERIAL, SURFACE } from '@/lib/scenePalette';
 import { flightCueNow, useFlightCue } from '@/store/flightCue';
 import { useHasCrackMechanism } from '@/store/selectors';
 import { panelMaterial } from './panelMaterial';
+import { inspectionPose, useWorkflow } from '@/hooks/useWorkflow';
+import { useRepairRuns } from '@/hooks/useOperationalSelectors';
+import { repairModuleAt } from '@/lib/maintenanceScene';
+import type { RepairRun } from '@/lib/maintenance';
+import { useSession } from '@/store/session';
 
 function geometry(positions: number[]): BufferGeometry {
   const mesh = new BufferGeometry();
@@ -46,12 +51,20 @@ function HeatCells({ cracked, measured }: { cracked: boolean; measured: boolean 
   useFrame(() => {
     const mesh = ref.current;
     if (!mesh) return;
-    const amount = thermalAmount(flightCueNow().t);
+    const held = inspectionPose();
+    const amount = held ? held.mode === 'thermal' ? 1 : 0 : thermalAmount(flightCueNow().t);
     mesh.visible = cracked && amount > 0;
     (mesh.material as MeshBasicMaterial).opacity = amount;
   });
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, cellGrid.rows * cellGrid.cols]} visible={false}>
+    <instancedMesh ref={ref} args={[undefined, undefined, cellGrid.rows * cellGrid.cols]} visible={false}
+      onClick={(e) => {
+        const held = inspectionPose();
+        const cell = e.instanceId !== undefined ? cells[e.instanceId] : undefined;
+        if (!held || !cell || held.mode !== 'thermal') return;
+        e.stopPropagation();
+        useWorkflow.getState().selectCell(held.panelId, cell.row, cell.col);
+      }}>
       <planeGeometry args={[PANEL_W / cellGrid.cols * 0.92, PANEL_H / cellGrid.rows * 0.9]} />
       <meshBasicMaterial
         transparent opacity={0} depthWrite={false} toneMapped={false}
@@ -73,9 +86,20 @@ function HeatCells({ cracked, measured }: { cracked: boolean; measured: boolean 
   );
 }
 
-function Panel({ x, z, cracked, measured, dark }: {
-  x: number; z: number; cracked: boolean; measured: boolean; dark: boolean;
+function Panel({ x, z, cracked, measured, dark, repair }: {
+  x: number; z: number; cracked: boolean; measured: boolean; dark: boolean; repair?: RepairRun;
 }) {
+  const surface = useRef<Group>(null);
+  useFrame(() => {
+    if (!surface.current) return;
+    const removal = repair ? repairModuleAt(repair, useSession.getState().siteSeconds).removal : 0;
+    surface.current.position.set(x + removal * 1.8,
+      POST_HEIGHT + (0.12 - POST_HEIGHT) * removal + Math.sin(removal * Math.PI) * 0.5, z + removal * 2.8);
+    surface.current.rotation.x = PANEL_TILT * (1 - removal);
+  });
+  const selected = useWorkflow((s) => s.selectedCell);
+  const held = useWorkflow((s) => s.inspection);
+  const selectedPoint = selected && held?.panelId === selected.panelId ? panelPoint(selected.col - 0.5, selected.row - 0.5) : null;
   const material = useMemo(() => panelMaterial(dark), [dark]);
   const glass = useMemo(() => {
     const mesh = panelSurfaceMesh(cracked, measured);
@@ -85,7 +109,16 @@ function Panel({ x, z, cracked, measured, dark }: {
   useEffect(() => () => { glass.faces.dispose(); glass.bevels.dispose(); glass.recesses.dispose(); glass.splinters.dispose(); }, [glass]);
 
   return (
-    <group position={[x, POST_HEIGHT, z]} rotation={[PANEL_TILT, 0, 0]}>
+    <group ref={surface} position={[x, POST_HEIGHT, z]} rotation={[PANEL_TILT, 0, 0]} onClick={(e) => {
+      if (!cracked || held?.mode !== 'thermal' || !surface.current) return;
+      // Glass is the first ray hit, so resolve its local cell before the array handler consumes it.
+      const point = surface.current.worldToLocal(e.point.clone());
+      const col = Math.floor((point.x / PANEL_W + 0.5) * cellGrid.cols) + 1;
+      const row = Math.floor((point.z / PANEL_H + 0.5) * cellGrid.rows) + 1;
+      if (row < 1 || row > cellGrid.rows || col < 1 || col > cellGrid.cols) return;
+      e.stopPropagation();
+      useWorkflow.getState().selectCell(held.panelId, row, col);
+    }}>
       <mesh material={material}>
         <boxGeometry args={[PANEL_W, 0.07, PANEL_H]} />
       </mesh>
@@ -106,6 +139,10 @@ function Panel({ x, z, cracked, measured, dark }: {
         </>
       )}
       <HeatCells cracked={cracked} measured={measured} />
+      {cracked && selectedPoint && held?.mode === 'thermal' && <mesh position={[selectedPoint[0], 0.048, selectedPoint[1]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[PANEL_W / cellGrid.cols, PANEL_H / cellGrid.rows]} />
+        <meshBasicMaterial color="white" wireframe toneMapped={false} depthWrite={false} />
+      </mesh>}
     </group>
   );
 }
@@ -116,16 +153,23 @@ function Panel({ x, z, cracked, measured, dark }: {
  */
 export function CrackedPanel({ dark = false }: { dark?: boolean }) {
   const cue = useFlightCue();
-  const cracked = useHasCrackMechanism(cue.targetId);
-  const base = useMemo(() => arrayCentre(cue.targetId), [cue.targetId]);
-  const measured = hasCapturedEvidence(cue.targetId);
+  const held = useWorkflow((s) => s.inspection);
+  const watching = useWorkflow((s) => s.watchingRepair);
+  const targetId = held?.panelId ?? watching ?? cue.targetId;
+  const mechanism = useHasCrackMechanism(targetId);
+  const runs = useRepairRuns();
+  const at = useSession((s) => s.siteSeconds);
+  const cracked = mechanism && !runs.some((r) => r.panelId === targetId && r.kind === 'module' && at >= r.completedAt);
+  const base = useMemo(() => arrayCentre(targetId), [targetId]);
+  const measured = hasCapturedEvidence(targetId);
   const offsets = useMemo(() => Array.from({ length: PANELS_PER_ARRAY }, (_, i) => moduleOffsetX(i)), []);
 
   return (
     <group>
       {offsets.map((dx, i) => (
         <Panel key={i} x={base.x + dx} z={base.z} dark={dark}
-          cracked={cracked && i === DAMAGED_INDEX} measured={measured} />
+          cracked={cracked && i === DAMAGED_INDEX} measured={measured}
+          repair={i === DAMAGED_INDEX ? runs.find((r) => r.panelId === targetId && r.kind === 'module') : undefined} />
       ))}
       {offsets.map((dx, i) => (
         <mesh key={`post-${i}`} position={[base.x + dx, POST_HEIGHT / 2, base.z]}>

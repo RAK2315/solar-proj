@@ -4,6 +4,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { cameraAt, inspectionTarget } from '@/lib/scene';
 import { useSession } from '@/store/session';
+import { useWorkflow } from '@/hooks/useWorkflow';
+import { operatorCameraAt, operatorViewport } from '@/lib/twinCamera';
 import { TwinCamera } from './TwinCamera';
 
 const driver = vi.hoisted(() => ({ frame: () => {}, state: {} as object }));
@@ -12,7 +14,7 @@ vi.mock('@react-three/fiber', () => ({
   useThree: (select: (state: object) => unknown) => select(driver.state),
 }));
 
-afterEach(() => { cleanup(); useSession.getState().resetSession(); });
+afterEach(() => { cleanup(); useSession.getState().resetSession(); useWorkflow.setState({ watchingRepair: null, inspection: null }); });
 
 it('uses the calibrated camera immediately when seeking from overview into inspection', () => {
   useSession.getState().resetSession();
@@ -35,4 +37,20 @@ it('uses the calibrated camera immediately when seeking from overview into inspe
   const projected = new Vector3(sample.look.x, sample.look.y, sample.look.z).project(camera);
   expect(projected.x).toBeCloseTo(0, 6);
   expect(projected.y).toBeCloseTo(0, 6);
+});
+
+it('keeps maintenance in the default overview even after focusing an array', () => {
+  useSession.getState().resetSession();
+  useSession.setState({ selectedPanelId: 'B-17', followFlight: true });
+  useWorkflow.setState({ watchingRepair: 'B-17', inspection: null });
+  const camera = new PerspectiveCamera(58, 1920 / 1080, 0.5, 600);
+  driver.state = { camera, size: { width: 1920, height: 1080 }, gl: { domElement: document.createElement('canvas') } };
+  render(<TwinCamera overlay={createRef()} request={{ view: 'selected', revision: 1 }} />);
+  act(() => driver.frame());
+  const sample = operatorCameraAt('overview', 'B-17', operatorViewport(1920, 1080).aspect);
+  expect(camera.position.toArray()).toEqual([sample.pos.x, sample.pos.y, sample.pos.z]);
+  expect(camera.view?.enabled).toBe(true);
+  act(() => useSession.setState({ siteSeconds: 20000 }));
+  act(() => driver.frame());
+  expect(camera.position.toArray()).toEqual([sample.pos.x, sample.pos.y, sample.pos.z]);
 });

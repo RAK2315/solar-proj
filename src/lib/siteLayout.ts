@@ -12,3 +12,12 @@ export const SITE_ZONES = farm.zones.map((zone) => {
   const maxZ = Math.max(...centres.map((p) => p.z)) + PANEL_H / 2 + 3;
   return { id: zone.id, minX, maxX, minZ, maxZ, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 };
 });
+
+/** Reuse the central service box so road access and the crew origin agree. */
+export const SERVICE_HUB = {
+  x: SITE_ZONES[1].minX - 5, z: SITE_ZONES[1].z,
+  roadX: SITE_ZONES[0].minX - 10, name: 'Maintenance bay',
+};
+
+export const SITE_AISLES = farm.zones.flatMap((zone, i) => [...new Set(zone.panels.map((p) => arrayCentre(p.id).z))]
+  .map((z) => ({ id: `${zone.id}:${z}`, x: SITE_ZONES[i].x, z: z + 4, width: SITE_ZONES[i].maxX - SITE_ZONES[i].minX + 18 })));

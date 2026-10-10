@@ -135,11 +135,31 @@ describe('the landing page', () => {
     expect(container.querySelector('.sy-landscene img')?.getAttribute('src')).toBe('/landing/still.jpg');
   });
 
-  it('names all eight steps of the loop, ending at a person', () => {
+  it('follows approval through crew work to operator closure', () => {
     const { container } = render(<Landing />);
     const steps = [...container.querySelectorAll('.loop li')].map((li) => text(li));
-    expect(steps).toHaveLength(8);
+    expect(steps).toHaveLength(10);
     expect(steps[7]).toContain('Human approval');
+    expect(steps[8]).toContain('Crew and repair');
+    expect(steps[9]).toContain('Verification and closure');
+  });
+
+  it('explains the operating features and links only the chosen measured cell', () => {
+    const { getByRole, container } = render(<Landing />);
+    const detail = () => text(container.querySelector('#operation-detail') as Element);
+    expect(detail()).toContain('maintenance bay');
+    fireEvent.click(getByRole('button', { name: 'Electrical cutaway' }));
+    expect(detail()).toContain('illustrated mechanism');
+    fireEvent.click(getByRole('button', { name: 'Two possible futures' }));
+    expect(detail()).toContain('same forecast');
+    fireEvent.click(getByRole('button', { name: 'Linked evidence' }));
+    fireEvent.click(getByRole('button', { name: 'Preview measured cell R2 C5' }));
+    expect(detail()).toContain('R2 C5');
+    expect(detail()).toContain(cellGrid.matrix[1][4].toFixed(1));
+    expect(container.querySelectorAll('.lp-linked-grid [aria-pressed="true"]')).toHaveLength(1);
+    fireEvent.click(getByRole('button', { name: 'Better inspection coverage' }));
+    expect(detail()).toContain('actual detector result');
+    expect(detail()).toContain('without promising a detection');
   });
 
   it('explains each workflow handoff without approving any work', () => {

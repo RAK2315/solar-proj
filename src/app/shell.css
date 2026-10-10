@@ -62,6 +62,8 @@
 /* Dark glass over the drone's daylit view. Measured at the design gate: secondary
    text needs the backdrop darkened by half to hold 4.5:1 over the bright ground. */
 :root:not([data-theme='light']) .sy[data-follow='true'] { --glass: rgb(12 16 23 / 0.76); }
+:root:not([data-theme='light']) .sy[data-inspection='true'],
+:root:not([data-theme='light']) .sy[data-maintenance='true'] { --glass: rgb(12 16 23 / 0.9); }
 
 .sy [data-sev='info'], .sy [data-sev='healthy'] { --sev: var(--line-hi); --sev-ink: var(--ink); }
 .sy [data-sev='critical'] { --sev: var(--i60); --sev-ink: var(--crit-ink); }
@@ -134,6 +136,134 @@
 }
 .sy-sheet { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
 .sy-sheet > * { min-width: 0; }
+
+/* One workspace makes the evidence-to-repair path readable without extra floating windows. */
+.sy-workflow { grid-column: 1 / -1; min-width: 0; }
+.workflow-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.workflow-tabs .tool { display: flex; align-items: center; gap: 9px; padding: 12px 18px; }
+.workflow-tabs [aria-pressed='true'] { background: var(--live); color: var(--on-live); border-color: var(--live); }
+.workflow-body { display: grid; gap: 22px; padding-top: 26px; animation: workflow-enter 260ms ease-out both; }
+.workflow-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
+.workflow-intro > div:first-child { max-width: 780px; }
+.workflow-intro h2 { font-size: var(--t5); line-height: 1.15; margin: 12px 0; letter-spacing: -0.025em; }
+.workflow-intro p { font-size: var(--t2); color: var(--ink-2); line-height: 1.6; }
+.workflow-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.workflow-card { display: grid; gap: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--well); min-width: 0; }
+.workflow-card h3 { display: flex; align-items: center; gap: 10px; font-size: var(--t3); font-weight: 500; }
+.workflow-card p, .workflow-basis { color: var(--ink-2); line-height: 1.6; }
+.workflow-basis { font-size: var(--t1); }
+.workflow-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.workflow-card .primary, .workflow-intro .primary, .inspection-hud .primary { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 13px 18px; background: var(--live); color: var(--on-live); border-color: var(--live); }
+.workflow-actions .tool { padding: 10px 14px; }
+.capture-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; }
+.capture-thumb { flex: 0 0 146px; display: grid; gap: 6px; padding: 8px !important; border: 1px solid var(--line) !important; border-radius: 10px; text-align: left; }
+.capture-thumb[aria-pressed='true'] { border-color: var(--live) !important; box-shadow: inset 0 0 0 1px var(--live); }
+.capture-thumb img { width: 100%; height: 86px; object-fit: cover; border-radius: 5px; }
+.capture-thumb strong { color: var(--live); font-weight: 500; }
+.capture-caption { padding: 10px 12px; background: var(--well); border-radius: 8px; }
+.workflow-card .detframe { max-height: 420px; overflow: hidden; border-radius: 10px; }
+.workflow-card .detframe img { width: 100%; max-height: 420px; object-fit: contain; }
+.recorded-thermal { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 18px !important; }
+.recorded-thermal img { width: 100%; max-height: 240px; object-fit: contain; image-rendering: pixelated; border-radius: 8px; background: var(--void); }
+.recorded-thermal figcaption { color: var(--ink-2); }
+.linked-evidence { display: grid; gap: 14px; }
+.linked-grid { display: grid; gap: 5px; }
+.linked-grid button { display: grid; gap: 4px; padding: 9px 2px; min-width: 0; border: 2px solid transparent; border-radius: 5px; font-size: var(--t1); color: #fff; }
+.linked-grid [data-ink='dark'] { color: #10151f; }
+.linked-grid [aria-pressed='true'] { border-color: var(--ink); outline: 3px solid var(--live); outline-offset: 2px; z-index: 1; }
+.linked-reading { min-height: 44px; padding: 10px 12px !important; background: var(--well); border-left: 3px solid var(--live); border-radius: 4px; }
+.cutaway-stage { height: 560px; position: relative; perspective: 1100px; background: radial-gradient(ellipse, color-mix(in oklab, var(--live), transparent 94%), transparent 75%); overflow: hidden; border: 1px solid var(--line); border-radius: 16px; }
+.cutaway-layer { position: absolute; width: 72%; height: 54%; left: 14%; top: 22%; transform: rotateX(48deg) rotateZ(-20deg); transition: transform 700ms cubic-bezier(.2,.7,.2,1), opacity 400ms; transform-style: preserve-3d; border-radius: 5px; }
+.cutaway-layer > span { display: none; }
+.cutaway-legend { position: absolute; bottom: 18px; left: 20px; right: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 20px; color: var(--ink-2); }
+.cutaway-legend span { padding: 6px 10px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; }
+.backsheet { background: var(--raised); border: 2px solid var(--line-hi); box-shadow: 0 14px 0 var(--line); }
+.cutaway-layer svg { width: 100%; height: 100%; overflow: visible; }
+.cutaway-layer path { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.circuit-normal { stroke: var(--line-hi); }
+.circuit-bypass, .diode-symbol { stroke: var(--live); opacity: 0; transition: opacity 300ms; }
+[data-bypass='true'] .circuit-bypass, [data-bypass='true'] .diode-symbol { opacity: 1; }
+.cell-plane { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(5, 1fr); gap: 4px; padding: 8px; background: #0d253a; border: 2px solid #73869a; box-shadow: 0 7px 0 #182f47; }
+.cell-plane .cutaway-cell { background: #204363; border: 1px solid #506477; border-radius: 2px; background-image: repeating-linear-gradient(0deg, transparent 0 8px, rgb(255 255 255 / .12) 8px 9px); }
+.cell-plane .cutaway-cell[data-hot='true'] { background-color: var(--i80); }
+.cell-plane .cutaway-cell[aria-pressed='true'] { outline: 3px solid var(--live); outline-offset: 1px; }
+.coverglass { background: rgb(130 184 220 / .1); border: 1px solid color-mix(in oklab, var(--line-hi), transparent 25%); pointer-events: none; }
+.coverglass path { stroke: var(--ink); stroke-width: 4; }
+.cutaway-stage[data-open='true'] .backsheet { transform: translateY(130px) rotateX(48deg) rotateZ(-20deg); }
+.cutaway-stage[data-open='true'] .cell-plane { transform: translateY(-15px) rotateX(48deg) rotateZ(-20deg); }
+.cutaway-stage[data-open='true'] .coverglass { transform: translateY(-140px) rotateX(48deg) rotateZ(-20deg); }
+.cutaway-stage[data-open='false'] .coverglass, .cutaway-stage[data-open='false'] .cell-plane { transform: rotateX(48deg) rotateZ(-20deg) translateZ(12px); }
+.mechanism-chain { display: grid; gap: 20px; counter-reset: mechanism; }
+.mechanism-chain li { border-left: 2px solid var(--live); padding-left: 16px; }
+.mechanism-chain strong { font-size: var(--t2); }
+.cutaway-notes .blk { background: transparent; padding: 0 !important; border: 0 !important; }
+.delay-control { display: grid; gap: 9px; flex: 0 0 210px; }
+.delay-control select { padding: 12px 14px; background: var(--raised); border: 1px solid var(--line); }
+.futures-chart { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--well); }
+.futures-chart svg { width: 100%; max-height: 240px; overflow: visible; }
+.futures-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-bottom: 16px; color: var(--ink-2); }
+.futures-legend span { display: flex; align-items: center; gap: 8px; }
+.futures-legend span::before { content: ''; width: 24px; border-top: 3px solid var(--live); }
+.futures-legend [data-future='later']::before { border-color: var(--i80); }
+.futures-legend [data-future='deadline']::before { border-color: var(--i60); border-top-style: dashed; }
+.future-timeline { margin: 20px 0; }
+.future-track { height: 12px; border-radius: 4px; position: relative; background: var(--line); }
+.future-track i { position: absolute; height: 100%; }
+.future-wait { background: repeating-linear-gradient(135deg, var(--line-hi) 0 3px, transparent 3px 7px); }
+.future-work { background: var(--live); }
+[data-future='later'] .future-work { background: var(--i80); }
+.future-restored { background: color-mix(in oklab, var(--live) 20%, var(--well)); }
+.future-track b { position: absolute; top: -5px; height: 22px; border-left: 3px solid var(--ink); }
+.future-track .future-deadline { border-color: var(--i60); border-left-style: dashed; }
+.future-ticks { display: flex; justify-content: space-between; margin: 10px 0; color: var(--ink-2); }
+.futures-chart text { fill: var(--ink-2); font-size: 16px; font-family: var(--sans); }
+.chart-grid { stroke: var(--line); fill: none; }
+.future-later, .future-soon { fill: none; stroke-width: 4; stroke-linejoin: round; }
+.future-later { stroke: var(--i80); }
+.future-soon { stroke: var(--live); }
+.deadline-line { stroke: var(--crit-ink); stroke-dasharray: 5 7; stroke-width: 2; }
+.future-summary h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--live); }
+.future-summary[data-future='later'] h3 i { background: var(--i80); }
+.future-value { font-size: var(--t5); font-weight: 500; color: var(--live); }
+[data-future='later'] .future-value { color: var(--warn-ink); }
+.workflow-card dl { display: grid; gap: 10px; }
+.workflow-card dl > div { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.workflow-card dt { color: var(--ink-2); }
+.workflow-card dd { text-align: right; }
+.repair-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.repair-steps li { display: flex; align-items: center; gap: 12px; border-top: 3px solid var(--line); padding: 16px 0; color: var(--ink-2); }
+.repair-steps li[data-done='true'] { border-color: var(--live); color: var(--ink); }
+.repair-steps li > span { border: 1px solid var(--line-hi); border-radius: 50%; display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; }
+.repair-steps strong { font-weight: 500; }
+.workflow-card progress { width: 100%; height: 8px; accent-color: var(--live); }
+.workflow-complete { display: flex; gap: 12px; align-items: center; border: 1px solid var(--live); padding: 16px !important; border-radius: 10px; background: color-mix(in oklab, var(--live) 10%, var(--panel)); }
+.workflow-card progress::-webkit-progress-bar, .repair-hud progress::-webkit-progress-bar { background: var(--line); border-radius: 4px; }
+.workflow-card progress::-webkit-progress-value, .repair-hud progress::-webkit-progress-value { background: var(--live); border-radius: 4px; }
+.verification-values { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 12px; align-items: center; padding: 18px 0; }
+.verification-values > div { display: grid; gap: 9px; }
+.verification-values strong { font-size: var(--t4); font-weight: 500; }
+.verification-values span { color: var(--ink-2); }
+.sy[data-inspection='true'] .sy-stage, .sy[data-inspection='true'] .sy-left, .sy[data-inspection='true'] .sy-view-tools, .sy[data-inspection='true'] .sy-field-legend { display: none; }
+.sy[data-maintenance='true'] .sy-stage, .sy[data-maintenance='true'] .sy-left, .sy[data-maintenance='true'] .sy-view-tools, .sy[data-maintenance='true'] .sy-field-legend { display: none; }
+.repair-hud { position: absolute; right: 16px; top: 16px; width: 370px; max-height: calc(100vh - 32px); overflow-y: auto; border-radius: 16px; padding: 24px; display: grid; gap: 18px; pointer-events: auto; }
+.repair-hud h2 { font-size: var(--t3); font-weight: 500; }
+.repair-hud p { color: var(--ink-2); }
+.repair-hud progress { accent-color: var(--live); width: 100%; height: 8px; }
+.sy-inspection { position: absolute; inset: 0; z-index: var(--z-panel); pointer-events: none; }
+.inspection-hud { position: absolute; right: 16px; top: 16px; bottom: 16px; width: 370px; max-width: calc(100vw - 150px); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; pointer-events: auto; }
+.inspection-hud h2 { font-size: var(--t4); font-weight: 500; }
+.inspection-hud h3 { font-size: var(--t2); }
+.inspection-hud p { color: var(--ink-2); }
+.inspection-hud .seg { flex-wrap: wrap; gap: 6px; }
+.inspection-hud .seg .tool { padding: 8px; }
+.inspection-hud .linked-grid { gap: 3px; }
+.inspection-hud .linked-grid button { padding: 8px 0; }
+.inspection-hud .linked-grid button span { display: none; }
+.inspection-result { border-left: 3px solid var(--live); padding: 10px 12px; background: var(--well); }
+@keyframes workflow-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1450px) { .workflow-card { padding: 18px; } .workflow-columns { gap: 16px; } .workflow-intro h2 { font-size: var(--t4); } .cutaway-stage { height: 480px; } .inspection-hud { width: 320px; padding: 18px; } .linked-grid button span { display: none; } }
+@media (max-width: 900px) { .workflow-columns { grid-template-columns: minmax(0, 1fr); } .workflow-intro { flex-direction: column; gap: 16px; } .delay-control { flex-basis: auto; width: 100%; } .repair-steps { grid-template-columns: minmax(0, 1fr); gap: 0; } .workflow-tabs .tool { padding: 10px; } .repair-hud { max-width: calc(100vw - 150px); } }
+@media (prefers-reduced-motion: reduce) { .workflow-body { animation: none; } .cutaway-layer { transition: none; } }
 
 /* Charts and decisions need a stable surface over changing terrain. */
 .sy-stage[data-layout='wide']::before { background: var(--panel); }

@@ -1,4 +1,5 @@
 'use client';
+import { useSiteFrame } from '@/hooks/useOperationalSelectors';
 
 /**
  * Rail: where the operator is, what time the site thinks it is, and how the site
@@ -11,8 +12,9 @@ import {
 } from 'lucide-react';
 
 import { MW, num } from '@/lib/format';
-import { useFlatField, useSiteFrame } from '@/store/selectors';
+import { useFlatField } from '@/store/selectors';
 import { useSession, type ModuleId } from '@/store/session';
+import { useWorkflow } from '@/hooks/useWorkflow';
 
 export type ScreenId = 'site' | 'incident' | 'queue' | 'analytics' | 'drones' | 'sandbox';
 
@@ -92,7 +94,7 @@ export function Rail({ screen }: { screen: ScreenId }) {
       <span className="brand">Surya</span>
       <div className="tabs">
         {NAV.map(({ id, label, Icon }) => (
-          <button key={id} type="button" aria-current={id === screen ? 'page' : undefined} onClick={() => setModule(id)}>
+          <button key={id} type="button" aria-current={id === screen ? 'page' : undefined} onClick={() => { useWorkflow.setState({ inspection: null, watchingRepair: null }); setModule(id); }}>
             <Icon size={18} strokeWidth={1.75} aria-hidden /><span>{label}</span>
           </button>
         ))}

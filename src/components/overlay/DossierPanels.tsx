@@ -1,4 +1,5 @@
 'use client';
+import { useInverterReadings } from '@/hooks/useOperationalSelectors';
 
 /**
  * The dossier: what a sensor read, then what a model made of it.
@@ -20,11 +21,7 @@ import { moduleRoi } from '@/lib/roi';
 import { M } from '@/lib/scene';
 import { useDetector, type DetectorResult } from '@/store/detector';
 import { useFlightCue } from '@/store/flightCue';
-import {
-  BEAT, siteClockAt, useAgentCache, useCellGrid, useDetection, useEvidence, useFollowingFlight,
-  useHazards, useInjected, useInspected, useInspectionClock, useInverterReadings,
-  useIsDark, useMatrixFillCount, useSelectedPanelId, useSiteSeconds, useTriageCondition,
-} from '@/store/selectors';
+import { BEAT, siteClockAt, useAgentCache, useCellGrid, useDetection, useEvidence, useFollowingFlight, useHazards, useInjected, useInspected, useInspectionClock, useIsDark, useMatrixFillCount, useSelectedPanelId, useSiteSeconds, useTriageCondition,  } from '@/store/selectors';
 import { useSession } from '@/store/session';
 import { useTriage } from '@/store/triage';
 import { Blk, Why } from './Block';

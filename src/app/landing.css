@@ -604,6 +604,60 @@
 .sy[data-motion='calm'] [data-reveal], .sy[data-motion='calm'] .lp-matrix i { opacity: 1; transform: none; }
 .sy[data-motion='calm'] .lp-dose i, .sy[data-motion='calm'] .lp-sum .fill { transform: scaleX(1); }
 
+.lp-operations { display: grid; grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1.7fr); gap: 32px; }
+.lp-operation-menu { display: flex; flex-direction: column; gap: 10px; }
+.sy .lp-operation-menu button { display: grid; grid-template-columns: 24px 1fr 18px; align-items: center; gap: 16px; padding: 21px 20px; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); font-size: 16px; color: var(--ink-2); transition: translate 200ms ease, border-color 200ms ease, background 200ms ease; }
+.sy .lp-operation-menu button[aria-pressed='true'] { color: var(--ink); border-color: var(--live); background: var(--well); box-shadow: inset 3px 0 var(--live); }
+.sy .lp-operation-menu button:hover { translate: 4px 0; border-color: var(--live); }
+.lp-operation-menu > p { padding: 18px 4px; color: var(--ink-2); font-size: 14px; }
+.lp-operation-detail { overflow: hidden; border: 1px solid var(--line-hi); border-radius: 18px; background: var(--panel); }
+.lp-operation-art { position: relative; display: grid; place-items: center; min-height: 270px; padding: 58px 28px 28px; border-bottom: 1px solid var(--line); background: radial-gradient(ellipse at 50% 100%, color-mix(in oklab, var(--live) 10%, transparent), transparent 70%), var(--void); }
+.lp-art-label { position: absolute; top: 22px; left: 28px; font-size: 14px; color: var(--ink-2); }
+.lp-operation-copy { padding: 32px; display: flex; flex-direction: column; gap: 22px; }
+.lp-operation-copy h3 { font-size: clamp(25px, 2.3vw, 34px); letter-spacing: -0.03em; line-height: 1.2; }
+.lp-operation-copy > p { color: var(--ink-2); font-size: 18px; max-width: 70ch; }
+.lp-operation-copy ol { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-operation-copy li { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 14px; }
+.lp-operation-outcome { display: flex; gap: 12px; align-items: center; color: var(--live); font-size: 16px; }
+.lp-operation-copy .lp-ghost { align-self: flex-start; font-size: 16px; }
+.lp-service-route { display: grid; grid-template-columns: 120px minmax(80px, 1fr) 120px; align-items: center; width: 100%; max-width: 620px; }
+.lp-bay, .lp-repair-array { display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center; font-size: 14px; }
+.lp-bay > svg { box-sizing: content-box; padding: 24px; border: 1px solid var(--line-hi); border-radius: 8px 8px 0 0; color: var(--warn-ink); background: var(--well); }
+.lp-repair-array > svg:first-child { color: var(--live); transform: perspective(200px) rotateX(20deg) rotateZ(-12deg); }
+.lp-repair-array > svg:nth-child(2) { position: absolute; translate: 42px 26px; color: var(--warn-ink); }
+.lp-road { height: 46px; position: relative; border-block: 1px solid var(--line-hi); margin-top: -32px; background: var(--well); }
+.lp-road > i { position: absolute; top: 50%; width: 100%; border-top: 1px dashed var(--ink-2); opacity: 0.35; }
+.lp-van { position: absolute; left: 6%; top: 2px; color: var(--ink); background: var(--panel); border-radius: 6px; }
+.lp-operations[data-in='true'] .lp-van { --lp-animation-duration: 9s; --lp-animation-count: infinite; animation: lp-service-drive 9s ease-in-out infinite; }
+@keyframes lp-service-drive { 0%, 12% { left: 6%; scale: 1 1; } 42%, 62% { left: calc(94% - 42px); scale: 1 1; } 64% { left: calc(94% - 42px); scale: -1 1; } 94%, 100% { left: 6%; scale: -1 1; } }
+.lp-module-layers { display: flex; gap: 16px; perspective: 700px; }
+.lp-module-layers > div { display: flex; flex-direction: column; gap: 16px; align-items: center; padding: 20px; border: 1px solid var(--line-hi); border-radius: 10px; background: var(--well); color: var(--ink-2); transform: rotateY(-18deg) rotateX(12deg); font-size: 14px; }
+.lp-module-layers > div:nth-child(2) { color: var(--warn-ink); translate: 0 -12px; }
+.lp-module-layers > div:last-child { color: var(--live); translate: 0 -24px; }
+.lp-future-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; width: 100%; }
+.lp-future-pair > div { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 22px; color: var(--live); }
+.lp-future-pair > div:nth-child(2) { color: var(--warn-ink); }
+.lp-future-pair strong { color: var(--ink); font-size: 18px; }
+.lp-future-pair span, .lp-future-pair > p { color: var(--ink-2); font-size: 14px; }
+.lp-future-pair > p { grid-column: 1 / -1; }
+.lp-future-pair i { height: 6px; width: 40%; border-radius: 3px; background: var(--live); }
+.lp-future-pair > div:nth-child(2) i { width: 85%; background: var(--warn-ink); }
+.lp-linked-preview { display: flex; gap: 32px; align-items: center; }
+.lp-linked-grid { display: grid; gap: 5px; width: 250px; }
+.sy .lp-linked-grid button { height: 28px; border: 2px solid transparent; border-radius: 3px; }
+.sy .lp-linked-grid button[aria-pressed='true'], .sy .lp-linked-grid button:hover { border-color: var(--ink); scale: 1.1; }
+.lp-linked-preview > div:last-child { display: flex; flex-direction: column; gap: 10px; font-size: 16px; }
+.lp-linked-preview strong { font-size: 28px; }
+.lp-linked-preview p { font-size: 14px; color: var(--ink-2); }
+.lp-angle-strip { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+.lp-angle-strip > div { display: flex; flex-direction: column; gap: 16px; align-items: center; padding: 20px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink-2); font-size: 14px; }
+.lp-angle-strip > div:nth-child(2) svg { rotate: -15deg; color: var(--live); }
+.lp-angle-strip > div:nth-child(3) svg { rotate: 15deg; }
+.lp-angle-strip i { width: 60px; border-top: 2px solid var(--line-hi); }
+.lp-angle-strip > p { flex-basis: 100%; text-align: center; font-size: 14px; color: var(--ink-2); }
+@media (max-width: 1080px) { .lp-operations { grid-template-columns: 1fr; } .lp-operation-menu { display: grid; grid-template-columns: repeat(3, 1fr); } .lp-operation-menu > p { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .lp-operation-menu { grid-template-columns: 1fr; } .lp-operation-art { padding-inline: 16px; } .lp-operation-copy { padding: 24px; } .lp-linked-preview { flex-direction: column; } .lp-module-layers { gap: 6px; } .lp-module-layers > div { padding: 14px; } }
+
 /* ── Less motion ────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

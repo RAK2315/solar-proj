@@ -24,6 +24,7 @@ import { operatorCameraAt, operatorViewport, type CameraRequest } from '@/lib/tw
 import { flightCueNow } from '@/store/flightCue';
 import { useSession } from '@/store/session';
 import { twinProbe } from './probe';
+import { inspectionPose, useWorkflow } from '@/hooks/useWorkflow';
 
 const GROUND = new Plane(new Vector3(0, 1, 0), 0);
 
@@ -77,16 +78,20 @@ export function TwinCamera({ overlay, request }: { overlay: RefObject<HTMLDivEle
   useFrame(() => {
     const s = useSession.getState();
     const cue = flightCueNow();
-    const follow = s.followFlight && cue.active;
+    const held = inspectionPose();
+    const workflow = useWorkflow.getState();
+    const watchingRepair = Boolean(workflow.watchingRepair);
+    const follow = Boolean(held) || !watchingRepair && s.followFlight && cue.active;
     const viewport = operatorViewport(size.width, size.height);
-    const key = `${request.view}/${request.revision}/${request.view === 'selected' ? s.selectedPanelId : ''}/${follow}`;
+    const key = `${request.view}/${request.revision}/${request.view === 'selected' ? s.selectedPanelId : ''}/${follow}/${watchingRepair}`;
     if (key !== previous.current) { manual.current = false; previous.current = key; }
     const orbit = controls.current;
     if (orbit) orbit.enabled = !follow && !s.armedHazard;
-    const sample = follow
+    // Maintenance keeps the field context visible throughout travel and replacement.
+    const sample = held ? cameraAt(held.t, held.target) : follow
       ? cameraAt(cue.t, cue.target)
-      : operatorCameraAt(request.view, s.selectedPanelId, viewport.aspect);
-    const calibrated = follow && cue.t >= M.lock && cue.t < M.thermalDone;
+      : operatorCameraAt(watchingRepair ? 'overview' : request.view, s.selectedPanelId, viewport.aspect);
+    const calibrated = Boolean(held) || follow && cue.t >= M.lock && cue.t < M.thermalDone;
 
     want.set(sample.pos.x, sample.pos.y, sample.pos.z);
     wantLook.set(sample.look.x, sample.look.y, sample.look.z);

@@ -390,7 +390,7 @@ Vishnu Tripathi
 - End on the thesis: "From anomaly to action."
 - The "what is not" block is not a weakness. Volunteering the limits is what makes everything above it credible, and it pre-empts the one question that would otherwise land badly.
 - The team block is filled in. The brief asks for it explicitly, so do not drop it for space.
-
+cm
 ---
 
 ## IMAGE CHECKLIST
